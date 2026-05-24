@@ -9,7 +9,6 @@ const upload = multer({ storage: multer.memoryStorage() });
 // Middleware for all admin routes
 router.use(protect, adminOnly);
 
-// Bulk Uploads
 router.post('/bulk-upload/:type', upload.single('file'), adminController.uploadMasterData);
 
 // Generic Single Record CRUD
