@@ -360,6 +360,7 @@ exports.uploadMasterData = async (req, res) => {
 const getModelForType = (type) => {
   switch (type) {
     case 'students': return User;
+    case 'evaluators': return User;
     case 'colleges': return College;
     case 'courses':  return Course;
     case 'groups':   return Group;
@@ -375,6 +376,19 @@ exports.createRecord = async (req, res) => {
     const { type } = req.params;
     const Model = getModelForType(type);
     if (!Model) return res.status(400).json({ message: 'Invalid record type' });
+
+    if (type === 'evaluators') {
+      const existing = await User.findOne({ regdNo: req.body.regdNo });
+      if (existing) return res.status(400).json({ message: 'An evaluator with this email already exists.' });
+      
+      req.body.role = 'EVALUATOR';
+      req.body.isSetupComplete = true;
+      
+      const newRecord = new User(req.body);
+      await newRecord.save();
+      const populated = await User.findById(newRecord._id).populate('subjects').select('-password');
+      return res.status(201).json({ message: 'Evaluator created successfully', record: populated });
+    }
 
     if (type === 'papers' && req.body.subjectIds && Array.isArray(req.body.subjectIds)) {
       const subjects = await Subject.find({ subCode: { $in: req.body.subjectIds } });
@@ -427,6 +441,26 @@ exports.updateRecord = async (req, res) => {
     const { type, id } = req.params;
     const Model = getModelForType(type);
     if (!Model) return res.status(400).json({ message: 'Invalid record type' });
+
+    if (type === 'evaluators') {
+      const evaluator = await User.findById(id);
+      if (!evaluator) return res.status(404).json({ message: 'Evaluator not found' });
+      
+      evaluator.fullName = req.body.fullName || evaluator.fullName;
+      evaluator.regdNo = req.body.regdNo || evaluator.regdNo;
+      
+      if (req.body.password && req.body.password.trim() !== '') {
+        evaluator.password = req.body.password;
+      }
+      
+      if (req.body.subjects) {
+        evaluator.subjects = req.body.subjects;
+      }
+      
+      await evaluator.save();
+      const updated = await User.findById(id).populate('subjects').select('-password');
+      return res.json({ message: 'Evaluator updated successfully', record: updated });
+    }
 
     if (type === 'papers' && req.body.subjectIds && Array.isArray(req.body.subjectIds)) {
       const subjects = await Subject.find({ subCode: { $in: req.body.subjectIds } });
@@ -519,7 +553,10 @@ exports.getSubjects = async (req, res) => {
 
 exports.getEvaluators = async (req, res) => {
   try {
-    const evaluators = await User.find({ role: 'EVALUATOR' }).select('-password');
+    const evaluators = await User.find({ role: 'EVALUATOR' })
+      .populate('subjects')
+      .select('-password')
+      .lean();
     res.json(evaluators);
   } catch (error) { res.status(500).json({ message: error.message }); }
 };
@@ -768,5 +805,92 @@ exports.getAssignments = async (req, res) => {
       .populate('evaluatorId', 'fullName')
       .sort({ createdAt: -1 });
     res.json(assignments);
+  } catch (error) { res.status(500).json({ message: error.message }); }
+};
+
+exports.getPaperGrades = async (req, res) => {
+  try {
+    const studentId = req.params.studentId || req.user?._id;
+    if (!studentId) {
+      return res.status(400).json({ message: 'Student ID is required.' });
+    }
+
+    // 1. Fetch all Papers and their mapped subjects
+    const papers = await Paper.find().populate('subjectIds').lean();
+
+    // 2. Fetch all student assignments
+    const assignments = await Assignment.find({ studentId }).lean();
+
+    const assignmentMap = new Map(
+      assignments.map(a => [a.subjectId.toString(), a])
+    );
+
+    const paperGrades = papers.map(paper => {
+      let obtainedScore = 0;
+      let paperMaxMarks = 0;
+      let evaluatedCount = 0;
+      let totalSubjectsCount = paper.subjectIds?.length || 0;
+      const subjectsList = [];
+
+      (paper.subjectIds || []).forEach(sub => {
+        const assignment = assignmentMap.get(sub._id.toString());
+        paperMaxMarks += sub.maxMarks || 0;
+
+        if (assignment && assignment.status === 'Evaluated') {
+          obtainedScore += assignment.score || 0;
+          evaluatedCount++;
+          subjectsList.push({
+            subCode: sub.subCode,
+            subName: sub.subName,
+            score: assignment.score,
+            maxMarks: sub.maxMarks,
+            status: 'Evaluated'
+          });
+        } else {
+          subjectsList.push({
+            subCode: sub.subCode,
+            subName: sub.subName,
+            score: null,
+            maxMarks: sub.maxMarks,
+            status: assignment ? assignment.status : 'Not Assigned'
+          });
+        }
+      });
+
+      let paperStatus = 'Pending';
+      if (totalSubjectsCount > 0) {
+        if (evaluatedCount === totalSubjectsCount) paperStatus = 'Evaluated';
+        else if (evaluatedCount > 0) paperStatus = 'Partially Evaluated';
+      }
+
+      return {
+        paperCode: paper.paperCode,
+        paperName: paper.paperName,
+        semester: paper.semester,
+        passMarks: paper.passMarks || 0,
+        maxMarks: paperMaxMarks,
+        obtainedScore: evaluatedCount > 0 ? obtainedScore : null,
+        status: paperStatus,
+        subjects: subjectsList
+      };
+    });
+
+    res.json(paperGrades);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.assignSubjectsToEvaluator = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { subjectIds } = req.body;
+    const evaluator = await User.findOneAndUpdate(
+      { _id: id, role: 'EVALUATOR' },
+      { subjects: subjectIds },
+      { new: true }
+    ).populate('subjects');
+    if (!evaluator) return res.status(404).json({ message: 'Evaluator not found' });
+    res.json({ message: 'Subjects assigned successfully', evaluator });
   } catch (error) { res.status(500).json({ message: error.message }); }
 };

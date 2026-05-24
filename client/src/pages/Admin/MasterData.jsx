@@ -89,6 +89,16 @@ const TAB_CONFIG = {
       },
     ],
   },
+  evaluators: {
+    label: 'Evaluators',
+    endpoint: '/evaluators',
+    uploadType: 'evaluators',
+    columns: [
+      { key: 'fullName', header: 'Full Name' },
+      { key: 'regdNo',   header: 'Email' },
+      { key: 'password', header: 'Password', hideInTable: true },
+    ]
+  },
 };
 
 /* ── Pagination component ── */
@@ -332,6 +342,9 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
   if (!isNew && tabKey === 'papers' && initialData.subjectIds) {
     initialData.subjectIds = initialData.subjectIds.map(s => s.subCode || s);
   }
+  if (!isNew && tabKey === 'evaluators' && initialData.subjects) {
+    initialData.subjects = initialData.subjects.map(s => s._id || s);
+  }
   const [formData, setFormData] = useState(initialData || {});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -339,11 +352,12 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
   const [semesterOptions, setSemesterOptions] = useState([]);
 
   useEffect(() => {
-    if (tabKey === 'papers') {
+    if (tabKey === 'papers' || tabKey === 'evaluators') {
       axios.get(`${API}/subjects`, { headers: { Authorization: `Bearer ${token}` } })
         .then(res => setSubjectOptions(res.data))
         .catch(err => console.error(err));
-        
+    }
+    if (tabKey === 'papers') {
       axios.get(`${API}/semesters`, { headers: { Authorization: `Bearer ${token}` } })
         .then(res => setSemesterOptions(res.data))
         .catch(err => console.error(err));
@@ -438,6 +452,13 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
                       .map(sub => ({ value: sub.subCode, label: sub.subName }))
                     }
                   />
+                ) : tabKey === 'evaluators' && col.key === 'subjects' ? (
+                  <CustomMultiSelectDropdown
+                    values={formData[col.key] || []}
+                    onChange={(val) => handleChange({ target: { value: val } }, col.key)}
+                    placeholder="Search and select subjects..."
+                    options={subjectOptions.map(sub => ({ value: sub._id, label: `${sub.subCode} - ${sub.subName}` }))}
+                  />
                 ) : tabKey === 'papers' && col.key === 'semester' ? (
                   <CustomSearchDropdown
                     value={formData[col.key]}
@@ -458,8 +479,9 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
                   </div>
                 ) : (
                   <input
-                    type="text"
+                    type={col.key === 'password' ? 'password' : 'text'}
                     value={formData[col.key] || ''}
+                    placeholder={(!isNew && col.key === 'password') ? "Leave blank to keep unchanged" : ""}
                     onChange={(e) => handleChange(e, col.key)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-colors"
                   />
@@ -726,7 +748,9 @@ const MasterData = () => {
       const cleaned = (res.data || []).filter(row =>
         Object.values(row).some(v => v !== null && v !== undefined && v !== '' && v !== 0)
       );
-      setTableData(prev => ({ ...prev, [tab]: cleaned }));
+      // Sort newly created/added records on top
+      const sorted = cleaned.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      setTableData(prev => ({ ...prev, [tab]: sorted }));
     } catch {
       setTableData(prev => ({ ...prev, [tab]: [] }));
     } finally {
@@ -881,13 +905,15 @@ const MasterData = () => {
               <Plus className="h-3.5 w-3.5" />
               Add Record
             </button>
-            <button
-              onClick={() => setModalTab(activeTab)}
-              className="flex items-center gap-1.5 bg-teal-700 hover:bg-teal-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer flex-shrink-0"
-            >
-              <UploadCloud className="h-3.5 w-3.5" />
-              Upload {cfg.label}
-            </button>
+            {activeTab !== 'evaluators' && (
+              <button
+                onClick={() => setModalTab(activeTab)}
+                className="flex items-center gap-1.5 bg-teal-700 hover:bg-teal-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer flex-shrink-0"
+              >
+                <UploadCloud className="h-3.5 w-3.5" />
+                Upload {cfg.label}
+              </button>
+            )}
           </div>
         </div>
 
@@ -903,7 +929,7 @@ const MasterData = () => {
               <thead>
                 <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
                   <th className="px-4 py-3 text-left w-10 whitespace-nowrap">#</th>
-                  {cfg.columns.map(col => (
+                  {cfg.columns.filter(col => !col.hideInTable).map(col => (
                     <th key={col.key} className="px-4 py-3 text-left whitespace-nowrap">{col.header}</th>
                   ))}
                   <th className="px-4 py-3 text-right whitespace-nowrap">Actions</th>
@@ -912,7 +938,7 @@ const MasterData = () => {
               <tbody>
                 {filteredRows.length === 0 ? (
                   <tr>
-                    <td colSpan={cfg.columns.length + 2} className="py-16 text-center text-slate-400">
+                    <td colSpan={cfg.columns.filter(col => !col.hideInTable).length + 2} className="py-16 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center">
                         <UploadCloud className="h-10 w-10 mb-3 text-slate-300" />
                         <p className="text-sm font-medium">
@@ -942,7 +968,7 @@ const MasterData = () => {
                       <React.Fragment key={rowId}>
                         <tr className={`border-b border-slate-100 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-teal-50`}>
                           <td className="px-4 py-2.5 text-slate-400 text-xs whitespace-nowrap">{globalIndex + 1}</td>
-                          {cfg.columns.map(col => (
+                          {cfg.columns.filter(col => !col.hideInTable).map(col => (
                             <td key={col.key} className="px-4 py-2.5 text-slate-700 whitespace-nowrap">
                               {col.render
                                 ? col.render(row[col.key])

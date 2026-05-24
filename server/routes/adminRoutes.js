@@ -34,7 +34,9 @@ router.get('/assignment-data', adminController.getAssignmentData);
 // Actions
 router.get('/assignments', adminController.getAssignments);
 router.post('/evaluators', adminController.createEvaluator);
+router.post('/evaluators/:id/subjects', adminController.assignSubjectsToEvaluator);
 router.post('/assign-subjects', adminController.assignSubjects);
 router.post('/assign-evaluator', adminController.assignToEvaluator);
+router.get('/paper-grades/:studentId', adminController.getPaperGrades);
 
 module.exports = router;

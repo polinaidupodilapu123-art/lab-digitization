@@ -6,6 +6,7 @@ const { protect } = require('../middleware/authMiddleware');
 // Middleware for evaluator routes
 router.use(protect);
 
+router.get('/subjects', evaluatorController.getAssignedSubjects);
 router.get('/records', evaluatorController.getAssignedRecords);
 router.post('/records/:assignmentId/grade', evaluatorController.gradeRecord);
 

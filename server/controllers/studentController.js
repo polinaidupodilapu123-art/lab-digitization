@@ -8,6 +8,15 @@ exports.getMyAssignments = async (req, res) => {
 
     // Fetch explicitly assigned assignments
     const assignments = await Assignment.find({ studentId })
+      .populate({
+        path: 'studentId',
+        select: 'fullName regdNo currentSemester',
+        populate: [
+          { path: 'collegeId', select: 'collegeName' },
+          { path: 'courseId', select: 'courseName' },
+          { path: 'groupId', select: 'groupName' }
+        ]
+      })
       .populate('subjectId')
       .lean();
 
