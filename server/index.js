@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const dns = require('dns');
+const path = require('path');
 
 // Force Node.js to use Google DNS (8.8.8.8) to bypass ISP DNS blocks on SRV records
 dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
@@ -12,6 +13,7 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 const authRoutes = require('./routes/authRoutes');

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Shield, BookOpen, CheckCircle, RefreshCw, X, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import axios from 'axios';
+import SearchableDropdown from '../../components/SearchableDropdown';
 
 const API = 'http://localhost:5000/api/admin';
 const PAGE_SIZE = 10;
@@ -83,9 +84,13 @@ const Pagination = ({ total, page, onPage }) => {
 const AssignSubjectsModal = ({ evaluator, onClose, onSuccess }) => {
   const token = localStorage.getItem('token');
   const [subjects, setSubjects] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [selectedGroupCode, setSelectedGroupCode] = useState('');
+  
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
+  const [selectedGroupSubs, setSelectedGroupSubs] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -93,23 +98,46 @@ const AssignSubjectsModal = ({ evaluator, onClose, onSuccess }) => {
     // Lock background scroll
     document.body.style.overflow = 'hidden';
     
-    // Load subjects and set initial checked array
-    axios.get(`${API}/subjects`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => {
-        setSubjects(res.data || []);
-        // Initialize checked items from currently assigned subjects
-        const initialChecked = (evaluator.subjects || []).map(s => s._id || s);
-        setSelectedIds(initialChecked);
-      })
-      .catch(err => setError('Failed to load subjects'))
-      .finally(() => setLoading(false));
+    // Load subjects, groups, and assignments concurrently
+    const loadData = async () => {
+      try {
+        const [subRes, groupsRes, assignRes] = await Promise.all([
+          axios.get(`${API}/subjects`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API}/groups`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API}/assignments`, { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        
+        const sortedSubs = (subRes.data || []).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        setSubjects(sortedSubs);
+        setGroups(groupsRes.data || []);
+        setAssignments(assignRes.data || []);
+        
+        // Initialize checked items as empty (reset state) when opening the form
+        setSelectedIds([]);
+        setSelectedGroupSubs([]);
+        setSelectedGroupCode('');
+      } catch (err) {
+        setError('Failed to load subject options.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
 
     return () => { document.body.style.overflow = 'unset'; };
   }, [evaluator, token]);
 
-  const handleToggle = (id) => {
+  const handleToggleRegular = (id) => {
+    const idStr = id.toString();
     setSelectedIds(prev => 
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+      prev.includes(idStr) ? prev.filter(item => item !== idStr) : [...prev, idStr]
+    );
+  };
+
+  const handleToggleGroupSubject = (name) => {
+    setSelectedGroupSubs(prev => 
+      prev.includes(name) ? prev.filter(item => item !== name) : [...prev, name]
     );
   };
 
@@ -118,7 +146,8 @@ const AssignSubjectsModal = ({ evaluator, onClose, onSuccess }) => {
     setError('');
     try {
       await axios.post(`${API}/evaluators/${evaluator._id}/subjects`, {
-        subjectIds: selectedIds
+        subjectIds: selectedIds,
+        groupSubjects: selectedGroupSubs
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -130,11 +159,23 @@ const AssignSubjectsModal = ({ evaluator, onClose, onSuccess }) => {
     }
   };
 
-  // Filter subjects by search text
-  const filteredSubjects = subjects.filter(sub => 
-    sub.subCode.toLowerCase().includes(search.toLowerCase()) ||
-    sub.subName.toLowerCase().includes(search.toLowerCase())
-  );
+  // Find pedagogy subjects of selected group
+  const activeGroup = groups.find(g => g.groupCode === selectedGroupCode);
+  const activeGroupSubjects = activeGroup ? [activeGroup.pedagogy1Name, activeGroup.pedagogy2Name].filter(Boolean) : [];
+
+  // Filter regular subjects (excluding studentChoice 'C' or 'c')
+  const filteredRegular = subjects
+    .filter(sub => sub.studentChoice !== 'C' && sub.studentChoice !== 'c');
+
+  // Dynamic submitted records counter for selected subjects in the top right
+  const submittedCount = assignments.filter(a => {
+    if (a.status === 'Pending') return false;
+    
+    const isRegularMatch = a.subjectId && selectedIds.includes((a.subjectId._id || a.subjectId).toString());
+    const isGroupMatch = a.groupSubjectName && selectedGroupSubs.includes(a.groupSubjectName);
+    
+    return isRegularMatch || isGroupMatch;
+  }).length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -144,11 +185,17 @@ const AssignSubjectsModal = ({ evaluator, onClose, onSuccess }) => {
         <div className="flex items-center justify-between px-6 py-4 bg-teal-700 flex-shrink-0 text-white">
           <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
-            <h3 className="text-lg font-semibold">Assign Subjects to {evaluator.fullName}</h3>
+            <h3 className="text-lg font-semibold">Assign Subjects</h3>
           </div>
-          <button onClick={onClose} className="text-white/70 hover:text-white transition-colors cursor-pointer rounded-md p-0.5">
-            <X className="h-5 w-5" />
-          </button>
+          
+          <div className="flex items-center gap-4">
+            <div className="bg-teal-900/60 text-teal-200 border border-teal-500/30 px-3 py-1 rounded-full text-xs font-bold shadow-sm transition-all duration-300">
+              Submitted Records: <span className="text-white">{submittedCount}</span>
+            </div>
+            <button onClick={onClose} className="text-white/70 hover:text-white transition-colors cursor-pointer rounded-md p-0.5">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}
@@ -159,51 +206,84 @@ const AssignSubjectsModal = ({ evaluator, onClose, onSuccess }) => {
             </div>
           )}
 
-          {/* Search bar inside modal */}
-          <div className="relative mb-4 flex-shrink-0">
-            <input
-              type="text"
-              placeholder="Search subjects by code or name..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-slate-50 transition-colors"
+
+          {/* Group dropdown selection */}
+          <div className="mb-4 flex-shrink-0 relative z-30">
+            <SearchableDropdown
+              label="Select Group for Pedagogy Option"
+              placeholder="-- Select a Group --"
+              options={groups.map(g => ({ value: g.groupCode, label: `${g.groupCode} - ${g.groupName}` }))}
+              value={selectedGroupCode}
+              onChange={setSelectedGroupCode}
             />
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
-                <X className="h-4 w-4" />
-              </button>
-            )}
           </div>
 
           {/* Subjects Checklist */}
-          <div className="flex-1 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 p-2 space-y-1 bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 p-2 space-y-4 bg-slate-50/50 max-h-[45vh] elegant-scrollbar">
             {loading ? (
               <div className="flex items-center justify-center py-12 text-slate-400">
                 <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading subjects…
               </div>
-            ) : filteredSubjects.length > 0 ? (
-              filteredSubjects.map(sub => {
-                const isChecked = selectedIds.includes(sub._id);
-                return (
-                  <label key={sub._id} className={`flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${isChecked ? 'border-teal-500 bg-teal-50/70' : 'border-transparent hover:bg-slate-50'}`}>
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => handleToggle(sub._id)}
-                      className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 mt-0.5 mr-3"
-                    />
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">{sub.subCode}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{sub.subName}</p>
-                    </div>
-                  </label>
-                );
-              })
             ) : (
-              <div className="text-center py-12 text-slate-400 text-sm">
-                No matching subjects found.
-              </div>
+              <>
+                {/* Regular Subjects Section */}
+                {filteredRegular.length > 0 && (
+                  <div>
+                    <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">Core Theory Papers</h4>
+                    <div className="space-y-1.5">
+                      {filteredRegular.map(sub => {
+                        const isChecked = selectedIds.includes(sub._id.toString());
+                        return (
+                          <label key={sub._id} className={`flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${isChecked ? 'border-teal-500 bg-teal-50/70' : 'border-transparent hover:bg-slate-50'}`}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleToggleRegular(sub._id)}
+                              className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 mt-0.5 mr-3"
+                            />
+                            <div>
+                              <p className="text-sm font-semibold text-slate-800">{sub.subCode}</p>
+                              <p className="text-xs text-slate-500 mt-0.5">{sub.subName}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Dynamic Group Pedagogy Subjects */}
+                {selectedGroupCode && activeGroupSubjects.length > 0 && (
+                  <div>
+                    <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mt-4 mb-2">Group Pedagogy Subjects</h4>
+                    <div className="space-y-1.5">
+                      {activeGroupSubjects.map(name => {
+                        const isChecked = selectedGroupSubs.includes(name);
+                        return (
+                          <label key={name} className={`flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${isChecked ? 'border-indigo-500 bg-indigo-50/70' : 'border-transparent hover:bg-slate-50'}`}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleToggleGroupSubject(name)}
+                              className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 mt-0.5 mr-3"
+                            />
+                            <div>
+                              <p className="text-sm font-semibold text-slate-800">{name}</p>
+                              <p className="text-xs text-slate-500 mt-0.5">Pedagogy subject in B.Ed Group {selectedGroupCode}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {filteredRegular.length === 0 && (!selectedGroupCode || activeGroupSubjects.length === 0) && (
+                  <div className="text-center py-12 text-slate-400 text-sm">
+                    No matching subjects found.
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -280,7 +360,7 @@ const Evaluators = () => {
       <div className="mb-8 flex justify-between items-start flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Manage Evaluators</h1>
-          <p className="text-slate-500 mt-2">View active evaluator accounts and allocate specific subjects for evaluation.</p>
+          <p className="text-slate-500 mt-2">View active evaluator accounts and allocate specific core theory or group pedagogy subjects for evaluation.</p>
         </div>
       </div>
 
@@ -358,11 +438,18 @@ const Evaluators = () => {
                       <td className="px-6 py-4 font-semibold text-slate-900">{evaluator.fullName}</td>
                       <td className="px-6 py-4 text-slate-600">{evaluator.regdNo}</td>
                       <td className="px-6 py-4">
-                        {Array.isArray(evaluator.subjects) && evaluator.subjects.length > 0 ? (
+                        {(evaluator.subjects?.length > 0 || evaluator.groupSubjects?.length > 0) ? (
                           <div className="flex flex-wrap gap-1.5 max-w-[400px]">
-                            {evaluator.subjects.map(sub => (
+                            {/* Core theory papers */}
+                            {(evaluator.subjects || []).map(sub => (
                               <span key={sub._id} className="inline-flex px-2 py-0.5 text-[10px] font-bold text-teal-800 bg-teal-100 border border-teal-200 rounded-md" title={sub.subName}>
                                 {sub.aliasName || sub.subCode}
+                              </span>
+                            ))}
+                            {/* Group pedagogy subjects */}
+                            {(evaluator.groupSubjects || []).map(name => (
+                              <span key={name} className="inline-flex px-2 py-0.5 text-[10px] font-bold text-indigo-800 bg-indigo-100 border border-indigo-200 rounded-md">
+                                {name}
                               </span>
                             ))}
                           </div>
@@ -373,7 +460,7 @@ const Evaluators = () => {
                       <td className="px-6 py-4 text-right">
                         <button
                           onClick={() => setAssignTarget(evaluator)}
-                          className="px-4 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-sm"
+                          className="px-4 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-sm animate-pulse-subtle"
                         >
                           Assign Subjects
                         </button>

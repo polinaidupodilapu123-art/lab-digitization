@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, FileCheck, BookOpen, AlertCircle } from 'lucide-react';
+import { LogOut, FileCheck, BookOpen, AlertCircle, FileText, Search } from 'lucide-react';
 import axios from 'axios';
+import SearchableDropdown from '../../components/SearchableDropdown';
 
 /* ── Pagination component ── */
 const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
@@ -81,23 +82,40 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [subjects, setSubjects] = useState([]);
-  const [activeTab, setActiveTab] = useState(''); // Active Subject ObjectID
+  const [activeTab, setActiveTab] = useState(''); // Active Subject _id
   const [submissions, setSubmissions] = useState([]);
   const [marks, setMarks] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [loadingRecords, setLoadingRecords] = useState(true);
 
-  // Fetch Assigned Subjects
+  // Search/Filter dropdown states
+  const [selectedCollege, setSelectedCollege] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Fetch Assigned Core & Pedagogy Subjects
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
         const res = await axios.get('http://localhost:5000/api/evaluator/subjects', {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
-        setSubjects(res.data || []);
-        if (res.data && res.data.length > 0) {
-          setActiveTab(res.data[0]._id);
+        const sorted = (res.data || []).sort((a, b) => {
+          const aIsGroup = !!a.isGroupSubject;
+          const bIsGroup = !!b.isGroupSubject;
+          if (aIsGroup && !bIsGroup) return 1;
+          if (!aIsGroup && bIsGroup) return -1;
+          if (!aIsGroup && !bIsGroup) {
+            return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+          }
+          return (a.subName || '').localeCompare(b.subName || '');
+        });
+        setSubjects(sorted);
+        if (sorted.length > 0) {
+          setActiveTab(sorted[0]._id);
         }
       } catch (err) {
         console.error('Failed to load subjects', err);
@@ -144,6 +162,13 @@ const Dashboard = () => {
     const data = marks[id];
     if (!data || !data.score) return;
     
+    const submission = submissions.find(s => s._id === id);
+    const maxMarks = submission ? (submission.maxMarks ?? submission.subjectId?.maxMarks ?? 100) : 100;
+
+    if (Number(data.score) > maxMarks || Number(data.score) < 0) {
+      return;
+    }
+    
     try {
       await axios.post(`http://localhost:5000/api/evaluator/records/${id}/grade`, {
         score: Number(data.score),
@@ -161,10 +186,94 @@ const Dashboard = () => {
     }
   };
 
-  // Filter submissions by selected subject tab
-  const filteredSubmissions = submissions.filter(sub => 
-    sub.subjectId && sub.subjectId._id.toString() === activeTab.toString()
-  );
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCollege, selectedCourse, selectedSubject, selectedStatus, searchTerm]);
+
+  // Extract unique colleges from submissions
+  const collegeOptions = useMemo(() => {
+    const map = new Map();
+    submissions.forEach(sub => {
+      const college = sub.studentId?.collegeId;
+      if (college && college.collegeCode) {
+        map.set(college.collegeCode, `${college.collegeCode} - ${college.collegeName}`);
+      }
+    });
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+  }, [submissions]);
+
+  // Extract unique courses from submissions
+  const courseOptions = useMemo(() => {
+    const map = new Map();
+    submissions.forEach(sub => {
+      const course = sub.studentId?.courseId;
+      if (course && course.courseCode) {
+        map.set(course.courseCode, `${course.courseCode} - ${course.courseName}`);
+      }
+    });
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+  }, [submissions]);
+
+  // Extract and sort unique subjects in the exact same order as the subjects table in the Master Data page
+  const subjectOptions = useMemo(() => {
+    // Sort subjects so core theory papers are on top (by createdAt desc) and pedagogy group subjects are at the bottom
+    const sortedSubjects = [...subjects].sort((a, b) => {
+      if (a.isGroupSubject && !b.isGroupSubject) return 1;
+      if (!a.isGroupSubject && b.isGroupSubject) return -1;
+      if (!a.isGroupSubject && !b.isGroupSubject) {
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      }
+      return (a.subName || '').localeCompare(b.subName || '');
+    });
+
+    return sortedSubjects.map(sub => {
+      const subCode = sub.isGroupSubject ? 'PEDAGOGY' : sub.subCode;
+      return {
+        value: sub.subName,
+        label: `${subCode} - ${sub.subName}`
+      };
+    });
+  }, [subjects]);
+
+  // Filter submissions dynamically based on selected dropdown values, status, and search query
+  const filteredSubmissions = useMemo(() => {
+    return submissions.filter(sub => {
+      const college = sub.studentId?.collegeId;
+      const course = sub.studentId?.courseId;
+      const subName = sub.groupSubjectName || sub.subjectId?.subName;
+
+      // 1. Search filter
+      if (searchTerm) {
+        const query = searchTerm.toLowerCase();
+        const nameMatch = (sub.studentId?.fullName || '').toLowerCase().includes(query);
+        const regdMatch = (sub.studentId?.regdNo || '').toLowerCase().includes(query);
+        const collMatch = (college?.collegeCode || '').toLowerCase().includes(query) || (college?.collegeName || '').toLowerCase().includes(query);
+        const courMatch = (course?.courseCode || '').toLowerCase().includes(query) || (course?.courseName || '').toLowerCase().includes(query);
+        const subMatch = (subName || '').toLowerCase().includes(query);
+        if (!nameMatch && !regdMatch && !collMatch && !courMatch && !subMatch) {
+          return false;
+        }
+      }
+
+      // 2. Status filter
+      if (selectedStatus && sub.status !== selectedStatus) {
+        return false;
+      }
+
+      // 3. Dropdown filters
+      if (selectedCollege && (!college || college.collegeCode !== selectedCollege)) {
+        return false;
+      }
+      if (selectedCourse && (!course || course.courseCode !== selectedCourse)) {
+        return false;
+      }
+      if (selectedSubject && subName !== selectedSubject) {
+        return false;
+      }
+      return true;
+    });
+  }, [submissions, selectedCollege, selectedCourse, selectedSubject, selectedStatus, searchTerm]);
 
   const PAGE_SIZE = 10;
   const pagedSubmissions = filteredSubmissions.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -198,57 +307,144 @@ const Dashboard = () => {
         <div className="mb-8 flex justify-between items-end flex-wrap gap-4">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Assigned Records</h2>
-            <p className="text-slate-500 mt-1">Review student lab records and submit marks for your assigned subjects.</p>
+            <p className="text-slate-500 mt-1">Review student lab records and submit marks for your assigned core or group subjects.</p>
           </div>
-          <div className="flex space-x-4 text-sm font-medium">
-            <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
-              <span className="text-slate-500 mr-2">Pending (This Subject):</span>
-              <span className="text-orange-600 font-semibold">{filteredSubmissions.filter(s => s.status === 'Submitted').length}</span>
+          
+          {subjects.length > 0 && (
+            <div className="flex space-x-4 text-sm font-medium">
+              <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
+                <span className="text-slate-500 mr-2">Total Submissions:</span>
+                <span className="text-teal-700 font-semibold">{filteredSubmissions.length}</span>
+              </div>
+              <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
+                <span className="text-slate-500 mr-2">Pending:</span>
+                <span className="text-orange-600 font-semibold">{filteredSubmissions.filter(s => s.status === 'Submitted').length}</span>
+              </div>
+              <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
+                <span className="text-slate-500 mr-2">Evaluated:</span>
+                <span className="text-emerald-600 font-semibold">{filteredSubmissions.filter(s => s.status === 'Evaluated').length}</span>
+              </div>
             </div>
-            <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
-              <span className="text-slate-500 mr-2">Evaluated (This Subject):</span>
-              <span className="text-emerald-600 font-semibold">{filteredSubmissions.filter(s => s.status === 'Evaluated').length}</span>
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Assigned Subjects Tabs */}
-        {loadingSubjects ? (
-          <div className="h-10 bg-white border border-slate-200 rounded-lg animate-pulse mb-6"></div>
-        ) : subjects.length > 0 ? (
-          <div className="flex border-b border-slate-200 mb-6 overflow-x-auto bg-white px-4 pt-3 rounded-2xl shadow-sm border">
-            {subjects.map((sub) => (
-              <button
-                key={sub._id}
-                onClick={() => { setActiveTab(sub._id); setCurrentPage(1); }}
-                className={`px-5 py-2.5 font-medium text-sm transition-colors border-b-2 cursor-pointer rounded-t-md whitespace-nowrap ${
-                  activeTab === sub._id
-                    ? 'border-teal-600 text-teal-700 font-semibold'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                }`}
-              >
-                {sub.subCode} — {sub.subName}
-              </button>
-            ))}
-          </div>
-        ) : (
+        {/* Assigned Subjects Status Check */}
+        {!loadingSubjects && subjects.length === 0 && (
           <div className="bg-orange-50 border border-orange-200 text-orange-700 px-4 py-3.5 rounded-2xl mb-6 text-sm flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0" />
-            <span className="font-medium">No subjects assigned yet. Please contact your system administrator to assign subjects to your account.</span>
+            <span className="font-medium">No core or pedagogy subjects assigned yet. Please contact your system administrator.</span>
+          </div>
+        )}
+
+        {/* Filters Panel */}
+        {subjects.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+            <h3 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-1.5">
+              <FileCheck className="h-4.5 w-4.5 text-teal-600" />
+              Filter Student Records
+            </h3>
+
+            {/* Search Input */}
+            <div className="mb-5 relative z-20">
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Search Submissions</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search by student name, roll number, college, course, subject..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-8 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 bg-slate-50 text-slate-800 font-medium animate-transition"
+                />
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                {searchTerm && (
+                  <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer">
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-30">
+              <div>
+                <SearchableDropdown
+                  label="Filter by College"
+                  placeholder="-- All Colleges --"
+                  options={collegeOptions}
+                  value={selectedCollege}
+                  onChange={setSelectedCollege}
+                />
+              </div>
+              <div>
+                <SearchableDropdown
+                  label="Filter by Course"
+                  placeholder="-- All Courses --"
+                  options={courseOptions}
+                  value={selectedCourse}
+                  onChange={setSelectedCourse}
+                />
+              </div>
+              <div>
+                <SearchableDropdown
+                  label="Filter by Subject"
+                  placeholder="-- All Subjects --"
+                  options={subjectOptions}
+                  value={selectedSubject}
+                  onChange={setSelectedSubject}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Filter by Status</label>
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-colors cursor-pointer outline-none min-h-[38px]"
+                >
+                  <option value="">-- All Statuses --</option>
+                  <option value="Submitted">Pending Evaluation</option>
+                  <option value="Evaluated">Evaluation Completed</option>
+                </select>
+              </div>
+            </div>
+            
+            {/* Record Count & Reset filter button */}
+            <div className="mt-4 flex items-center justify-between text-xs border-t border-slate-100 pt-3 flex-wrap gap-2">
+              <span className="text-slate-500 font-medium">
+                Showing <span className="text-teal-700 font-bold">{filteredSubmissions.length}</span> matching student record{filteredSubmissions.length === 1 ? '' : 's'}
+              </span>
+              {(selectedCollege || selectedCourse || selectedSubject || selectedStatus || searchTerm) && (
+                <button 
+                  onClick={() => {
+                    setSelectedCollege('');
+                    setSelectedCourse('');
+                    setSelectedSubject('');
+                    setSelectedStatus('');
+                    setSearchTerm('');
+                  }}
+                  className="text-teal-600 hover:text-teal-800 font-semibold cursor-pointer transition-colors"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
           </div>
         )}
 
         {/* Submissions Table Card */}
         {subjects.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto sleek-scrollbar">
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-4">Student name</th>
                     <th className="px-6 py-4">Roll no.</th>
+                    <th className="px-6 py-4">College</th>
+                    <th className="px-6 py-4">Course</th>
+                    <th className="min-w-[10rem] px-6 py-4">Subject</th>
                     <th className="px-6 py-4">Academic year</th>
-                    <th className="min-w-[10rem] px-6 py-4">Document</th>
+                    <th className="px-6 py-4 text-center">Document</th>
+                    <th className="px-6 py-4 text-center">Max Marks</th>
+                    <th className="px-6 py-4 text-center">Pass Marks</th>
                     <th className="px-6 py-4">Date</th>
                     <th className="px-6 py-4">Status</th>
                     <th className="w-[4.5rem] px-6 py-4 tabular-nums">Score</th>
@@ -259,7 +455,7 @@ const Dashboard = () => {
                 <tbody className="divide-y divide-slate-100">
                   {loadingRecords ? (
                     <tr>
-                      <td colSpan="9" className="px-6 py-12 text-center text-slate-400">
+                      <td colSpan="14" className="px-6 py-12 text-center text-slate-400">
                         Loading student submissions…
                       </td>
                     </tr>
@@ -268,12 +464,36 @@ const Dashboard = () => {
                       <tr key={sub._id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 font-medium text-slate-900">{sub.studentId?.fullName}</td>
                         <td className="px-6 py-4 text-slate-500">{sub.studentId?.regdNo}</td>
+                        <td className="px-6 py-4 text-slate-500 font-semibold" title={sub.studentId?.collegeId?.collegeName}>
+                          {sub.studentId?.collegeId?.collegeCode || '—'}
+                        </td>
+                        <td className="px-6 py-4 text-slate-500 font-semibold" title={sub.studentId?.courseId?.courseName}>
+                          {sub.studentId?.courseId?.courseCode || '—'}
+                        </td>
+                        <td className="px-6 py-4 font-medium text-slate-900">
+                          {sub.groupSubjectName || sub.subjectId?.subName}
+                        </td>
                         <td className="px-6 py-4 text-slate-500">{sub.academicYear || '—'}</td>
-                        <td className="px-6 py-4">
-                          <p className="font-medium text-slate-900">{sub.groupSubjectName || sub.subjectId?.subName}</p>
-                          <a href={sub.filePath} target="_blank" rel="noreferrer" className="text-teal-600 hover:underline text-xs mt-1 block">
-                            View Submission PDF
-                          </a>
+                        <td className="px-6 py-4 text-center">
+                          {sub.filePath ? (
+                            <a 
+                              href={`http://localhost:5000${sub.filePath}`} 
+                              target="_blank" 
+                              rel="noreferrer" 
+                              className="inline-flex items-center justify-center p-2 text-teal-600 hover:text-white hover:bg-teal-700 rounded-lg transition-colors border border-teal-200 hover:border-teal-700 cursor-pointer"
+                              title="View Submission PDF"
+                            >
+                              <FileText className="h-5 w-5" />
+                            </a>
+                          ) : (
+                            <span className="text-slate-300 italic text-xs">No File</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-center font-semibold text-slate-800">
+                          {sub.maxMarks ?? sub.subjectId?.maxMarks ?? '—'}
+                        </td>
+                        <td className="px-6 py-4 text-center font-semibold text-slate-800">
+                          {sub.subjectId?.subPassMarks ?? '—'}
                         </td>
                         <td className="px-6 py-4 text-slate-500">
                           {sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString() : '—'}
@@ -282,22 +502,48 @@ const Dashboard = () => {
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             sub.status === 'Evaluated' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
                           }`}>
-                            {sub.status}
+                            {sub.status === 'Evaluated' ? 'Evaluated' : 'Pending Evaluation'}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           {sub.status === 'Evaluated' ? (
-                            <div className="font-bold text-slate-900">{sub.score} / {sub.maxMarks}</div>
+                            <div className="font-bold text-slate-900">{sub.score} / {sub.maxMarks ?? sub.subjectId?.maxMarks ?? 100}</div>
                           ) : (
-                            <input 
-                              type="number" 
-                              min="0" 
-                              max={sub.maxMarks}
-                              value={marks[sub._id]?.score || ''}
-                              onChange={(e) => handleMarkChange(sub._id, 'score', e.target.value)}
-                              className="w-16 border border-slate-300 rounded p-1 text-center"
-                              placeholder="0"
-                            />
+                            (() => {
+                              const enteredScore = marks[sub._id]?.score;
+                              const maxLimit = sub.maxMarks ?? sub.subjectId?.maxMarks ?? 100;
+                              const isExceeded = enteredScore !== undefined && enteredScore !== '' && Number(enteredScore) > maxLimit;
+                              const isNegative = enteredScore !== undefined && enteredScore !== '' && Number(enteredScore) < 0;
+                              const hasError = isExceeded || isNegative;
+                              
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <input 
+                                    type="number" 
+                                    min="0" 
+                                    max={maxLimit}
+                                    value={enteredScore || ''}
+                                    onChange={(e) => handleMarkChange(sub._id, 'score', e.target.value)}
+                                    className={`w-16 border rounded p-1 text-center font-semibold transition-all duration-200 ${
+                                      hasError 
+                                        ? 'border-red-500 bg-red-50 text-red-900 focus:ring-red-500 focus:border-red-500 focus:outline-none' 
+                                        : 'border-slate-300 focus:ring-teal-500 focus:border-teal-500 text-slate-800'
+                                    }`}
+                                    placeholder="0"
+                                  />
+                                  {isExceeded && (
+                                    <span className="text-[10px] text-red-600 font-bold mt-1.5 leading-none whitespace-nowrap text-center animate-pulse">
+                                      Max: {maxLimit}
+                                    </span>
+                                  )}
+                                  {isNegative && (
+                                    <span className="text-[10px] text-red-600 font-bold mt-1.5 leading-none whitespace-nowrap text-center animate-pulse">
+                                      Min: 0
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()
                           )}
                         </td>
                         <td className="px-6 py-4">
@@ -315,22 +561,32 @@ const Dashboard = () => {
                         </td>
                         <td className="px-6 py-4 text-right">
                           {sub.status !== 'Evaluated' && (
-                            <button 
-                              onClick={() => handleSubmitMarks(sub._id)}
-                              disabled={!marks[sub._id]?.score}
-                              className="px-4 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white rounded-lg font-medium transition-colors cursor-pointer"
-                            >
-                              Submit
-                            </button>
+                            (() => {
+                              const enteredScore = marks[sub._id]?.score;
+                              const maxLimit = sub.maxMarks ?? sub.subjectId?.maxMarks ?? 100;
+                              const isExceeded = enteredScore !== undefined && enteredScore !== '' && Number(enteredScore) > maxLimit;
+                              const isNegative = enteredScore !== undefined && enteredScore !== '' && Number(enteredScore) < 0;
+                              const hasError = isExceeded || isNegative;
+                              
+                              return (
+                                <button 
+                                  onClick={() => handleSubmitMarks(sub._id)}
+                                  disabled={!enteredScore || hasError}
+                                  className="px-4 py-1.5 bg-teal-700 hover:bg-teal-800 disabled:bg-teal-300 text-white rounded-lg font-medium transition-colors cursor-pointer"
+                                >
+                                  Submit
+                                </button>
+                              );
+                            })()
                           )}
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="9" className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan="14" className="px-6 py-12 text-center text-slate-500">
                         <BookOpen className="h-8 w-8 mx-auto text-slate-300 mb-2" />
-                        <span className="text-sm font-medium">No student submissions found for this subject.</span>
+                        <span className="text-sm font-medium">No student submissions found matching the criteria.</span>
                       </td>
                     </tr>
                   )}

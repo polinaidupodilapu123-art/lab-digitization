@@ -80,6 +80,7 @@ const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
 const EvaluatedRecords = () => {
   const [records, setRecords] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
   const [activeTab, setActiveTab] = useState('submissions');
   const [papers, setPapers] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,10 +114,10 @@ const EvaluatedRecords = () => {
         const res = await axios.get('http://localhost:5000/api/admin/assignments', {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
-        // Filter only evaluated records
-        const evaluated = res.data.filter(a => a.status === 'Evaluated');
-        // Sort newly evaluated / submitted ones on top
-        const sorted = evaluated.sort((a, b) => new Date(b.submittedAt || b.updatedAt || b.createdAt || 0) - new Date(a.submittedAt || a.updatedAt || a.createdAt || 0));
+        // Filter only submitted or evaluated records (exclude Pending/unsubmitted)
+        const activeRecords = res.data.filter(a => a.status !== 'Pending');
+        // Sort newly updated ones on top
+        const sorted = activeRecords.sort((a, b) => new Date(b.submittedAt || b.updatedAt || b.createdAt || 0) - new Date(a.submittedAt || a.updatedAt || a.createdAt || 0));
         setRecords(sorted);
       } catch (err) {
         console.error('Failed to load assignments');
@@ -136,11 +137,16 @@ const EvaluatedRecords = () => {
     fetchPapers();
   }, []);
 
-  const filteredRecords = records.filter(record => 
-    record.studentId?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.studentId?.regdNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.subjectId?.subName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredRecords = records.filter(record => {
+    const nameMatch = (record.studentId?.fullName || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const regdNoMatch = (record.studentId?.regdNo || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const subjectMatch = (record.groupSubjectName || record.subjectId?.subName || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const queryMatch = nameMatch || regdNoMatch || subjectMatch;
+
+    const statusMatch = !selectedStatus || record.status === selectedStatus;
+
+    return queryMatch && statusMatch;
+  });
 
   // 1. Group evaluated assignments by student
   const studentsMap = {};
@@ -165,7 +171,10 @@ const EvaluatedRecords = () => {
   const studentsList = Object.values(studentsMap).map(student => {
     const studentAssignments = student.assignments;
     const assignmentMap = new Map(
-      studentAssignments.map(a => [a.subjectId?._id || a.subjectId, a])
+      studentAssignments.map(a => {
+        const key = a.subjectId?._id ? a.subjectId._id.toString() : (a.subjectId ? a.subjectId.toString() : '');
+        return [key, a];
+      })
     );
 
     const paperScores = papers.map(paper => {
@@ -202,6 +211,28 @@ const EvaluatedRecords = () => {
     };
   });
 
+  // 3. Flatten student list to a Student-Paper combination list for a single vertically formatted report
+  const studentPapersRows = [];
+  studentsList.forEach(s => {
+    (s.paperScores || []).forEach(ps => {
+      studentPapersRows.push({
+        fullName: s.fullName,
+        regdNo: s.regdNo,
+        semester: s.semester || "—",
+        collegeName: s.collegeName,
+        degree: s.degree,
+        paperName: ps.paperName || ps.paperCode || "Paper",
+        paperCode: ps.paperCode,
+        obtainedScore: ps.obtainedScore,
+        maxMarks: ps.maxMarks,
+        passMarks: ps.passMarks,
+        status: ps.status,
+        evaluatedCount: ps.evaluatedCount,
+        totalSubjectsCount: ps.totalSubjectsCount
+      });
+    });
+  });
+
   const handleExportPaperGrades = async () => {
     try {
       const XLSX = await import('xlsx');
@@ -211,18 +242,20 @@ const EvaluatedRecords = () => {
         "Semester",
         "Registered Number",
         "Name",
-        ...papers.map(p => `${p.paperCode} - ${p.paperName} (Max: ${p.maxMarks})`)
+        "Paper Name",
+        "Aggregated Score"
       ];
 
       const data = [
         [...header],
-        ...studentsList.map(s => [
+        ...studentPapersRows.map(s => [
           s.collegeName,
           s.degree,
           s.semester,
           s.regdNo,
           s.fullName,
-          ...s.paperScores.map(ps => ps.obtainedScore !== null ? ps.obtainedScore : "Pending")
+          s.paperName,
+          s.obtainedScore !== null ? `${s.obtainedScore} / ${s.maxMarks}` : "Pending"
         ])
       ];
 
@@ -238,7 +271,7 @@ const EvaluatedRecords = () => {
 
   const PAGE_SIZE = 10;
   const pagedRecords = filteredRecords.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const pagedStudentsList = studentsList.slice((paperPage - 1) * PAGE_SIZE, paperPage * PAGE_SIZE);
+  const pagedPaperRows = studentPapersRows.slice((paperPage - 1) * PAGE_SIZE, paperPage * PAGE_SIZE);
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full">
@@ -246,23 +279,6 @@ const EvaluatedRecords = () => {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Evaluated Records</h1>
           <p className="text-slate-500 mt-1">Review all lab records that have been graded by evaluators.</p>
-        </div>
-        
-        <div className="relative w-full sm:w-72">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-slate-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search student or subject..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-              setPaperPage(1);
-            }}
-            className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 outline-none text-sm"
-          />
         </div>
       </div>
 
@@ -293,29 +309,66 @@ const EvaluatedRecords = () => {
       <div className="bg-white border border-slate-200 rounded-b-2xl rounded-tr-2xl border-t-0 shadow-sm overflow-hidden">
         {activeTab === 'submissions' ? (
           <>
-            <div className="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+            <div className="p-5 border-b border-slate-200 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <h2 className="text-lg font-semibold text-slate-800 flex items-center">
                 <ClipboardCheck className="h-5 w-5 mr-2 text-teal-600" />
                 Evaluated Submissions ({filteredRecords.length})
               </h2>
-              {filteredRecords.length > 0 && (
-                <button
-                  onClick={handleExportEvaluated}
-                  className="flex items-center px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-md text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Status Dropdown */}
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => {
+                    setSelectedStatus(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 outline-none text-xs bg-white cursor-pointer"
                 >
-                  <Download className="h-3.5 w-3.5 mr-1.5" />
-                  Export Excel
-                </button>
-              )}
+                  <option value="">-- All Statuses --</option>
+                  <option value="Submitted">Pending Evaluation</option>
+                  <option value="Evaluated">Evaluation Completed</option>
+                </select>
+
+                {/* Search Input */}
+                <div className="relative w-full sm:w-64">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-3.5 w-3.5 text-slate-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search student or subject..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                      setPaperPage(1);
+                    }}
+                    className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 outline-none text-xs"
+                  />
+                </div>
+
+                {/* Export Button */}
+                {filteredRecords.length > 0 && (
+                  <button
+                    onClick={handleExportEvaluated}
+                    className="flex items-center justify-center px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-md text-xs font-semibold shadow-sm transition-colors cursor-pointer whitespace-nowrap"
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                    Export Excel
+                  </button>
+                )}
+              </div>
             </div>
             
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto sleek-scrollbar">
               <table className="w-full text-sm text-left text-slate-600">
                 <thead className="text-xs text-slate-700 uppercase bg-slate-100/50 border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-4 font-semibold">Student Name</th>
                     <th className="px-6 py-4 font-semibold">Roll No.</th>
                     <th className="px-6 py-4 font-semibold min-w-[12rem]">Document / Subject</th>
+                    <th className="px-6 py-4 font-semibold text-center">Max Marks</th>
+                    <th className="px-6 py-4 font-semibold text-center">Pass Marks</th>
                     <th className="px-6 py-4 font-semibold">Date of Evaluation</th>
                     <th className="px-6 py-4 font-semibold">Evaluated By</th>
                     <th className="px-6 py-4 font-semibold">Status</th>
@@ -332,13 +385,23 @@ const EvaluatedRecords = () => {
                         <p className="font-medium text-slate-900">{record.groupSubjectName || record.subjectId?.subName}</p>
                         <p className="text-xs text-slate-500">{record.subjectId?.subCode}</p>
                       </td>
+                      <td className="px-6 py-4 text-center font-semibold text-slate-800">
+                        {record.maxMarks ?? record.subjectId?.maxMarks ?? '—'}
+                      </td>
+                      <td className="px-6 py-4 text-center font-semibold text-slate-800">
+                        {record.subjectId?.subPassMarks ?? '—'}
+                      </td>
                       <td className="px-6 py-4">
                         {record.updatedAt ? new Date(record.updatedAt).toLocaleDateString() : '—'}
                       </td>
                       <td className="px-6 py-4 font-medium text-slate-900">{record.evaluatorId?.fullName}</td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          {record.status}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          record.status === 'Evaluated'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {record.status === 'Evaluated' ? 'Evaluated' : 'Pending Evaluation'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -353,7 +416,7 @@ const EvaluatedRecords = () => {
                   
                   {filteredRecords.length === 0 && (
                     <tr>
-                      <td colSpan="8" className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan="10" className="px-6 py-12 text-center text-slate-500">
                         No evaluated records found.
                       </td>
                     </tr>
@@ -365,65 +428,85 @@ const EvaluatedRecords = () => {
           </>
         ) : (
           <>
-            <div className="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+            <div className="p-5 border-b border-slate-200 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <h2 className="text-lg font-semibold text-slate-800 flex items-center">
                 <ClipboardCheck className="h-5 w-5 mr-2 text-teal-600" />
-                Aggregated Paper Grades ({studentsList.length})
+                Aggregated Paper Grades ({studentPapersRows.length})
               </h2>
-              {studentsList.length > 0 && (
-                <button
-                  onClick={handleExportPaperGrades}
-                  className="flex items-center px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-md text-xs font-semibold shadow-sm transition-colors cursor-pointer"
-                >
-                  <Download className="h-3.5 w-3.5 mr-1.5" />
-                  Export Paper Marks
-                </button>
-              )}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Search Input */}
+                <div className="relative w-full sm:w-64">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-3.5 w-3.5 text-slate-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search student..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                      setPaperPage(1);
+                    }}
+                    className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 outline-none text-xs"
+                  />
+                </div>
+
+                {/* Export Button */}
+                {studentPapersRows.length > 0 && (
+                  <button
+                    onClick={handleExportPaperGrades}
+                    className="flex items-center justify-center px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-md text-xs font-semibold shadow-sm transition-colors cursor-pointer whitespace-nowrap"
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                    Export Paper Marks
+                  </button>
+                )}
+              </div>
             </div>
             
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto sleek-scrollbar">
               <table className="w-full text-sm text-left text-slate-600">
                 <thead className="text-xs text-slate-700 uppercase bg-slate-100/50 border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-4 font-semibold">Student Name</th>
                     <th className="px-6 py-4 font-semibold">Roll No.</th>
                     <th className="px-6 py-4 font-semibold">Semester</th>
-                    {papers.map(p => (
-                      <th key={p.paperCode} className="px-6 py-4 font-semibold text-center min-w-[8rem]" title={p.paperName}>
-                        {p.paperCode}
-                      </th>
-                    ))}
+                    <th className="px-6 py-4 font-semibold">Paper Name</th>
+                    <th className="px-6 py-4 font-semibold text-center min-w-[8rem]">Aggregated Score</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {pagedStudentsList.map((s) => (
-                    <tr key={s.regdNo} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-slate-900">{s.fullName}</td>
-                      <td className="px-6 py-4 font-mono text-xs">{s.regdNo}</td>
-                      <td className="px-6 py-4">{s.semester}</td>
-                      {s.paperScores.map((ps) => {
-                        const isPassed = ps.obtainedScore >= ps.passMarks;
-                        return (
-                          <td key={ps.paperCode} className="px-6 py-4 text-center">
-                            {ps.obtainedScore !== null ? (
-                              <span className={`inline-flex flex-col items-center px-2 py-1 rounded-lg text-xs font-semibold ${
-                                isPassed ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-                              }`}>
-                                <span>{ps.obtainedScore} / {ps.maxMarks}</span>
-                                <span className="text-[9px] opacity-75">{isPassed ? 'PASS' : 'FAIL'}</span>
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 italic text-xs">Pending</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                  {pagedPaperRows.map((row, idx) => {
+                    const isPassed = row.obtainedScore >= row.passMarks;
+                    return (
+                      <tr key={`${row.regdNo}-${row.paperCode || idx}`} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 font-medium text-slate-900">{row.fullName}</td>
+                        <td className="px-6 py-4 font-mono text-xs">{row.regdNo}</td>
+                        <td className="px-6 py-4">{row.semester}</td>
+                        <td className="px-6 py-4">
+                          <p className="font-semibold text-slate-800">{row.paperName}</p>
+                          <p className="text-xs text-slate-400">{row.paperCode}</p>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {row.obtainedScore !== null ? (
+                            <span className={`inline-flex flex-col items-center px-3 py-1.5 rounded-lg text-xs font-bold ${
+                              isPassed ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+                            }`}>
+                              <span className="text-sm">{row.obtainedScore} / {row.maxMarks}</span>
+                              <span className="text-[9px] opacity-75 font-semibold mt-0.5">{isPassed ? 'PASS' : 'FAIL'}</span>
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic text-xs">Pending</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                   
-                  {studentsList.length === 0 && (
+                  {studentPapersRows.length === 0 && (
                     <tr>
-                      <td colSpan={3 + papers.length} className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
                         No paper evaluation records found.
                       </td>
                     </tr>
@@ -431,7 +514,7 @@ const EvaluatedRecords = () => {
                 </tbody>
               </table>
             </div>
-            <Pagination total={studentsList.length} page={paperPage} onPage={setPaperPage} />
+            <Pagination total={studentPapersRows.length} page={paperPage} onPage={setPaperPage} />
           </>
         )}
       </div>

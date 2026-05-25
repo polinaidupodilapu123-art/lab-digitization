@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Book, FileText, Download, Upload } from 'lucide-react';
+import { LogOut, Book, FileText, Download, Upload, X, RefreshCw, CheckCircle } from 'lucide-react';
 import axios from 'axios';
 
 /* ── Pagination component ── */
@@ -77,6 +77,165 @@ const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
   );
 };
 
+/* ── Upload Record Modal ── */
+const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFileChange = (e) => {
+    const selected = e.target.files[0];
+    if (!selected) return;
+    
+    // Check if it's a PDF
+    if (selected.type !== 'application/pdf') {
+      setError('Please select a valid PDF file.');
+      setFile(null);
+      return;
+    }
+    
+    // Check file size (10MB limit)
+    if (selected.size > 10 * 1024 * 1024) {
+      setError('File size exceeds the 10MB limit.');
+      setFile(null);
+      return;
+    }
+
+    setFile(selected);
+    setError('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!file) {
+      setError('Please select a file to upload.');
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `http://localhost:5000/api/student/assignments/${assignment._id}/submit`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      onSuccess('Lab record uploaded successfully!');
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to upload lab record. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 bg-teal-700 text-white">
+          <div className="flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            <h3 className="text-lg font-semibold">Upload Completed Record</h3>
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white transition-colors cursor-pointer rounded-md p-0.5">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-1">Subject</h4>
+            <p className="text-base font-semibold text-teal-800">{assignment.groupSubjectName || assignment.subjectId?.subName}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{assignment.subjectId?.subCode} • {assignment.subjectId?.semester}</p>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">
+              Select Completed Lab Record (PDF)
+            </label>
+            
+            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-xl hover:border-teal-500 transition-colors bg-slate-50/50 cursor-pointer relative">
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={handleFileChange}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              />
+              <div className="space-y-1 text-center pointer-events-none">
+                <Upload className="mx-auto h-10 w-10 text-slate-400" />
+                <div className="flex text-sm text-slate-600">
+                  <span className="relative rounded-md font-semibold text-teal-700 hover:text-teal-500 focus-within:outline-none">
+                    Upload a file
+                  </span>
+                  <p className="pl-1">or drag and drop</p>
+                </div>
+                <p className="text-xs text-slate-400">PDF up to 10MB</p>
+              </div>
+            </div>
+          </div>
+
+          {file && (
+            <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 flex items-center justify-between">
+              <div className="flex items-center space-x-2 truncate">
+                <FileText className="h-5 w-5 text-teal-600 flex-shrink-0" />
+                <span className="text-sm font-medium text-teal-800 truncate" title={file.name}>
+                  {file.name}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFile(null)}
+                className="text-slate-400 hover:text-red-500 transition-colors p-1"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {error && (
+            <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm font-medium border border-red-200">
+              ✕ {error}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-md text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={uploading || !file}
+              className="flex items-center gap-2 px-5 py-2 rounded-md text-sm font-semibold text-white bg-teal-700 hover:bg-teal-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {uploading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+              {uploading ? 'Uploading…' : 'Submit Record'}
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -84,30 +243,50 @@ const Dashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('records');
   const [paperGrades, setPaperGrades] = useState([]);
+  const [uploadTarget, setUploadTarget] = useState(null);
+  const [message, setMessage] = useState('');
+
+  const fetchMyAssignments = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/student/assignments', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      // Sort in the same order as subjects table in master data page:
+      // Regular subjects sorted by subject's createdAt desc on top, pedagogy group subjects at the bottom.
+      const sorted = res.data.sort((a, b) => {
+        const aSub = a.subjectId || {};
+        const bSub = b.subjectId || {};
+        
+        const aIsGroup = !!(a.groupSubjectName || aSub.studentChoice === 'C' || aSub.studentChoice === 'c');
+        const bIsGroup = !!(b.groupSubjectName || bSub.studentChoice === 'C' || bSub.studentChoice === 'c');
+        
+        if (aIsGroup && !bIsGroup) return 1;
+        if (!aIsGroup && bIsGroup) return -1;
+        if (!aIsGroup && !bIsGroup) {
+          return new Date(bSub.createdAt || 0) - new Date(aSub.createdAt || 0);
+        }
+        const aName = a.groupSubjectName || aSub.subName || '';
+        const bName = b.groupSubjectName || bSub.subName || '';
+        return aName.localeCompare(bName);
+      });
+      setAssignments(sorted);
+    } catch (err) {
+      console.error('Failed to load my assignments', err);
+    }
+  };
+
+  const fetchPaperGrades = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/student/paper-grades', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setPaperGrades(res.data);
+    } catch (err) {
+      console.error('Failed to load paper grades', err);
+    }
+  };
 
   useEffect(() => {
-    const fetchMyAssignments = async () => {
-      try {
-        const res = await axios.get('http://localhost:5000/api/student/assignments', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        });
-        // Sort newly created assignments on top
-        const sorted = res.data.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-        setAssignments(sorted);
-      } catch (err) {
-        console.error('Failed to load my assignments', err);
-      }
-    };
-    const fetchPaperGrades = async () => {
-      try {
-        const res = await axios.get('http://localhost:5000/api/student/paper-grades', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        });
-        setPaperGrades(res.data);
-      } catch (err) {
-        console.error('Failed to load paper grades', err);
-      }
-    };
     fetchMyAssignments();
     fetchPaperGrades();
   }, []);
@@ -185,6 +364,15 @@ const Dashboard = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {message && (
+          <div className="mb-6 p-4 bg-green-50 rounded-lg flex items-center space-x-3 text-green-700 border border-green-200">
+            <CheckCircle className="h-5 w-5 flex-shrink-0" />
+            <span className="font-medium">{message}</span>
+            <button onClick={() => setMessage('')} className="ml-auto text-green-400 hover:text-green-600 cursor-pointer rounded-md">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-slate-900">
             {activeTab === 'records' ? 'My Subjects' : 'My Paper Grades'}
@@ -226,9 +414,8 @@ const Dashboard = () => {
               <table className="w-full text-sm text-left text-slate-600">
                 <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="min-w-[10rem] pl-4 sm:pl-6 py-4 font-semibold">Document</th>
-                    <th className="hidden sm:table-cell px-6 py-4 font-semibold">Submitted</th>
-                    <th className="min-w-[8rem] pr-4 sm:pr-6 sm:text-left py-4 font-semibold">Evaluation</th>
+                    <th className="min-w-[10rem] pl-4 sm:pl-6 py-4 font-semibold">Subject</th>
+                    <th className="hidden sm:table-cell px-6 py-4 font-semibold">Status</th>
                     <th className="w-[1%] whitespace-nowrap pr-4 text-right sm:pr-6 py-4 font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -246,31 +433,40 @@ const Dashboard = () => {
                       </td>
                       
                       <td className="hidden sm:table-cell px-6 py-4">
-                        {assignment.submittedAt ? (
-                          <span className="text-slate-700 font-medium">{new Date(assignment.submittedAt).toLocaleDateString()}</span>
+                        {assignment.status !== 'Pending' ? (
+                          <div className="flex flex-col space-y-1">
+                            <span className="inline-flex items-center w-max px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                              Record Submitted
+                            </span>
+                            {assignment.submittedAt && (
+                              <span className="text-xs text-slate-500 font-medium">
+                                {new Date(assignment.submittedAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
                         ) : (
-                          <span className="text-slate-400 italic">Not submitted</span>
+                          <span className="inline-flex items-center w-max px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                            Not Submitted
+                          </span>
                         )}
                       </td>
                       
-                      <td className="pr-4 sm:pr-6 py-4">
-                        <div className="flex flex-col space-y-1">
-                          <span className={`inline-flex items-center w-max px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            assignment.status === 'Evaluated' ? 'bg-green-100 text-green-800' : 
-                            assignment.status === 'Submitted' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-800'
-                          }`}>
-                            {assignment.status}
-                          </span>
-                          {assignment.status === 'Evaluated' && (
-                            <span className="text-sm font-semibold text-slate-900">
-                              Score: {assignment.score} {assignment.maxMarks ? `/ ${assignment.maxMarks}` : ''}
-                            </span>
-                          )}
-                        </div>
-                      </td>
+
                       
                       <td className="w-[1%] whitespace-nowrap pr-4 text-right sm:pr-6 py-4">
-                        <div className="flex flex-col sm:flex-row gap-2 justify-end">
+                        <div className="flex flex-col sm:flex-row gap-2 justify-end items-center">
+                          {assignment.filePath && (
+                            <a 
+                              href={`http://localhost:5000${assignment.filePath}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center justify-center p-2 text-teal-600 hover:text-white hover:bg-teal-700 rounded-md transition-colors border border-teal-200 hover:border-teal-700 cursor-pointer shadow-sm"
+                              title="View Uploaded Lab Record PDF"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </a>
+                          )}
+                          
                           <button 
                             onClick={() => handleGenerateBarcodePDF(assignment)}
                             className="flex items-center px-3 py-1.5 border border-slate-300 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
@@ -280,15 +476,22 @@ const Dashboard = () => {
                           </button>
                           
                           <button 
-                            className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
-                              assignment.status !== 'Pending' 
-                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-                                : 'bg-teal-600 hover:bg-teal-700 text-white'
+                            onClick={() => setUploadTarget(assignment)}
+                            className={`flex items-center px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
+                              assignment.status === 'Evaluated' 
+                                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' 
+                                : assignment.status === 'Submitted'
+                                  ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                                  : 'bg-teal-600 hover:bg-teal-700 text-white'
                             }`}
-                            disabled={assignment.status !== 'Pending'}
+                            disabled={assignment.status === 'Evaluated'}
                           >
                             <Upload className="h-3 w-3 mr-1.5" />
-                            {assignment.status !== 'Pending' ? 'Uploaded' : 'Upload Record'}
+                            {assignment.status === 'Evaluated' 
+                              ? 'Locked' 
+                              : assignment.status === 'Submitted' 
+                                ? 'Change Record' 
+                                : 'Upload Record'}
                           </button>
                         </div>
                       </td>
@@ -297,7 +500,7 @@ const Dashboard = () => {
                   ))}
                   {assignments.length === 0 && (
                     <tr>
-                      <td colSpan="4" className="text-center py-12 text-slate-500">
+                      <td colSpan="3" className="text-center py-12 text-slate-500">
                         You have no assigned lab records at the moment.
                       </td>
                     </tr>
@@ -385,6 +588,20 @@ const Dashboard = () => {
           </div>
         )}
       </main>
+
+      {/* Modal */}
+      {uploadTarget && (
+        <UploadRecordModal
+          assignment={uploadTarget}
+          onClose={() => setUploadTarget(null)}
+          onSuccess={(successMsg) => {
+            setUploadTarget(null);
+            setMessage(successMsg);
+            fetchMyAssignments();
+            fetchPaperGrades();
+          }}
+        />
+      )}
     </div>
   );
 };

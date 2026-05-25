@@ -546,7 +546,7 @@ exports.getSubjectMaps = async (req, res) => {
 
 exports.getSubjects = async (req, res) => {
   try {
-    const subjects = await Subject.find();
+    const subjects = await Subject.find().sort({ createdAt: -1 });
     res.json(subjects);
   } catch (error) { res.status(500).json({ message: error.message }); }
 };
@@ -591,7 +591,7 @@ exports.getCourses = async (req, res) => {
 
 exports.getPapers = async (req, res) => {
   try {
-    const papers = await Paper.find().populate('subjectIds', 'subName subCode');
+    const papers = await Paper.find().populate('subjectIds', 'subName subCode maxMarks subPassMarks');
     res.json(papers);
   } catch (error) { res.status(500).json({ message: error.message }); }
 };
@@ -640,6 +640,22 @@ exports.assignSubjects = async (req, res) => {
       choiceFieldMap[sub._id.toString()] = index === 0 ? 'pedagogy1Name' : 'pedagogy2Name';
     });
 
+    // Fetch all evaluators who are assigned to these subjects to optimize lookup
+    const evaluators = await User.find({
+      role: 'EVALUATOR',
+      subjects: { $in: subjectIds }
+    }).lean();
+
+    // Map subjectId string to evaluator user _id
+    const subjectEvaluatorMap = {};
+    evaluators.forEach(ev => {
+      if (ev.subjects && Array.isArray(ev.subjects)) {
+        ev.subjects.forEach(subId => {
+          subjectEvaluatorMap[subId.toString()] = ev._id;
+        });
+      }
+    });
+
     for (const student of students) {
       for (const subject of subjects) {
         let belongsToMe = true;
@@ -656,6 +672,8 @@ exports.assignSubjects = async (req, res) => {
         }
 
         if (belongsToMe) {
+          const evaluatorId = subjectEvaluatorMap[subject._id.toString()] || null;
+
           await Assignment.findOneAndUpdate(
             { studentId: student._id, subjectId: subject._id },
             { 
@@ -665,7 +683,8 @@ exports.assignSubjects = async (req, res) => {
               createdBy, 
               status: 'Pending',
               groupSubjectName: assignedGroupName,
-              maxMarks: subject.maxMarks || 0
+              maxMarks: subject.maxMarks || 0,
+              evaluatorId
             },
             { upsert: true, new: true }
           );
@@ -733,7 +752,7 @@ exports.getAssignmentData = async (req, res) => {
 
     // 2. Fetch Subjects
     if (semester) {
-      subjects = await Subject.find({ semester }).lean();
+      subjects = await Subject.find({ semester }).sort({ createdAt: -1 }).lean();
     } else {
       subjects = [];
     }
@@ -800,8 +819,15 @@ exports.assignToEvaluator = async (req, res) => {
 exports.getAssignments = async (req, res) => {
   try {
     const assignments = await Assignment.find()
-      .populate('studentId', 'fullName regdNo')
-      .populate('subjectId', 'subName subCode type')
+      .populate({
+        path: 'studentId',
+        select: 'fullName regdNo currentSemester collegeId courseId',
+        populate: [
+          { path: 'collegeId', select: 'collegeName' },
+          { path: 'courseId', select: 'courseName' }
+        ]
+      })
+      .populate('subjectId', 'subName subCode type semester maxMarks subPassMarks')
       .populate('evaluatorId', 'fullName')
       .sort({ createdAt: -1 });
     res.json(assignments);
@@ -884,13 +910,55 @@ exports.getPaperGrades = async (req, res) => {
 exports.assignSubjectsToEvaluator = async (req, res) => {
   try {
     const { id } = req.params;
-    const { subjectIds } = req.body;
-    const evaluator = await User.findOneAndUpdate(
-      { _id: id, role: 'EVALUATOR' },
-      { subjects: subjectIds },
-      { new: true }
-    ).populate('subjects');
+    const { subjectIds, groupSubjects } = req.body;
+    
+    // 1. Fetch evaluator to get existing subjects
+    const evaluator = await User.findById(id);
     if (!evaluator) return res.status(404).json({ message: 'Evaluator not found' });
+
+    // 2. Merge existing subjects with new selections (ensuring uniqueness)
+    const existingSubjectIds = (evaluator.subjects || []).map(sid => sid.toString());
+    const mergedSubjectIds = [...new Set([...existingSubjectIds, ...(subjectIds || [])])];
+
+    const existingGroupSubjects = evaluator.groupSubjects || [];
+    const mergedGroupSubjects = [...new Set([...existingGroupSubjects, ...(groupSubjects || [])])];
+
+    // 3. Update evaluator
+    evaluator.subjects = mergedSubjectIds;
+    evaluator.groupSubjects = mergedGroupSubjects;
+    await evaluator.save();
+    
+    // Populate subjects for response
+    await evaluator.populate('subjects');
+
+    // 4. Sync: Update existing student assignments for these newly assigned regular subjects to point to this evaluator
+    if (subjectIds && subjectIds.length > 0) {
+      await Assignment.updateMany(
+        { subjectId: { $in: subjectIds } },
+        { $set: { evaluatorId: id } }
+      );
+    }
+
+    // 5. Sync: Update existing student assignments for these newly assigned group pedagogy subjects
+    if (groupSubjects && groupSubjects.length > 0) {
+      await Assignment.updateMany(
+        { groupSubjectName: { $in: groupSubjects } },
+        { $set: { evaluatorId: id } }
+      );
+    }
+
     res.json({ message: 'Subjects assigned successfully', evaluator });
+  } catch (error) { res.status(500).json({ message: error.message }); }
+};
+
+exports.getUniqueGroupSubjects = async (req, res) => {
+  try {
+    const groups = await Group.find().lean();
+    const subSet = new Set();
+    groups.forEach(g => {
+      if (g.pedagogy1Name && g.pedagogy1Name.trim() !== '') subSet.add(g.pedagogy1Name.trim());
+      if (g.pedagogy2Name && g.pedagogy2Name.trim() !== '') subSet.add(g.pedagogy2Name.trim());
+    });
+    res.json([...subSet].sort());
   } catch (error) { res.status(500).json({ message: error.message }); }
 };

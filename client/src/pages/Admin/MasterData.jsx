@@ -354,7 +354,10 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
   useEffect(() => {
     if (tabKey === 'papers' || tabKey === 'evaluators') {
       axios.get(`${API}/subjects`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(res => setSubjectOptions(res.data))
+        .then(res => {
+          const sorted = (res.data || []).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+          setSubjectOptions(sorted);
+        })
         .catch(err => console.error(err));
     }
     if (tabKey === 'papers') {

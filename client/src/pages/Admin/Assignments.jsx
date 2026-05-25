@@ -164,8 +164,21 @@ const Assignments = () => {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         
+        const rawSubs = res.data.subjects || [];
+        const sortedSubs = [...rawSubs].sort((a, b) => {
+          const aIsGroup = !!a.isGroupSubject;
+          const bIsGroup = !!b.isGroupSubject;
+          
+          if (aIsGroup && !bIsGroup) return 1;
+          if (!aIsGroup && bIsGroup) return -1;
+          if (!aIsGroup && !bIsGroup) {
+            return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+          }
+          return (a.subName || '').localeCompare(b.subName || '');
+        });
+
         setStudents(res.data.students || []);
-        setSubjects(res.data.subjects || []);
+        setSubjects(sortedSubs);
         
         // Reset selections when filters change
         setSelectedStudents([]);
