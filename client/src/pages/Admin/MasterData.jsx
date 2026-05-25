@@ -751,8 +751,28 @@ const MasterData = () => {
       const cleaned = (res.data || []).filter(row =>
         Object.values(row).some(v => v !== null && v !== undefined && v !== '' && v !== 0)
       );
-      // Sort newly created/added records on top
-      const sorted = cleaned.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      
+      // Sort records specifically based on active tab
+      let sorted;
+      if (tab === 'groups') {
+        // Sort serial number wise of Group Code
+        sorted = cleaned.sort((a, b) => {
+          const codeA = a.groupCode || '';
+          const codeB = b.groupCode || '';
+          return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+      } else if (tab === 'students') {
+        // Sort serial number wise of Student Registration Number
+        sorted = cleaned.sort((a, b) => {
+          const regdA = a.regdNo || '';
+          const regdB = b.regdNo || '';
+          return regdA.localeCompare(regdB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+      } else {
+        // Default sort: newly created/added records on top
+        sorted = cleaned.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      }
+
       setTableData(prev => ({ ...prev, [tab]: sorted }));
     } catch {
       setTableData(prev => ({ ...prev, [tab]: [] }));
