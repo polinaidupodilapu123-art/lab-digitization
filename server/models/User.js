@@ -37,6 +37,9 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Subject'
   }],
+  groupSubjects: [{
+    type: String
+  }],
   // To track if a student has completed their first-time setup
   isSetupComplete: {
     type: Boolean,
