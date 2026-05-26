@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Bell, FileText, Trash2, Plus, X, Download, Calendar, Search } from 'lucide-react';
+import { Bell, FileText, Trash2, Plus, X, Download, Calendar, Search, Edit2 } from 'lucide-react';
 import { API_BASE_URL } from '../../utils/config';
 
 const Notifications = () => {
@@ -15,6 +15,7 @@ const Notifications = () => {
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
   const [file, setFile] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
   const fetchNotifications = async () => {
     try {
@@ -31,6 +32,26 @@ const Notifications = () => {
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
+  };
+
+  const handleOpenCreateModal = () => {
+    setEditingId(null);
+    setTitle('');
+    setDate('');
+    setNotes('');
+    setFile(null);
+    setError('');
+    setIsModalOpen(true);
+  };
+
+  const handleEditClick = (notif) => {
+    setEditingId(notif._id);
+    setTitle(notif.title);
+    setDate(notif.date ? new Date(notif.date).toISOString().split('T')[0] : '');
+    setNotes(notif.notes || '');
+    setFile(null);
+    setError('');
+    setIsModalOpen(true);
   };
 
   const handleAddNotification = async (e) => {
@@ -51,21 +72,32 @@ const Notifications = () => {
       if (file) formData.append('file', file);
 
       const token = localStorage.getItem('token');
-      await axios.post(`${API_BASE_URL}/api/notifications`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      
+      if (editingId) {
+        await axios.put(`${API_BASE_URL}/api/notifications/${editingId}`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      } else {
+        await axios.post(`${API_BASE_URL}/api/notifications`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      }
 
       setIsModalOpen(false);
       setTitle('');
       setDate('');
       setNotes('');
       setFile(null);
+      setEditingId(null);
       fetchNotifications();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create circular notification');
+      setError(err.response?.data?.message || (editingId ? 'Failed to update circular' : 'Failed to create circular notification'));
     } finally {
       setLoading(false);
     }
@@ -105,13 +137,7 @@ const Notifications = () => {
             Publish official announcements and upload downloadable B.Ed college circulars.
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 py-3 rounded-md transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer text-sm"
-        >
-          <Plus className="h-4.5 w-4.5" />
-          Publish Circular
-        </button>
+      
       </div>
 
       {/* Filter and Content Panel */}
@@ -129,8 +155,15 @@ const Notifications = () => {
               className="pl-11 w-full border border-slate-200 rounded-md p-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white text-slate-800 transition-all font-medium text-sm"
             />
           </div>
-          <div className="text-xs text-slate-500 font-semibold uppercase tracking-wider ml-auto">
-            Total Circulars: {filteredNotifications.length}
+          <div className="text-xs text-slate-500 flex gap-2 items-center font-semibold uppercase tracking-wider ml-auto">
+            Total Notifications: {filteredNotifications.length}
+        <button
+          onClick={handleOpenCreateModal}
+          className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold px-3 py-2 rounded-sm transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer text-sm"
+        >
+          <Plus className="h-4 w-4" />
+          Add Notification
+        </button>
           </div>
         </div>
 
@@ -195,6 +228,13 @@ const Notifications = () => {
                           <span className="text-slate-400 text-xs italic">No PDF</span>
                         )}
                         <button
+                          onClick={() => handleEditClick(notif)}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all border border-transparent hover:border-blue-100 cursor-pointer"
+                          title="Edit Circular"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
                           onClick={() => handleDelete(notif._id)}
                           className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all border border-transparent hover:border-red-100 cursor-pointer"
                           title="Delete Circular"
@@ -219,7 +259,7 @@ const Notifications = () => {
             <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Bell className="h-5 w-5 text-teal-600" />
-                Publish Official Announcement
+                {editingId ? 'Edit Official Announcement' : 'Publish Official Announcement'}
               </h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
@@ -288,7 +328,7 @@ const Notifications = () => {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Announcements / Circular Remarks
+                  NOTES
                 </label>
                 <textarea
                   rows={4}
@@ -312,7 +352,7 @@ const Notifications = () => {
                   disabled={loading}
                   className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-md transition-all shadow-md active:scale-95 cursor-pointer text-sm flex items-center gap-2"
                 >
-                  {loading ? 'Publishing...' : 'Publish Announcement'}
+                  {loading ? (editingId ? 'Updating...' : 'Publishing...') : (editingId ? 'Save Changes' : 'Publish Announcement')}
                 </button>
               </div>
             </form>

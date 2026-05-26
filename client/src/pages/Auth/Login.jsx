@@ -82,39 +82,41 @@ const Login = () => {
                 {notifications.map((notification, idx) => (
                   <div
                     key={notification._id || idx}
-                    className="flex items-center justify-between gap-3 px-4 py-3 bg-white border border-slate-200 rounded-md hover:border-teal-300 hover:bg-teal-50/40 transition-all group"
+                    className="flex items-start px-4 py-3 bg-white border border-slate-200 rounded-md  hover:bg-teal-50/40 transition-all group"
                   >
-                    {/* Title */}
-                    <p className="flex-1 font-semibold text-slate-800 text-sm leading-snug group-hover:text-teal-800 transition-colors truncate">
-                      {notification.title}
-                    </p>
-
-                    {/* Date badge */}
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-100 group-hover:bg-teal-100 group-hover:text-teal-700 px-2.5 py-1 rounded-md border border-slate-200 group-hover:border-teal-200 transition-all whitespace-nowrap shrink-0">
-                      <Calendar className="h-3 w-3" />
-                      {new Date(notification.date).toLocaleDateString('en-GB', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric'
-                      })}
-                    </span>
-
-                    {/* Download icon */}
-                    {notification.pdfPath ? (
-                      <a
-                        href={`${API_BASE_URL}${notification.pdfPath}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="shrink-0 p-2 bg-teal-50 hover:bg-teal-600 text-teal-600 hover:text-white rounded-md transition-all border border-teal-100 hover:border-teal-600"
-                        title="Download PDF"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                      </a>
-                    ) : (
-                      <span className="shrink-0 p-2 text-slate-300 cursor-default" title="No attachment">
-                        <Download className="h-3.5 w-3.5" />
+                    <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+                      <div className="flex items-start gap-2 w-full">
+                        {notification.pdfPath ? (
+                          <a
+                            href={`${API_BASE_URL}${notification.pdfPath}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-semibold text-slate-800 text-sm leading-snug group-hover:text-teal-700 transition-colors break-words"
+                            title="Open PDF Document"
+                          >
+                            {notification.title}
+                          </a>
+                        ) : (
+                          <p className="font-semibold text-slate-800 text-sm leading-snug transition-colors break-words">
+                            {notification.title}
+                          </p>
+                        )}
+                        {new Date().getTime() - new Date(notification.date).getTime() < 7 * 24 * 60 * 60 * 1000 && (
+                          <span className="shrink-0 animate-pulse bg-rose-100 text-rose-600 border border-rose-200 text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm uppercase tracking-wider mt-0.5">
+                            New
+                          </span>
+                        )}
+                      </div>
+                      
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                        <Calendar className="h-3 w-3 text-slate-400" />
+                        {new Date(notification.date).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
                       </span>
-                    )}
+                    </div>
                   </div>
                 ))}
               </div>
