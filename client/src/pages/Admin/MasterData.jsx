@@ -225,7 +225,7 @@ const CustomSearchDropdown = ({ value, onChange, options, placeholder }) => {
     <div className="relative w-full" ref={wrapperRef}>
       <input
         type="text"
-        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-colors"
+        className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800"
         placeholder={placeholder}
         value={search}
         onChange={(e) => {
@@ -291,7 +291,7 @@ const CustomMultiSelectDropdown = ({ values = [], onChange, options, placeholder
   return (
     <div className="relative w-full" ref={wrapperRef}>
       <div 
-        className="w-full min-h-[38px] px-2 py-1 bg-slate-50 border border-slate-200 rounded-md flex flex-wrap gap-1 items-center cursor-text focus-within:ring-2 focus-within:ring-teal-500/50 focus-within:border-teal-500 transition-colors"
+        className="w-full min-h-[38px] px-2 py-1.5 border border-slate-300 rounded-md flex flex-wrap gap-1 items-center cursor-text focus-within:ring-2 focus-within:ring-teal-500 focus-within:border-teal-500 transition-all text-slate-800 bg-white"
         onClick={() => setIsOpen(true)}
       >
         {(Array.isArray(values) ? values : []).map((val) => {
@@ -458,7 +458,7 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             {[...cfg.columns].sort((a, b) => (a.autoCalculated ? 1 : 0) - (b.autoCalculated ? 1 : 0)).map(col => (
               <div key={col.key}>
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                   {col.header}
                 </label>
                 {tabKey === 'papers' && col.key === 'subjectIds' ? (
@@ -492,7 +492,7 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
                       disabled
                       value={formData[col.key] !== undefined ? formData[col.key] : ''}
                       placeholder="Auto-calculated from subjects"
-                      className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-md text-sm text-teal-700 font-semibold cursor-not-allowed"
+                      className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-teal-700 cursor-not-allowed bg-slate-100"
                     />
                     <p className="text-[10px] text-teal-600 font-medium italic">Calculated automatically on save.</p>
                   </div>
@@ -503,7 +503,7 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
                       value={formData[col.key] || ''}
                       placeholder={(!isNew && col.key === 'password') ? "Leave blank to keep unchanged" : ""}
                       onChange={(e) => handleChange(e, col.key)}
-                      className="w-full pl-3 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-colors"
+                      className="w-full border border-slate-300 rounded-md pl-3 pr-10 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800"
                     />
                     <button
                       type="button"
@@ -522,7 +522,7 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
                     type="text"
                     value={formData[col.key] || ''}
                     onChange={(e) => handleChange(e, col.key)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-colors"
+                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
                   />
                 )}
               </div>
@@ -627,9 +627,9 @@ const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
           {/* Semester Dropdown (Only for students and subjects) */}
           {(cfg.uploadType === 'students' || cfg.uploadType === 'subjects') && (
             <div className="mb-5">
-              <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase tracking-wide">Semester</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Semester</label>
               <select 
-                className="w-full border border-slate-300 rounded-md p-2.5 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm bg-slate-50"
+                className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
                 value={semester}
                 onChange={(e) => setSemester(e.target.value)}
               >
@@ -717,7 +717,7 @@ const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
               <div className="border border-red-200 rounded-md overflow-hidden max-h-48 overflow-y-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-red-600 text-white">
+                    <tr className="bg-red-600 text-white text-sm">
                       <th className="px-3 py-2 text-left w-16">Row #</th>
                       <th className="px-3 py-2 text-left">Error</th>
                     </tr>
@@ -984,7 +984,7 @@ const MasterData = () => {
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
+                <tr className="bg-teal-700 text-white text-sm">
                   <th className="px-4 py-3 text-left w-10 whitespace-nowrap">#</th>
                   {cfg.columns.filter(col => !col.hideInTable).map(col => (
                     <th key={col.key} className="px-4 py-3 text-left whitespace-nowrap">{col.header}</th>

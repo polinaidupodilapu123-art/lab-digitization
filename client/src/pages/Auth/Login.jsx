@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { Lock, User, Eye, EyeOff, FileText, Download, Calendar, Bell } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, FileText, Calendar, Bell, X } from 'lucide-react';
 import { API_BASE_URL } from '../../utils/config';
+import Header from '../../components/Header';
 
 const Login = () => {
   const [identifier, setIdentifier] = useState('');
@@ -44,31 +45,33 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-teal-900 via-slate-900 to-teal-950 p-4 md:p-8">
-      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+    <div className="h-screen overflow-hidden flex flex-col bg-slate-50 font-sans">
+      <Header />
 
+      <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 flex flex-col lg:flex-row gap-8 items-start justify-center mt-2 md:mt-6 overflow-hidden">
+        
         {/* Left Column: Official Notifications Board */}
-        <div className="lg:col-span-7 bg-white rounded-md border border-slate-200 p-6 md:p-8 flex flex-col shadow-xl relative overflow-hidden text-slate-800 min-h-[500px] lg:min-h-0">
+        <div className="w-full lg:w-7/12 bg-white rounded-md border border-slate-200 p-6 md:p-8 flex flex-col shadow-xl relative overflow-hidden text-slate-800 h-full">
           {/* Subtle glowing background decorations */}
           <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-teal-500/5 rounded-full blur-3xl pointer-events-none"></div>
           <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
           {/* Header */}
-          <div className="relative z-10 flex items-center gap-3 mb-5 flex-shrink-0">
+          <div className="relative z-10 flex items-center gap-3 mb-5 flex-shrink-0 border-b border-slate-100 pb-4">
             <span className="p-2.5 bg-teal-50 text-teal-700 rounded-md border border-teal-100 shadow-sm">
               <Bell className="h-6 w-6 animate-pulse" />
             </span>
             <div>
               <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
-                AKNU Digitization Portal
+                University Circulars
               </h2>
               <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mt-0.5">
-                Official Notifications & Circulars
+                Official Notifications
               </p>
             </div>
           </div>
 
-          {/* Notifications List — linear scrollable card rows */}
+          {/* Notifications List */}
           <div className="relative z-10 flex-1 overflow-hidden flex flex-col min-h-0">
             {notifications.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center py-12 px-4 bg-slate-50 rounded-md border border-slate-200">
@@ -78,11 +81,11 @@ const Login = () => {
                 </p>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto pr-1 space-y-2" style={{ maxHeight: '370px' }}>
+              <div className="flex-1 overflow-y-auto pr-2 space-y-2 max-h-[350px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {notifications.map((notification, idx) => (
                   <div
                     key={notification._id || idx}
-                    className="flex items-start px-4 py-3 bg-white border border-slate-200 rounded-md  hover:bg-teal-50/40 transition-all group"
+                    className="flex items-start px-4 py-3 bg-white border border-slate-200 rounded-md hover:border-teal-300 hover:bg-teal-50/40 transition-all group"
                   >
                     <div className="flex-1 flex flex-col gap-1.5 min-w-0">
                       <div className="flex items-start gap-2 w-full">
@@ -91,7 +94,7 @@ const Login = () => {
                             href={`${API_BASE_URL}${notification.pdfPath}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="font-semibold text-slate-800 text-sm leading-snug group-hover:text-teal-700 transition-colors break-words"
+                            className="font-semibold text-slate-800 text-sm leading-snug group-hover:text-teal-700 transition-colors break-words hover:underline decoration-teal-300 underline-offset-2"
                             title="Open PDF Document"
                           >
                             {notification.title}
@@ -108,8 +111,8 @@ const Login = () => {
                         )}
                       </div>
                       
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500">
-                        <Calendar className="h-3 w-3 text-slate-400" />
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500 mt-1">
+                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
                         {new Date(notification.date).toLocaleDateString('en-GB', {
                           day: '2-digit',
                           month: 'short',
@@ -122,32 +125,28 @@ const Login = () => {
               </div>
             )}
           </div>
-
-
-          <div className="text-xs text-slate-400 border-t border-slate-100 pt-4 mt-5 flex-shrink-0 z-10 relative">
-            Adikavi Nannaya University Portal · Official circulars & B.Ed practical updates
-          </div>
         </div>
 
         {/* Right Column: Login Card */}
-        <div className="lg:col-span-5 bg-white rounded-md border border-slate-200 shadow-xl p-8 flex flex-col justify-center relative">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-slate-900">Lab Digitization Portal</h1>
-            <p className="text-slate-500 text-sm mt-1.5">
-              Sign in using your Registration Number or Email Address.
+        <div className="w-full lg:w-5/12 bg-white rounded-md border border-slate-200 shadow-xl p-8 flex flex-col justify-center relative">
+          <div className="text-center mb-4">
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Lab Digitization Portal</h2>
+            <p className="text-slate-500 text-sm mt-1.5 font-medium">
+              Sign in to access your dashboard.
             </p>
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-md mb-5 text-sm text-center font-medium">
+            <div className="bg-rose-50 border border-rose-100 text-rose-600 p-3 rounded-md mb-5 text-sm font-semibold flex items-center gap-2">
+              <X className="h-4 w-4" />
               {error}
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-3">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                User Identifier
+              <label className="block text-sm font-semibold text-slate-700 mb-1">
+                Registration No / Email
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -159,13 +158,15 @@ const Login = () => {
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   className="pl-11 w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 font-medium"
-                  placeholder="Enter Reg No or Email"
+                  placeholder="Enter your ID or Email"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Password</label>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-sm font-semibold text-slate-700">Password</label>
+              </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-slate-400" />
@@ -183,30 +184,26 @@ const Login = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-teal-700 transition-colors cursor-pointer"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold py-3 rounded-md transition-all shadow-md active:scale-[0.98] cursor-pointer"
+              className="w-full bg-teal-800 hover:bg-teal-900 text-white font-semibold py-3 rounded-md transition-all shadow-md active:scale-[0.98] cursor-pointer mt-2"
             >
               Sign In
             </button>
           </form>
 
           <div className="mt-6 text-center text-sm border-t border-slate-100 pt-4">
-            <span className="text-slate-500">First time user? </span>
+            <span className="text-slate-500 font-medium">New student or evaluator? </span>
             <Link
               to="/register"
-              className="text-teal-700 hover:text-teal-800 font-semibold hover:underline"
+              className="text-teal-700 hover:text-teal-800 font-bold transition-colors ml-1"
             >
-              Set up your password
+              Register here
             </Link>
           </div>
         </div>

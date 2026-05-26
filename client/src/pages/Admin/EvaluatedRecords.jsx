@@ -324,7 +324,7 @@ const EvaluatedRecords = () => {
                     setSelectedStatus(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="px-3 py-1.5 border border-slate-300 rounded-md focus:ring-teal-500 focus:border-teal-500 outline-none text-xs bg-white cursor-pointer"
+                  className="px-3 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white cursor-pointer"
                 >
                   <option value="">-- All Statuses --</option>
                   <option value="Submitted">Pending Evaluation</option>
@@ -345,7 +345,7 @@ const EvaluatedRecords = () => {
                       setCurrentPage(1);
                       setPaperPage(1);
                     }}
-                    className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-md focus:ring-teal-500 focus:border-teal-500 outline-none text-xs"
+                    className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
                   />
                 </div>
 
@@ -365,7 +365,7 @@ const EvaluatedRecords = () => {
             <div className="overflow-x-auto sleek-scrollbar">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
+                  <tr className="bg-teal-700 text-white text-sm font-semibold">
                     <th className="px-4 py-3 text-left whitespace-nowrap">Student Name</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Roll No.</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap min-w-[12rem]">Document / Subject</th>
@@ -458,7 +458,7 @@ const EvaluatedRecords = () => {
                       setCurrentPage(1);
                       setPaperPage(1);
                     }}
-                    className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-md focus:ring-teal-500 focus:border-teal-500 outline-none text-xs"
+                    className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
                   />
                 </div>
 
@@ -478,7 +478,7 @@ const EvaluatedRecords = () => {
             <div className="overflow-x-auto sleek-scrollbar">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
+                  <tr className="bg-teal-700 text-white text-sm font-semibold">
                     <th className="px-4 py-3 text-left whitespace-nowrap">Student Name</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Roll No.</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Semester</th>
