@@ -25,14 +25,14 @@ const SearchableDropdown = ({ label, options, value, onChange, placeholder = 'Se
 
   return (
     <div className="relative w-full" ref={wrapperRef}>
-      {label && <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase tracking-wide">{label}</label>}
+      {label && <label className="block text-sm font-semibold text-slate-700 mb-1.5">{label}</label>}
       
       {/* Selected Box */}
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full border border-slate-300 rounded-md p-2.5 bg-slate-50 flex items-center justify-between cursor-pointer hover:border-teal-500 transition-colors"
+        className="w-full border border-slate-300 rounded-md px-3 py-1.5 bg-white flex items-center justify-between cursor-pointer hover:border-teal-500 transition-all text-slate-800"
       >
-        <span className={`text-sm ${selectedOption ? 'text-slate-900' : 'text-slate-500'}`}>
+        <span className={selectedOption ? 'text-slate-900' : 'text-slate-500'}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />

@@ -465,40 +465,40 @@ const Assignments = () => {
               
               <div className="p-4 border-b border-slate-200 bg-slate-50 grid grid-cols-1 sm:grid-cols-4 gap-4 animate-fadeIn">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase tracking-wide">Academic Year</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Academic Year</label>
                   <input 
                     type="text" 
                     placeholder="e.g. 2023-2024"
                     value={academicYear}
                     onChange={(e) => setAcademicYear(e.target.value)}
-                    className="w-full border border-slate-300 rounded-md p-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm bg-white" 
+                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white" 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase tracking-wide">Deadline</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Deadline</label>
                   <input 
                     type="date" 
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
-                    className="w-full border border-slate-300 rounded-md p-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm bg-white" 
+                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white" 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase tracking-wide">Req. Pages</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Req. Pages</label>
                   <input 
                     type="number" 
                     value={pagesRequired}
                     onChange={(e) => setPagesRequired(Number(e.target.value))}
-                    className="w-full border border-slate-300 rounded-md p-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm bg-white" 
+                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white" 
                     min="1"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase tracking-wide">Mode</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Mode</label>
                   <select 
                     value={mode}
                     onChange={(e) => setMode(e.target.value)}
-                    className="w-full border border-slate-300 bg-white rounded-md p-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm cursor-pointer font-medium text-slate-700"
+                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white cursor-pointer"
                   >
                     <option value="Regular">Regular</option>
                     <option value="Supply">Supply</option>
@@ -647,43 +647,43 @@ const Assignments = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase tracking-wide">Academic Year</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Academic Year</label>
                   <input 
                     type="text" 
                     placeholder="e.g. 2023-2024"
                     value={academicYear}
                     onChange={(e) => setAcademicYear(e.target.value)}
-                    className="w-full border border-slate-300 rounded-md p-2.5 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm bg-white" 
+                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white" 
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase tracking-wide">Deadline</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Deadline</label>
                   <input 
                     type="date" 
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
-                    className="w-full border border-slate-300 rounded-md p-2.5 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm bg-white" 
+                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white" 
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase tracking-wide">Required Pages</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Required Pages</label>
                   <input 
                     type="number" 
                     value={pagesRequired}
                     onChange={(e) => setPagesRequired(Number(e.target.value))}
-                    className="w-full border border-slate-300 rounded-md p-2.5 focus:ring-teal-500 focus:border-teal-500 outline-none text-sm bg-white" 
+                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white" 
                     min="1"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase tracking-wide">Mode</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Mode</label>
                   <select 
                     disabled 
                     value="Supply"
-                    className="w-full border border-slate-300 bg-slate-50 rounded-md p-2.5 outline-none text-sm font-medium text-slate-500 cursor-not-allowed"
+                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 outline-none transition-all text-slate-500 bg-slate-50 cursor-not-allowed"
                   >
                     <option value="Supply">Supply (Backlog)</option>
                   </select>
@@ -753,7 +753,7 @@ const Assignments = () => {
           <div className="overflow-x-auto elegant-scrollbar">
             <table className="w-full text-sm animate-fadeIn">
               <thead>
-                <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
+                <tr className="bg-teal-700 text-white text-sm font-semibold">
                   <th className="px-4 py-3 text-left whitespace-nowrap">Subject</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Mode</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Student</th>

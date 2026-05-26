@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import axios from 'axios';
 import { User, Lock, Mail, MessageSquare, ArrowRight, ArrowLeft, CheckCircle2, Eye, EyeOff, Search, ChevronDown, Check } from 'lucide-react';
 import { API_BASE_URL } from '../../utils/config';
+import Header from '../../components/Header';
 
 const Register = () => {
   const [step, setStep] = useState(1); // 1 = Registration & Email, 2 = OTP & Password
@@ -169,11 +170,13 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-teal-800 p-4 font-sans">
-      <div className="w-full max-w-md bg-white rounded-md shadow-xl p-8 relative">
+    <div className="h-screen overflow-hidden flex flex-col bg-slate-50 font-sans">
+      <Header />
+      <div className="flex-1 flex items-center justify-center p-4 min-h-0 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="w-full max-w-md bg-white rounded-md border border-slate-200 shadow-xl p-8 relative my-auto">
         
         {/* Step Indicator top border decoration */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 flex overflow-hidden rounded-t-md">
+        <div className="absolute top-0 left-0 right-0 h-1 flex overflow-hidden rounded-t-sm">
           <div className={`h-full flex-1 transition-all duration-300 ${step >= 1 ? 'bg-teal-500' : 'bg-slate-100'}`}></div>
           <div className={`h-full flex-1 transition-all duration-300 ${step >= 2 ? 'bg-teal-500' : 'bg-slate-100'}`}></div>
           <div className={`h-full flex-1 transition-all duration-300 ${success ? 'bg-green-500' : 'bg-slate-100'}`}></div>
@@ -319,7 +322,7 @@ const Register = () => {
                 )}
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase tracking-wider">Your Email Address</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <Mail className="h-4.5 w-4.5 text-slate-400" />
@@ -495,6 +498,7 @@ const Register = () => {
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   );

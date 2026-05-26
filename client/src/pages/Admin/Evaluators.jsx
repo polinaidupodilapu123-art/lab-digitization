@@ -121,24 +121,25 @@ const SubjectAllocationPanel = ({ allocation, colleges, assignments, subjectId, 
       {/* Valuation Deadline & Split Method */}
       <div className="grid grid-cols-2 gap-3.5">
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-            Valuation Deadline
+          <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+            Valuation Deadline <span className="text-red-500">*</span>
           </label>
           <input
             type="date"
+            required
             value={allocation.valuationDeadline || ''}
             onChange={(e) => handleFieldChange('valuationDeadline', e.target.value)}
-            className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-medium text-slate-700 shadow-sm outline-none"
+            className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+          <label className="block text-sm font-semibold text-slate-700 mb-1.5">
             Record Split Mode
           </label>
           <select
             value={allocation.splitMethod || 'ALL'}
             onChange={(e) => handleFieldChange('splitMethod', e.target.value)}
-            className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-semibold text-slate-700 shadow-sm cursor-pointer outline-none"
+            className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white cursor-pointer"
           >
             <option value="ALL">Assign All Records</option>
             <option value="COLLEGE">Filter by College</option>
@@ -150,8 +151,8 @@ const SubjectAllocationPanel = ({ allocation, colleges, assignments, subjectId, 
       {/* College-wise Split Option */}
       {allocation.splitMethod === 'COLLEGE' && (
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-sm font-semibold text-slate-700">
               Select College(s)
             </label>
             <input
@@ -159,7 +160,7 @@ const SubjectAllocationPanel = ({ allocation, colleges, assignments, subjectId, 
               placeholder="Search college..."
               value={colSearch}
               onChange={(e) => setColSearch(e.target.value)}
-              className="px-2 py-0.5 text-[10px] bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500 w-32 shadow-sm text-slate-700"
+              className="px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 w-48 text-slate-800 transition-all"
             />
           </div>
           <div className="border border-slate-200 rounded-md p-2 bg-white max-h-32 overflow-y-auto sleek-scrollbar space-y-1 shadow-sm">
@@ -204,7 +205,7 @@ const SubjectAllocationPanel = ({ allocation, colleges, assignments, subjectId, 
       {/* Roll Range-wise Split Option */}
       {allocation.splitMethod === 'RANGE' && (
         <div className="space-y-2">
-          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+          <label className="block text-sm font-semibold text-slate-700 mb-1.5">
             Student Registration Number Range
           </label>
           <div className="grid grid-cols-2 gap-3">
@@ -214,7 +215,7 @@ const SubjectAllocationPanel = ({ allocation, colleges, assignments, subjectId, 
                 placeholder="Start Roll No"
                 value={allocation.rollStart || ''}
                 onChange={(e) => handleFieldChange('rollStart', e.target.value)}
-                className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-medium text-slate-700 shadow-sm"
+                className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
               />
             </div>
             <div>
@@ -223,7 +224,7 @@ const SubjectAllocationPanel = ({ allocation, colleges, assignments, subjectId, 
                 placeholder="End Roll No"
                 value={allocation.rollEnd || ''}
                 onChange={(e) => handleFieldChange('rollEnd', e.target.value)}
-                className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-medium text-slate-700 shadow-sm"
+                className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
               />
             </div>
           </div>
@@ -342,6 +343,12 @@ const AssignSubjectsModal = ({ evaluator, onClose, onSuccess }) => {
     const allocationList = Object.values(allocations);
     if (allocationList.length === 0) {
       setError('Please select at least one subject to assign.');
+      setSaving(false);
+      return;
+    }
+    
+    if (allocationList.some(a => !a.valuationDeadline)) {
+      setError('Valuation Deadline is required for all assigned subjects.');
       setSaving(false);
       return;
     }
@@ -667,7 +674,7 @@ const Evaluators = () => {
                 placeholder="Search evaluators..."
                 value={search}
                 onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-9 pr-8 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                className="w-full pl-9 pr-8 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-slate-800 bg-white transition-all"
               />
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               {search && (
@@ -696,7 +703,7 @@ const Evaluators = () => {
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
+                <tr className="bg-teal-700 text-white text-sm font-semibold">
                   <th className="px-4 py-3 text-left whitespace-nowrap">#</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Name</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Email</th>

@@ -152,7 +152,7 @@ const Notifications = () => {
               placeholder="Search announcements by title or content..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-11 w-full border border-slate-200 rounded-md p-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white text-slate-800 transition-all font-medium text-sm"
+              className="w-full pl-11 pr-3 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
             />
           </div>
           <div className="text-xs text-slate-500 flex gap-2 items-center font-semibold uppercase tracking-wider ml-auto">
@@ -178,7 +178,7 @@ const Notifications = () => {
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
+                <tr className="bg-teal-700 text-white text-sm font-semibold">
                   <th className="px-4 py-3 text-left w-[25%]">Notification Title</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap w-[15%]">Announced Date</th>
                   <th className="px-4 py-3 text-left w-[45%]">Notes</th>
@@ -219,10 +219,10 @@ const Notifications = () => {
                             href={`${API_BASE_URL}${notif.pdfPath}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="px-3 py-1.5 bg-teal-50 hover:bg-teal-600 text-teal-700 hover:text-white rounded-md text-xs font-bold flex items-center gap-1.5 transition-all border border-teal-100 hover:border-teal-600 cursor-pointer"
+                            className="px-3 py-1.5 text-teal-700   text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                           >
                             <Download className="h-3.5 w-3.5" />
-                            Download
+                            
                           </a>
                         ) : (
                           <span className="text-slate-400 text-xs italic">No PDF</span>
@@ -277,7 +277,7 @@ const Notifications = () => {
               )}
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                   Circular Title *
                 </label>
                 <input
@@ -286,25 +286,25 @@ const Notifications = () => {
                   placeholder="e.g. B.Ed Second Semester Practical Exams Extended Deadlines"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full border border-slate-200 rounded-md p-3 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-slate-800 transition-all font-medium text-sm"
+                  className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     Announcement Date
                   </label>
                   <input
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full border border-slate-200 rounded-md p-3 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-slate-800 transition-all font-medium text-sm"
+                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     Attach PDF Circular (Optional)
                   </label>
                   <div className="relative">
@@ -327,15 +327,15 @@ const Notifications = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                  NOTES
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Notes
                 </label>
                 <textarea
                   rows={4}
                   placeholder="Detail any background notes, exact timelines, guidelines, or summary of updates..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full border border-slate-200 rounded-md p-3 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-slate-800 transition-all font-medium text-sm"
+                  className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
                 />
               </div>
 

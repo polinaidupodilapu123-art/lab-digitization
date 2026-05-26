@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Book, FileText, Download, Upload, X, RefreshCw, CheckCircle } from 'lucide-react';
+import { LogOut, Book, FileText, Download, Upload, X, RefreshCw, CheckCircle, User as UserIcon } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../utils/config';
 import JsBarcode from 'jsbarcode';
@@ -247,6 +247,22 @@ const Dashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [uploadTarget, setUploadTarget] = useState(null);
   const [message, setMessage] = useState('');
+  const [profileData, setProfileData] = useState(null);
+  const [showProfile, setShowProfile] = useState(false);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        setProfileData(res.data);
+      } catch (err) {
+        console.error('Failed to load profile', err);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const fetchMyAssignments = async () => {
     try {
@@ -322,7 +338,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-slate-50 animate-fade-in">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center">
               <div className="bg-teal-600 text-white p-2 rounded-md mr-3">
@@ -333,18 +349,48 @@ const Dashboard = () => {
                 <p className="text-sm text-slate-500 font-medium">{user.fullName} ({user.regdNo})</p>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center text-slate-500 hover:text-red-600 font-medium px-3 py-2 rounded-md hover:bg-red-50 transition-colors cursor-pointer"
-            >
-              <LogOut className="h-5 w-5 mr-2" />
-              Logout
-            </button>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <button
+                  onClick={() => setShowProfile(!showProfile)}
+                  className="flex items-center justify-center h-9 w-9 rounded-full bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-600 transition-colors cursor-pointer border border-slate-200"
+                  title="My Profile"
+                >
+                  <UserIcon className="h-4 w-4" />
+                </button>
+                
+                {showProfile && profileData && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-md shadow-lg border border-slate-200 p-4 z-50 animate-fade-in">
+                    <div className="flex justify-between items-start mb-3">
+                      <h4 className="font-semibold text-slate-800">Student Profile</h4>
+                      <button onClick={() => setShowProfile(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <p><span className="text-slate-500">Name:</span> <span className="font-medium text-slate-800 block">{profileData.fullName}</span></p>
+                      <p><span className="text-slate-500">Reg No:</span> <span className="font-medium text-slate-800 block">{profileData.regdNo}</span></p>
+                      <p><span className="text-slate-500">College:</span> <span className="font-medium text-slate-800 block">{profileData.collegeId?.collegeName || 'N/A'}</span></p>
+                      <p><span className="text-slate-500">Course:</span> <span className="font-medium text-slate-800 block">{profileData.courseId?.courseName || 'N/A'}</span></p>
+                      <p><span className="text-slate-500">Semester:</span> <span className="font-medium text-slate-800 block">{profileData.currentSemester || 'N/A'}</span></p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <button
+                onClick={handleLogout}
+                className="flex items-center text-slate-500 hover:text-red-600 font-medium px-3 py-2 rounded-md hover:bg-red-50 transition-colors cursor-pointer"
+              >
+                <LogOut className="h-5 w-5 mr-2" />
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-slide-in">
+      <main className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-slide-in">
         {message && (
           <div className="mb-6 p-4 bg-green-50 rounded-md flex items-center space-x-3 text-green-700 border border-green-200">
             <CheckCircle className="h-5 w-5 flex-shrink-0" />
