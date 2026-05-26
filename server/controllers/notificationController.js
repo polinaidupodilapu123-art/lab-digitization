@@ -63,3 +63,37 @@ exports.deleteNotification = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// 4. Edit a notification circular (Admin only)
+exports.editNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, date, notes } = req.body;
+    
+    const notification = await Notification.findById(id);
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found.' });
+    }
+
+    if (title) notification.title = title;
+    if (date) notification.date = new Date(date);
+    if (notes !== undefined) notification.notes = notes;
+
+    if (req.file) {
+      // Delete old file
+      if (notification.pdfPath) {
+        const fullPath = path.join(__dirname, '..', notification.pdfPath);
+        fs.unlink(fullPath, (err) => {
+          if (err) console.error('Failed to delete old physical PDF:', err.message);
+        });
+      }
+      notification.pdfPath = `/uploads/${req.file.filename}`;
+    }
+
+    await notification.save();
+    res.json({ message: 'Notification updated successfully', notification });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

@@ -23,6 +23,7 @@ router.get('/', notificationController.getNotifications);
 
 // Admin-only endpoints to manage notifications
 router.post('/', protect, adminOnly, upload.single('file'), notificationController.createNotification);
+router.put('/:id', protect, adminOnly, upload.single('file'), notificationController.editNotification);
 router.delete('/:id', protect, adminOnly, notificationController.deleteNotification);
 
 module.exports = router;
