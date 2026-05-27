@@ -98,9 +98,9 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
       return;
     }
     
-    // Check file size (500KB limit)
-    if (selected.size > 500 * 1024) {
-      setError('File size exceeds the 500KB limit.');
+    // Check file size (1MB limit)
+    if (selected.size > 1024 * 1024) {
+      setError('File size exceeds the 1MB limit.');
       setFile(null);
       return;
     }
