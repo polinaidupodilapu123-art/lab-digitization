@@ -124,7 +124,7 @@ const Notifications = () => {
   );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="px-4 py-6 w-full space-y-6">
       
       {/* Header Panel */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-md border border-slate-200 shadow-sm">
@@ -144,8 +144,8 @@ const Notifications = () => {
       <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden">
         
         {/* Search Bar */}
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
-          <div className="relative flex-1 max-w-md">
+        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-3">
+          <div className="relative w-full sm:flex-1 sm:max-w-md">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-5 w-5" />
             <input
               type="text"
@@ -155,15 +155,16 @@ const Notifications = () => {
               className="w-full pl-11 pr-3 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
             />
           </div>
-          <div className="text-xs text-slate-500 flex gap-2 items-center font-semibold uppercase tracking-wider ml-auto">
-            Total Notifications: {filteredNotifications.length}
-        <button
-          onClick={handleOpenCreateModal}
-          className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold px-3 py-2 rounded-sm transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer text-sm"
-        >
-          <Plus className="h-4 w-4" />
-          Add Notification
-        </button>
+          <div className="text-xs text-slate-500 flex w-full sm:w-auto justify-between sm:justify-end gap-3 items-center font-semibold uppercase tracking-wider ml-auto">
+            <span className="truncate">Total: {filteredNotifications.length}</span>
+            <button
+              onClick={handleOpenCreateModal}
+              className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold px-3 py-2 rounded-sm transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer text-sm shrink-0"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Add Notification</span>
+              <span className="sm:hidden">Add</span>
+            </button>
           </div>
         </div>
 

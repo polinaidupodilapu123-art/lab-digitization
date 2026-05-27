@@ -636,7 +636,7 @@ const Evaluators = () => {
   const pagedRows = filteredEvaluators.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="px-4 py-6 w-full">
       
       {/* Header */}
       <div className="mb-8 flex justify-between items-start flex-wrap gap-4">

@@ -829,9 +829,16 @@ const MasterData = () => {
     setSearchQuery('');
   };
 
+  const showGlobalMessage = (msg) => {
+    setGlobalMsg(msg);
+    setTimeout(() => {
+      setGlobalMsg('');
+    }, 5000);
+  };
+
   const handleUploadSuccess = (tab, customMessage, keepModalOpen = false) => {
     fetchTab(tab, true);
-    setGlobalMsg(customMessage || `${TAB_CONFIG[tab].label} data uploaded successfully!`);
+    showGlobalMessage(customMessage || `${TAB_CONFIG[tab].label} data uploaded successfully!`);
     if (!keepModalOpen) {
       setModalTab(null);
       setEditRecord(null);
@@ -848,7 +855,7 @@ const MasterData = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchTab(activeTab, true);
-      setGlobalMsg('Record deleted successfully!');
+      showGlobalMessage('Record deleted successfully!');
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete record');
     }
@@ -895,7 +902,7 @@ const MasterData = () => {
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200">
+      <div className="flex overflow-x-auto elegant-scrollbar border-b border-slate-200 whitespace-nowrap">
         {Object.entries(TAB_CONFIG).map(([id, t]) => (
           <button
             key={id}

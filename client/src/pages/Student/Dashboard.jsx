@@ -98,9 +98,9 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
       return;
     }
     
-    // Check file size (10MB limit)
-    if (selected.size > 10 * 1024 * 1024) {
-      setError('File size exceeds the 10MB limit.');
+    // Check file size (500KB limit)
+    if (selected.size > 500 * 1024) {
+      setError('File size exceeds the 500KB limit.');
       setFile(null);
       return;
     }
@@ -161,13 +161,13 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-1">Subject</h4>
+            <h4 className="block text-sm font-semibold text-slate-700 mb-1.5">Subject</h4>
             <p className="text-base font-semibold text-teal-800">{assignment.groupSubjectName || assignment.subjectId?.subName}</p>
             <p className="text-xs text-slate-500 mt-0.5">{assignment.subjectId?.subCode} • {assignment.subjectId?.semester}</p>
           </div>
 
           <div className="border-t border-slate-100 pt-4">
-            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
               Select Completed Lab Record (PDF)
             </label>
             
@@ -186,7 +186,7 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
                   </span>
                   <p className="pl-1">or drag and drop</p>
                 </div>
-                <p className="text-xs text-slate-400">PDF up to 10MB</p>
+                <p className="text-xs text-slate-400">PDF up to 500KB</p>
               </div>
             </div>
           </div>
@@ -413,7 +413,7 @@ const Dashboard = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
+                <tr className="bg-teal-700 text-white text-sm font-semibold">
                   <th className="min-w-[10rem] px-4 py-3 text-left whitespace-nowrap">Subject</th>
                   <th className="hidden sm:table-cell px-4 py-3 text-left whitespace-nowrap">Mode</th>
                   <th className="hidden sm:table-cell px-4 py-3 text-left whitespace-nowrap">Status</th>

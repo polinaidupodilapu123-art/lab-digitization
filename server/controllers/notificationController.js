@@ -1,99 +1,47 @@
-const Notification = require('../models/Notification');
-const fs = require('fs');
-const path = require('path');
+const notificationService = require('../services/notificationService');
 
-// 1. Get all active notifications (Public / All users)
 exports.getNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find().sort({ date: -1 });
-    res.json(notifications);
+    const result = await notificationService.getNotifications();
+    res.json(result);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
   }
 };
 
-// 2. Create a notification circular (Admin only)
 exports.createNotification = async (req, res) => {
   try {
-    const { title, date, notes } = req.body;
-    let pdfPath = '';
-
-    if (req.file) {
-      pdfPath = `/uploads/${req.file.filename}`;
-    }
-
-    if (!title) {
-      return res.status(400).json({ message: 'Notification title is required.' });
-    }
-
-    const notification = new Notification({
-      title,
-      date: date ? new Date(date) : new Date(),
-      pdfPath,
-      notes
+    const result = await notificationService.createNotification({
+      ...req.body,
+      file: req.file
     });
-
-    await notification.save();
-    res.status(201).json({ message: 'Notification created successfully', notification });
+    res.status(201).json(result);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
   }
 };
 
-// 3. Delete a notification circular (Admin only)
 exports.deleteNotification = async (req, res) => {
   try {
-    const { id } = req.params;
-    const notification = await Notification.findById(id);
-    if (!notification) {
-      return res.status(404).json({ message: 'Notification not found.' });
-    }
-
-    // Optional: Delete physical file associated if it exists
-    if (notification.pdfPath) {
-      const fullPath = path.join(__dirname, '..', notification.pdfPath);
-      fs.unlink(fullPath, (err) => {
-        if (err) console.error('Failed to delete physical PDF:', err.message);
-      });
-    }
-
-    await Notification.findByIdAndDelete(id);
-    res.json({ message: 'Notification circular deleted successfully.' });
+    const result = await notificationService.deleteNotification(req.params.id);
+    res.json(result);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
   }
 };
 
-// 4. Edit a notification circular (Admin only)
 exports.editNotification = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { title, date, notes } = req.body;
-    
-    const notification = await Notification.findById(id);
-    if (!notification) {
-      return res.status(404).json({ message: 'Notification not found.' });
-    }
-
-    if (title) notification.title = title;
-    if (date) notification.date = new Date(date);
-    if (notes !== undefined) notification.notes = notes;
-
-    if (req.file) {
-      // Delete old file
-      if (notification.pdfPath) {
-        const fullPath = path.join(__dirname, '..', notification.pdfPath);
-        fs.unlink(fullPath, (err) => {
-          if (err) console.error('Failed to delete old physical PDF:', err.message);
-        });
-      }
-      notification.pdfPath = `/uploads/${req.file.filename}`;
-    }
-
-    await notification.save();
-    res.json({ message: 'Notification updated successfully', notification });
+    const result = await notificationService.editNotification(req.params.id, {
+      ...req.body,
+      file: req.file
+    });
+    res.json(result);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
   }
 };
-

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, FileCheck, BookOpen, AlertCircle, FileText, Search, X, User as UserIcon } from 'lucide-react';
+import { LogOut, FileCheck, BookOpen, AlertCircle, FileText, Search, X, User as UserIcon, Filter } from 'lucide-react';
 import axios from 'axios';
 import SearchableDropdown from '../../components/SearchableDropdown';
 import { API_BASE_URL } from '../../utils/config';
@@ -112,6 +112,7 @@ const Dashboard = () => {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
 
   // Fetch Assigned Core & Pedagogy Subjects
   useEffect(() => {
@@ -383,74 +384,81 @@ const Dashboard = () => {
 
         {/* Filters Panel */}
         {subjects.length > 0 && (
-          <div className="bg-white rounded-md shadow-sm border border-slate-200 p-6 mb-6">
-            <h3 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-1.5">
-              <FileCheck className="h-4.5 w-4.5 text-teal-600" />
-              Filter Student Records
-            </h3>
+          <div className="bg-white rounded-md shadow-sm border border-slate-200 p-4 mb-6">
+            <div className="flex items-center gap-3">
+              {/* Search Toggle Button */}
+              <button 
+                onClick={() => setShowSearch(!showSearch)}
+                className="bg-teal-600 cursor-pointer hover:bg-teal-700 text-white p-2 rounded-md transition-colors shadow-sm focus:outline-none flex-shrink-0"
+                title="Toggle Search"
+              >
+                <Search className="h-5 w-5" />
+              </button>
 
-            {/* Search Input */}
-            <div className="mb-5 relative z-20">
-              <label className="block text-sm font-semibold text-slate-600 tracking-wide mb-1.5">Search Submissions</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search by student name, roll number, college, course, subject..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-[38%] pl-10 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 text-slate-800 font-medium animate-transition"
-                />
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                {searchTerm && (
-                  <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer">
-                    ✕
-                  </button>
-                )}
+              {/* Dropdowns */}
+              <div className="flex items-center gap-3 flex-1 overflow-x-auto elegant-scrollbar pb-1">
+                <div className="w-40 sm:w-48 flex-shrink-0">
+                  <SearchableDropdown
+                    options={collegeOptions}
+                    value={selectedCollege}
+                    onChange={setSelectedCollege}
+                    placeholder="All Colleges"
+                  />
+                </div>
+                <div className="w-40 sm:w-48 flex-shrink-0">
+                  <SearchableDropdown
+                    options={courseOptions}
+                    value={selectedCourse}
+                    onChange={setSelectedCourse}
+                    placeholder="All Courses"
+                  />
+                </div>
+                <div className="w-40 sm:w-48 flex-shrink-0">
+                  <SearchableDropdown
+                    options={subjectOptions}
+                    value={selectedSubject}
+                    onChange={setSelectedSubject}
+                    placeholder="All Subjects"
+                  />
+                </div>
+                <div className="w-40 sm:w-48 flex-shrink-0">
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md text-slate-800 focus:outline-none hover:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors cursor-pointer min-h-[38px] text-sm"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="Submitted">Pending Evaluation</option>
+                    <option value="Evaluated">Evaluation Completed</option>
+                  </select>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-30">
-              <div>
-                <SearchableDropdown
-                  label="Filter by College"
-                  placeholder="-- All Colleges --"
-                  options={collegeOptions}
-                  value={selectedCollege}
-                  onChange={setSelectedCollege}
-                />
+            {/* Toggled Search Box */}
+            {showSearch && (
+              <div className="mt-4 pt-4 border-t border-slate-100 animate-fadeIn">
+                <div className="relative max-w-xl bg-slate-50 border border-slate-200 rounded-lg p-1.5">
+                  <div className="relative flex items-center">
+                    <Search className="absolute left-3 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Search students or subject names..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-9 pr-10 py-1.5 text-sm bg-transparent outline-none text-slate-800 font-medium"
+                    />
+                    {searchTerm && (
+                      <button onClick={() => setSearchTerm('')} className="absolute right-3 text-slate-400 hover:text-slate-600 focus:outline-none">
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div>
-                <SearchableDropdown
-                  label="Filter by Course"
-                  placeholder="-- All Courses --"
-                  options={courseOptions}
-                  value={selectedCourse}
-                  onChange={setSelectedCourse}
-                />
-              </div>
-              <div>
-                <SearchableDropdown
-                  label="Filter by Subject"
-                  placeholder="-- All Subjects --"
-                  options={subjectOptions}
-                  value={selectedSubject}
-                  onChange={setSelectedSubject}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Filter by Status</label>
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-colors cursor-pointer outline-none min-h-[38px]"
-                >
-                  <option value="">-- All Statuses --</option>
-                  <option value="Submitted">Pending Evaluation</option>
-                  <option value="Evaluated">Evaluation Completed</option>
-                </select>
-              </div>
-            </div>
-            
+            )}
+
             {/* Record Count & Reset filter button */}
             <div className="mt-4 flex items-center justify-between text-xs border-t border-slate-100 pt-3 flex-wrap gap-2">
               <span className="text-slate-500 font-medium">
@@ -464,6 +472,7 @@ const Dashboard = () => {
                     setSelectedSubject('');
                     setSelectedStatus('');
                     setSearchTerm('');
+                    setShowSearch(false);
                   }}
                   className="text-teal-600 hover:text-teal-800 font-semibold cursor-pointer transition-colors"
                 >
@@ -480,14 +489,14 @@ const Dashboard = () => {
             <div className="overflow-x-auto sleek-scrollbar">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
-                    <th className="px-4 py-3 text-left whitespace-nowrap">Student name</th>
-                    <th className="px-4 py-3 text-left whitespace-nowrap">Roll no.</th>
+                  <tr className="bg-teal-700 text-white text-sm font-semibold">
+                    <th className="px-4 py-3 text-left whitespace-nowrap">Student Name</th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap">Roll No.</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">College</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Course</th>
                     <th className="min-w-[10rem] px-4 py-3 text-left whitespace-nowrap">Subject</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Mode</th>
-                    <th className="px-4 py-3 text-left whitespace-nowrap">Academic year</th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap">Academic Year</th>
                     <th className="px-4 py-3 text-center whitespace-nowrap">Document</th>
                     <th className="px-4 py-3 text-center whitespace-nowrap">Max Marks</th>
                     <th className="px-4 py-3 text-center whitespace-nowrap">Pass Marks</th>

@@ -276,7 +276,7 @@ const EvaluatedRecords = () => {
   const pagedPaperRows = studentPapersRows.slice((paperPage - 1) * PAGE_SIZE, paperPage * PAGE_SIZE);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto w-full">
+    <div className="px-4 py-6 w-full">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Evaluated Records</h1>
