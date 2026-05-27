@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+
 
 function sanitizeFileBase(name) {
   const t = name.trim().replace(/[^\w.\- ()]+/g, "_").replace(/\s+/g, " ");
@@ -15,7 +15,8 @@ function cellMaxMarks(row, defaultMax) {
  * Downloads a single-sheet `.xlsx` with college, degree, academic year, semester, roll, name,
  * subject, max marks, marks awarded, and remarks.
  */
-export function downloadAssignmentScoresXlsx(rows, fileNameBase, options) {
+export async function downloadAssignmentScoresXlsx(rows, fileNameBase, options) {
+  const XLSX = await import("xlsx");
   const defaultMax = options?.defaultMaxMarks ?? 100;
 
   const header = [

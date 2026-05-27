@@ -26,7 +26,7 @@ const Notifications = () => {
   );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="px-4 py-6 w-full space-y-6">
       
       {/* Header Panel */}
       <div className="bg-white p-6 rounded-md border border-slate-200 shadow-sm">
@@ -43,8 +43,8 @@ const Notifications = () => {
       <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden">
         
         {/* Search */}
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
-          <div className="relative flex-1 max-w-md">
+        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-3">
+          <div className="relative w-full sm:flex-1 sm:max-w-md">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-5 w-5" />
             <input
               type="text"
@@ -54,7 +54,7 @@ const Notifications = () => {
               className="pl-11 w-full border border-slate-200 rounded-md p-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white text-slate-800 transition-all font-medium text-sm"
             />
           </div>
-          <div className="text-xs text-slate-500 font-bold uppercase tracking-wider ml-auto">
+          <div className="text-xs text-slate-500 font-bold uppercase tracking-wider ml-auto sm:ml-auto">
             Total Published: {filteredNotifications.length}
           </div>
         </div>

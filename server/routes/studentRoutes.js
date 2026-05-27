@@ -17,7 +17,10 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage });
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 500 * 1024 } // 500KB limit
+});
 
 // Middleware for student routes
 router.use(protect);

@@ -32,7 +32,7 @@ const SearchableDropdown = ({ label, options, value, onChange, placeholder = 'Se
         onClick={() => setIsOpen(!isOpen)}
         className="w-full border border-slate-300 rounded-md px-3 py-1.5 bg-white flex items-center justify-between cursor-pointer hover:border-teal-500 transition-all text-slate-800"
       >
-        <span className={selectedOption ? 'text-slate-900' : 'text-slate-500'}>
+        <span className={`flex-1 truncate text-left text-sm mr-2 ${selectedOption ? 'text-slate-900' : 'text-slate-500'}`} title={selectedOption ? selectedOption.label : placeholder}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />

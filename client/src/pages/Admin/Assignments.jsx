@@ -281,13 +281,13 @@ const Assignments = () => {
   const pagedAssignments = assignments.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="px-4 py-6 w-full">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Manage Assignments</h1>
         <p className="text-slate-500 mt-2 text-sm">Generate subject assignments for students, handle backlogs, and view all records.</p>
       </div>
 
-      <div className="flex border-b border-slate-200 mb-6">
+      <div className="flex overflow-x-auto elegant-scrollbar border-b border-slate-200 mb-6 whitespace-nowrap">
         <button
           onClick={() => { setActiveTab('generate'); setCurrentPage(1); setError(''); setMessage(''); }}
           className={`px-5 py-2.5 font-medium text-sm transition-all border-b-2 cursor-pointer rounded-t-md ${
@@ -465,7 +465,7 @@ const Assignments = () => {
               
               <div className="p-4 border-b border-slate-200 bg-slate-50 grid grid-cols-1 sm:grid-cols-4 gap-4 animate-fadeIn">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Academic Year</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Academic Year <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
                     placeholder="e.g. 2023-2024"
@@ -475,7 +475,7 @@ const Assignments = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Deadline</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Deadline <span className="text-red-500">*</span></label>
                   <input 
                     type="date" 
                     value={deadline}
@@ -484,7 +484,7 @@ const Assignments = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Req. Pages</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Req. Pages <span className="text-red-500">*</span></label>
                   <input 
                     type="number" 
                     value={pagesRequired}
@@ -647,7 +647,7 @@ const Assignments = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Academic Year</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Academic Year <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
                     placeholder="e.g. 2023-2024"
@@ -658,7 +658,7 @@ const Assignments = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Deadline</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Deadline <span className="text-red-500">*</span></label>
                   <input 
                     type="date" 
                     value={deadline}
@@ -668,7 +668,7 @@ const Assignments = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Required Pages</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Required Pages <span className="text-red-500">*</span></label>
                   <input 
                     type="number" 
                     value={pagesRequired}
@@ -757,10 +757,10 @@ const Assignments = () => {
                   <th className="px-4 py-3 text-left whitespace-nowrap">Subject</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Mode</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Student</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">Roll no.</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">Roll No.</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Pages</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Deadline</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">Assigned controller</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">Assigned Evaluator</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Evaluated by</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
                   <th className="px-4 py-3 text-right whitespace-nowrap">Score</th>
