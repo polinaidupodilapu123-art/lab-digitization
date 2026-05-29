@@ -42,7 +42,7 @@ exports.getAssignedRecords = async (evaluatorId) => {
   })
     .populate({
       path: 'studentId',
-      select: 'fullName regdNo collegeId courseId',
+      select: 'fullName regdNo collegeId courseId academicYear',
       populate: [
         { path: 'collegeId', select: 'collegeName collegeCode' },
         { path: 'courseId', select: 'courseName courseCode' }

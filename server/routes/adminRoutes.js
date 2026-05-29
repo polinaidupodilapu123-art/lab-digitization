@@ -10,7 +10,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.use(protect, adminOnly);
 
 router.post('/bulk-upload/:type', upload.single('file'), adminController.uploadMasterData);
-
+router.post('/students/promote', adminController.promoteStudents);
 router.post('/record/:type', adminController.createRecord);
 router.put('/record/:type/:id', adminController.updateRecord);
 router.delete('/record/:type/:id', adminController.deleteRecord);
@@ -38,6 +38,10 @@ router.post('/evaluators', adminController.createEvaluator);
 router.post('/evaluators/:id/subjects', adminController.assignSubjectsToEvaluator);
 router.post('/assign-subjects', adminController.assignSubjects);
 router.post('/assign-evaluator', adminController.assignToEvaluator);
+
+router.get('/subject-allocation-stats', adminController.getSubjectAllocationStats);
+router.get('/subjects-with-submissions', adminController.getSubjectsWithSubmissions);
+router.post('/allocate-subject-bulk', adminController.allocateSubjectBulk);
 
 router.get('/backlog-candidates', adminController.getBacklogCandidates);
 router.post('/bulk-assign-backlogs', adminController.bulkAssignBacklogs);

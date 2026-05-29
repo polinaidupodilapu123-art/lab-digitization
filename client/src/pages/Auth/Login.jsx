@@ -48,10 +48,10 @@ const Login = () => {
     <div className="h-screen overflow-hidden flex flex-col bg-slate-50 font-sans">
       <Header />
 
-      <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 flex flex-col lg:flex-row gap-8 items-start justify-center mt-2 md:mt-6 overflow-hidden">
-        
-        {/* Left Column: Official Notifications Board */}
-        <div className="w-full lg:w-7/12 bg-white rounded-md border border-slate-200 p-6 md:p-8 flex flex-col shadow-xl relative overflow-hidden text-slate-800 h-full">
+      <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 flex justify-center mt-2 md:mt-4 overflow-hidden">
+        <div className="w-full flex flex-col lg:flex-row gap-8 items-stretch justify-center h-fit max-h-full">
+          {/* Left Column: Official Notifications Board */}
+          <div className="w-full lg:w-7/12 bg-white rounded-md border border-slate-200 p-6 md:p-8 flex flex-col shadow-xl relative overflow-hidden text-slate-800">
           {/* Subtle glowing background decorations */}
           <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-teal-500/5 rounded-full blur-3xl pointer-events-none"></div>
           <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
@@ -137,7 +137,7 @@ const Login = () => {
           </div>
 
           {error && (
-            <div className="bg-rose-50 border border-rose-100 text-rose-600 p-3 rounded-md mb-5 text-sm font-semibold flex items-center gap-2">
+            <div className="bg-rose-50 border border-rose-100 text-rose-600 p-2 rounded-md mb-1 text-sm font-semibold flex items-center gap-2">
               <X className="h-4 w-4" />
               {error}
             </div>
@@ -208,6 +208,7 @@ const Login = () => {
           </div>
         </div>
 
+        </div>
       </div>
     </div>
   );

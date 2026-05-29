@@ -25,8 +25,7 @@ const groupSchema = new mongoose.Schema({
   groupCode:     { type: String, required: true, unique: true },
   courseId:      { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
   groupName:     { type: String },
-  pedagogy1Name: { type: String },
-  pedagogy2Name: { type: String }
+  subjects:      [{ type: String }]
 }, { timestamps: true });
 
 // New: Courses master

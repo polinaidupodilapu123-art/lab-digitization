@@ -48,6 +48,9 @@ const userSchema = new mongoose.Schema({
   currentSemester: {
     type: String
   },
+  academicYear: {
+    type: String
+  },
   subjects: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Subject'
@@ -72,6 +75,7 @@ userSchema.pre('save', async function () {
 
 // Method to compare password
 userSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!this.password) return false;
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

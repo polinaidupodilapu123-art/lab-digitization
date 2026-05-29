@@ -82,6 +82,7 @@ const EvaluatedRecords = () => {
   const [records, setRecords] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedSemester, setSelectedSemester] = useState('');
   const [activeTab, setActiveTab] = useState('submissions');
   const [papers, setPapers] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -139,6 +140,8 @@ const EvaluatedRecords = () => {
     fetchPapers();
   }, []);
 
+  const uniqueSemesters = [...new Set(records.map(r => r.subjectId?.semester || r.studentId?.currentSemester).filter(Boolean))].sort();
+
   const filteredRecords = records.filter(record => {
     const nameMatch = (record.studentId?.fullName || '').toLowerCase().includes(searchTerm.toLowerCase());
     const regdNoMatch = (record.studentId?.regdNo || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -146,8 +149,10 @@ const EvaluatedRecords = () => {
     const queryMatch = nameMatch || regdNoMatch || subjectMatch;
 
     const statusMatch = !selectedStatus || record.status === selectedStatus;
+    
+    const semMatch = !selectedSemester || (record.subjectId?.semester === selectedSemester || record.studentId?.currentSemester === selectedSemester);
 
-    return queryMatch && statusMatch;
+    return queryMatch && statusMatch && semMatch;
   });
 
   // 1. Group evaluated assignments by student
@@ -179,7 +184,11 @@ const EvaluatedRecords = () => {
       })
     );
 
-    const paperScores = papers.map(paper => {
+    const filteredPapers = selectedSemester 
+      ? papers.filter(p => p.semester === selectedSemester)
+      : papers;
+
+    const paperScores = filteredPapers.map(paper => {
       let obtainedScore = 0;
       let paperMaxMarks = 0;
       let evaluatedCount = 0;
@@ -200,6 +209,7 @@ const EvaluatedRecords = () => {
       return {
         paperCode: paper.paperCode,
         paperName: paper.paperName,
+        paperSemester: paper.semester,
         obtainedScore: isEvaluated ? obtainedScore : null,
         maxMarks: paperMaxMarks,
         passMarks: paper.passMarks || 0,
@@ -220,7 +230,7 @@ const EvaluatedRecords = () => {
       studentPapersRows.push({
         fullName: s.fullName,
         regdNo: s.regdNo,
-        semester: s.semester || "—",
+        semester: ps.paperSemester || "—",
         collegeName: s.collegeName,
         degree: s.degree,
         paperName: ps.paperName || ps.paperCode || "Paper",
@@ -240,9 +250,9 @@ const EvaluatedRecords = () => {
       const XLSX = await import('xlsx');
       const header = [
         "Name of the College",
-        "Degree",
+        "Course",
         "Semester",
-        "Registered Number",
+        "Registration Number",
         "Name",
         "Paper Name",
         "Aggregated Score"
@@ -317,6 +327,21 @@ const EvaluatedRecords = () => {
                 Evaluated Submissions ({filteredRecords.length})
               </h2>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Semester Dropdown */}
+                <select
+                  value={selectedSemester}
+                  onChange={(e) => {
+                    setSelectedSemester(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-3 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white cursor-pointer"
+                >
+                  <option value="">-- All Semesters --</option>
+                  {uniqueSemesters.map(sem => (
+                    <option key={sem} value={sem}>Semester {sem}</option>
+                  ))}
+                </select>
+                
                 {/* Status Dropdown */}
                 <select
                   value={selectedStatus}
@@ -444,6 +469,21 @@ const EvaluatedRecords = () => {
                 Aggregated Paper Grades ({studentPapersRows.length})
               </h2>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Semester Dropdown */}
+                <select
+                  value={selectedSemester}
+                  onChange={(e) => {
+                    setSelectedSemester(e.target.value);
+                    setPaperPage(1);
+                  }}
+                  className="px-3 py-1.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white cursor-pointer"
+                >
+                  <option value="">-- All Semesters --</option>
+                  {uniqueSemesters.map(sem => (
+                    <option key={sem} value={sem}>Semester {sem}</option>
+                  ))}
+                </select>
+                
                 {/* Search Input */}
                 <div className="relative w-full sm:w-64">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

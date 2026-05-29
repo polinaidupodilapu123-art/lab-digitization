@@ -15,7 +15,8 @@ exports.submitAssignment = async (req, res) => {
     const result = await studentService.submitAssignment({
       assignmentId: req.params.assignmentId,
       file: req.file,
-      user: req.user
+      user: req.user,
+      note: req.body.note
     });
     res.json(result);
   } catch (error) {

@@ -172,7 +172,7 @@ const Register = () => {
   return (
     <div className="h-screen overflow-hidden flex flex-col bg-slate-50 font-sans">
       <Header />
-      <div className="flex-1 flex items-center justify-center p-4 min-h-0 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="flex-1 flex items-center justify-center min-h-0 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className="w-full max-w-md bg-white rounded-md border border-slate-200 shadow-xl p-8 relative my-auto">
         
         {/* Step Indicator top border decoration */}

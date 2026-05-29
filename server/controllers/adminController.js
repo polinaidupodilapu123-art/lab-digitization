@@ -9,6 +9,7 @@ exports.uploadMasterData = async (req, res) => {
     const result = await masterDataService.uploadMasterData({
       type: req.params.type,
       semester: req.body.semester,
+      academicYear: req.body.academicYear,
       file: req.file
     });
     res.status(200).json(result);
@@ -22,6 +23,16 @@ exports.createRecord = async (req, res) => {
   try {
     const result = await masterDataService.createRecord(req.params.type, req.body);
     res.status(201).json(result);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
+  }
+};
+
+exports.promoteStudents = async (req, res) => {
+  try {
+    const result = await masterDataService.promoteStudents(req.body);
+    res.status(200).json(result);
   } catch (error) {
     const statusCode = error.statusCode || 500;
     res.status(statusCode).json({ message: error.message });
@@ -182,6 +193,33 @@ exports.assignToEvaluator = async (req, res) => {
 exports.assignSubjectsToEvaluator = async (req, res) => {
   try {
     const result = await evaluatorAdminService.assignSubjectsToEvaluator(req.params.id, req.body);
+    res.json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};
+
+exports.getSubjectAllocationStats = async (req, res) => {
+  try {
+    const result = await evaluatorAdminService.getSubjectAllocationStats(req.query);
+    res.json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};
+
+exports.getSubjectsWithSubmissions = async (req, res) => {
+  try {
+    const result = await evaluatorAdminService.getSubjectsWithSubmissions();
+    res.json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};
+
+exports.allocateSubjectBulk = async (req, res) => {
+  try {
+    const result = await evaluatorAdminService.allocateSubjectBulk(req.body);
     res.json(result);
   } catch (error) {
     res.status(error.statusCode || 500).json({ message: error.message });

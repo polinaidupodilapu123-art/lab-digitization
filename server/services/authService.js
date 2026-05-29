@@ -13,9 +13,9 @@ const generateToken = (id, role) => {
 exports.login = async ({ regdNo, password, email }) => {
   let user;
   if (regdNo) {
-    user = await User.findOne({ regdNo });
+    user = await User.findOne({ regdNo: new RegExp(`^${regdNo.trim()}$`, 'i') });
   } else if (email) {
-    user = await User.findOne({ regdNo: email });
+    user = await User.findOne({ regdNo: new RegExp(`^${email.trim()}$`, 'i') });
   }
 
   if (!user) {

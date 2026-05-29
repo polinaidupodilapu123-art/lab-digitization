@@ -1,4 +1,5 @@
 const Assignment = require('../models/Assignment');
+const User = require('../models/User');
 const fs = require('fs');
 const pdfParse = require('pdf-parse');
 const AppError = require('../utils/AppError');
@@ -37,7 +38,7 @@ exports.getMyAssignments = async (user) => {
   return filtered;
 };
 
-exports.submitAssignment = async ({ assignmentId, file, user }) => {
+exports.submitAssignment = async ({ assignmentId, file, user, note }) => {
   if (!file) {
     throw new AppError('No file uploaded', 400);
   }
@@ -103,6 +104,25 @@ exports.submitAssignment = async ({ assignmentId, file, user }) => {
   assignment.status = 'Submitted';
   assignment.filePath = fileUrl;
   assignment.submittedAt = new Date();
+  if (note) assignment.studentNote = note;
+
+  // Auto-routing to assigned evaluators
+  if (!assignment.evaluatorId) {
+    let evalQuery = { role: 'EVALUATOR' };
+    if (assignment.groupSubjectName) {
+      evalQuery.groupSubjects = assignment.groupSubjectName;
+    } else if (assignment.subjectId) {
+      evalQuery.subjects = assignment.subjectId._id || assignment.subjectId;
+    }
+    
+    const assignedEvaluators = await User.find(evalQuery).select('_id');
+    if (assignedEvaluators.length > 0) {
+      // Pick random evaluator for basic load balancing
+      const randomIdx = Math.floor(Math.random() * assignedEvaluators.length);
+      assignment.evaluatorId = assignedEvaluators[randomIdx]._id;
+    }
+  }
+
   await assignment.save();
 
   return { message: 'Record verified and submitted successfully', assignment };

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { UploadCloud, CheckCircle, X, FileSpreadsheet, Plus, RefreshCw, ChevronLeft, ChevronRight, Edit2, Trash2, Eye, EyeOff } from 'lucide-react';
+import { UploadCloud, CheckCircle, X, FileSpreadsheet, Plus, RefreshCw, ChevronLeft, ChevronRight, Edit2, Trash2, Eye, EyeOff, UserPlus } from 'lucide-react';
+
+import PromoteStudentsModal from './PromoteStudentsModal';
 
 
 
@@ -17,8 +19,8 @@ const TAB_CONFIG = {
     columns: [
       { key: 'collegeCode', header: 'College Code' },
       { key: 'collegeName', header: 'College Name' },
-      { key: 'location',    header: 'Location'     },
-      { key: 'district',    header: 'District'     },
+      { key: 'location',    header: 'Location', optional: true },
+      { key: 'district',    header: 'District', optional: true },
     ],
   },
   courses: {
@@ -38,9 +40,9 @@ const TAB_CONFIG = {
       { key: 'subCode',       header: 'Sub Code'       },
       { key: 'subName',       header: 'Subject Name'   },
       { key: 'semester',      header: 'Semester'       },
-      { key: 'studentChoice', header: 'Student Choice' },
-      { key: 'type',          header: 'Type'           },
-      { key: 'aliasName',     header: 'Alias Name'     },
+      { key: 'studentChoice', header: 'Student Choice', optional: true },
+      { key: 'type',          header: 'Type',           optional: true },
+      { key: 'aliasName',     header: 'Alias Name',     optional: true },
       { key: 'maxMarks',      header: 'Max Marks'      },
       { key: 'subPassMarks',  header: 'Pass Marks'     },
     ],
@@ -52,9 +54,12 @@ const TAB_CONFIG = {
     columns: [
       { key: 'groupCode',     header: 'Group Code'     },
       { key: 'courseCode',    header: 'Course Code'    },
-      { key: 'groupName',     header: 'Group Name'     },
-      { key: 'pedagogy1Name', header: 'Pedagogy1 Name' },
-      { key: 'pedagogy2Name', header: 'Pedagogy2 Name' },
+      { key: 'groupName',     header: 'Group Name',    optional: true },
+      { 
+        key: 'subjects', 
+        header: 'Group Subjects',
+        render: (vals) => Array.isArray(vals) ? vals.join(', ') : vals
+      },
     ],
   },
   students: {
@@ -62,9 +67,10 @@ const TAB_CONFIG = {
     endpoint: '/students',
     uploadType: 'students',
     columns: [
-      { key: 'regdNo',       header: 'Registration Number' },
+      { key: 'regdNo',       header: 'Registration No'     },
+      { key: 'currentSemester', header: 'Semester'         },
       { key: 'fullName',     header: 'Student Name'        },
-      { key: 'email',        header: 'Email Address'       },
+      { key: 'email',        header: 'Email Address',      optional: true },
       // { key: 'mobileNumber', header: 'Mobile Number'       },
       { key: 'collegeCode',  header: 'College Code'        },
       { key: 'groupCode',    header: 'Group Code'          },
@@ -101,6 +107,28 @@ const TAB_CONFIG = {
       { key: 'fullName', header: 'Full Name' },
       { key: 'regdNo',   header: 'Email' },
       { key: 'password', header: 'Password', hideInTable: true },
+      { 
+        key: 'assignedSubjects', 
+        header: 'Assigned Subjects',
+        hideInForm: true,
+        render: (_, row) => {
+          const regularSubs = Array.isArray(row.subjects) ? row.subjects.map(s => s.subName || s.subCode) : [];
+          const groupSubs = Array.isArray(row.groupSubjects) ? row.groupSubjects : [];
+          const allSubs = [...regularSubs, ...groupSubs];
+          
+          if (allSubs.length === 0) return <span className="text-slate-300 italic text-xs">No subjects assigned</span>;
+          
+          return (
+            <div className="flex flex-wrap gap-1 max-w-[300px]">
+              {allSubs.map((sub, idx) => (
+                <span key={idx} className="text-[10px] font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-100 truncate max-w-full" title={sub}>
+                  {sub}
+                </span>
+              ))}
+            </div>
+          );
+        }
+      },
     ]
   },
   principals: {
@@ -111,7 +139,7 @@ const TAB_CONFIG = {
       { key: 'fullName', header: 'Full Name' },
       { key: 'regdNo',   header: 'Email / Username' },
       { key: 'collegeCode', header: 'College Code' },
-      { key: 'collegeName', header: 'College Name' }
+      { key: 'collegeName', header: 'College Name', optional: true }
     ]
   },
 };
@@ -125,11 +153,11 @@ const Pagination = ({ total, page, onPage }) => {
   const end   = Math.min(page * PAGE_SIZE, total);
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 bg-slate-50">
       <span className="text-xs text-slate-500">
         Showing <span className="font-semibold text-slate-700">{start}–{end}</span> of <span className="font-semibold text-slate-700">{total}</span> records
       </span>
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center justify-center gap-1">
         <button
           onClick={() => onPage(1)}
           disabled={page === 1}
@@ -412,6 +440,14 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
   };
 
   const handleSave = async () => {
+    for (const col of cfg.columns) {
+      const isRequired = !col.optional && !col.autoCalculated && !(col.key === 'password' && !isNew) && !col.hideInForm;
+      if (isRequired && (!formData[col.key] || (Array.isArray(formData[col.key]) && formData[col.key].length === 0))) {
+        setError(`${col.header} is required.`);
+        return;
+      }
+    }
+
     setSaving(true);
     setError('');
     try {
@@ -456,10 +492,13 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
           )}
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-            {[...cfg.columns].sort((a, b) => (a.autoCalculated ? 1 : 0) - (b.autoCalculated ? 1 : 0)).map(col => (
+            {[...cfg.columns].filter(c => !c.hideInForm).sort((a, b) => (a.autoCalculated ? 1 : 0) - (b.autoCalculated ? 1 : 0)).map(col => {
+              const isRequired = !col.optional && !col.autoCalculated && !(col.key === 'password' && !isNew);
+              return (
               <div key={col.key}>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center">
                   {col.header}
+                  {isRequired && <span className="text-red-500 ml-1 font-bold">*</span>}
                 </label>
                 {tabKey === 'papers' && col.key === 'subjectIds' ? (
                   <CustomMultiSelectDropdown
@@ -526,7 +565,7 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
                   />
                 )}
               </div>
-            ))}
+            )})}
           </div>
         </div>
 
@@ -552,6 +591,7 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
 const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
   const [file, setFile]               = useState(null);
   const [semester, setSemester]       = useState('');
+  const [academicYear, setAcademicYear] = useState('');
   const [uploading, setUploading]     = useState(false);
   const [error, setError]             = useState('');
   const [rowErrors, setRowErrors]     = useState([]);
@@ -571,8 +611,11 @@ const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
     reset();
     const formData = new FormData();
     formData.append('file', file);
-    if (semester) {
+    if (cfg.uploadType === 'students' || cfg.uploadType === 'subjects') {
       formData.append('semester', semester);
+    }
+    if (cfg.uploadType === 'students') {
+      formData.append('academicYear', academicYear);
     }
     try {
       const res = await axios.post(`${API}/bulk-upload/${cfg.uploadType}`, formData, {
@@ -624,10 +667,13 @@ const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
             </span>
           </div>
 
-          {/* Semester Dropdown (Only for students and subjects) */}
-          {(cfg.uploadType === 'students' || cfg.uploadType === 'subjects') && (
+          {/* Semester Dropdown (Only for students, subjects, and backlogfees) */}
+          {(cfg.uploadType === 'students' || cfg.uploadType === 'subjects' || cfg.uploadType === 'backlogfees') && (
             <div className="mb-5">
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Semester</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center">
+                Semester
+                <span className="text-red-500 ml-1 font-bold">*</span>
+              </label>
               <select 
                 className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
                 value={semester}
@@ -643,6 +689,23 @@ const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
                 <option value="4-1">4-1</option>
                 <option value="4-2">4-2</option>
               </select>
+            </div>
+          )}
+
+          {/* Academic Year Input (Only for students) */}
+          {cfg.uploadType === 'students' && (
+            <div className="mb-5">
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center">
+                Academic Year
+                <span className="text-red-500 ml-1 font-bold">*</span>
+              </label>
+              <input 
+                type="text"
+                placeholder="e.g. 2024-2025"
+                className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
+                value={academicYear}
+                onChange={(e) => setAcademicYear(e.target.value)}
+              />
             </div>
           )}
 
@@ -764,12 +827,14 @@ const MasterData = () => {
   const [tableData, setTableData]   = useState({});
   const [loadingTab, setLoadingTab] = useState(false);
   const [modalTab, setModalTab]     = useState(null);
+  const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [editRecord, setEditRecord] = useState(null);
   const [addRecord, setAddRecord]   = useState(false);
   const [expandedRows, setExpandedRows] = useState({});
   const [globalMsg, setGlobalMsg]   = useState('');
   const [pages, setPages]           = useState({}); // { students: 1, colleges: 1, … }
   const [searchQuery, setSearchQuery] = useState(''); // Global search state
+  const [selectedSemesterFilter, setSelectedSemesterFilter] = useState('');
 
   const token = localStorage.getItem('token');
 
@@ -821,6 +886,7 @@ const MasterData = () => {
     fetchTab(activeTab);
     setPage(1); // reset page on tab switch
     setSearchQuery(''); // reset search on tab switch
+    setSelectedSemesterFilter(''); // reset semester filter on tab switch
   }, [activeTab]);
 
   const refreshTab = () => {
@@ -861,16 +927,51 @@ const MasterData = () => {
     }
   };
 
-  const cfg       = TAB_CONFIG[activeTab];
-  const allRows   = tableData[activeTab] || [];
+  let cfg = TAB_CONFIG[activeTab];
+  const allRows = tableData[activeTab] || [];
   
-  // Apply Search Filter
+  if (activeTab === 'groups') {
+    let maxSubjects = 0;
+    allRows.forEach(row => {
+      if (row.subjects && Array.isArray(row.subjects)) {
+        maxSubjects = Math.max(maxSubjects, row.subjects.length);
+      }
+    });
+
+    // Default to at least 2 for expected columns display in Upload Modal
+    if (maxSubjects < 2) maxSubjects = 2;
+
+    const dynamicCols = cfg.columns.filter(col => col.key !== 'subjects');
+    for (let i = 0; i < maxSubjects; i++) {
+      dynamicCols.push({
+        key: `subject_${i}`,
+        header: `Pedagogy ${i + 1} Name`,
+        render: (_, row) => (row.subjects && row.subjects[i]) ? row.subjects[i] : '-'
+      });
+    }
+
+    cfg = {
+      ...cfg,
+      columns: dynamicCols
+    };
+  }
+
+  // Apply Semester Filter & Search Filter
   const filteredRows = allRows.filter(row => {
+    if ((activeTab === 'students' || activeTab === 'papers') && selectedSemesterFilter) {
+      const rowSem = activeTab === 'students' ? row.currentSemester : row.semester;
+      if (rowSem !== selectedSemesterFilter) return false;
+    }
+
     if (!searchQuery) return true;
     const lowerQuery = searchQuery.toLowerCase();
     // Check if any of the displayed columns contain the search query
     return cfg.columns.some(col => {
-      const val = row[col.key];
+      let val = row[col.key];
+      if (col.key.startsWith('subject_')) {
+        const idx = parseInt(col.key.split('_')[1], 10);
+        val = (row.subjects && row.subjects[idx]) ? row.subjects[idx] : null;
+      }
       if (val == null) return false;
       return String(val).toLowerCase().includes(lowerQuery);
     });
@@ -892,10 +993,10 @@ const MasterData = () => {
 
       {/* Global success banner */}
       {globalMsg && (
-        <div className="mb-4 p-3 bg-green-50 rounded-md flex items-center gap-3 text-green-700 text-sm border border-green-200">
+        <div className="fixed bottom-6 right-6 z-50 p-4 bg-teal-50 border border-teal-200 text-teal-800 rounded-lg flex items-center gap-3 shadow-xl animate-fadeIn min-w-[300px]">
           <CheckCircle className="h-5 w-5 flex-shrink-0" />
-          <span className="font-medium">{globalMsg}</span>
-          <button onClick={() => setGlobalMsg('')} className="ml-auto text-green-400 hover:text-green-600 cursor-pointer rounded-md">
+          <span className="font-medium text-sm">{globalMsg}</span>
+          <button onClick={() => setGlobalMsg('')} className="ml-auto text-teal-400 hover:text-teal-600 cursor-pointer rounded-md">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -930,10 +1031,7 @@ const MasterData = () => {
               <span className="text-xs text-slate-400 ml-1">({totalRows} {searchQuery ? 'matched' : 'records'})</span>
             )}
           </div>
-          
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            {/* Search Input */}
-            <div className="relative flex-1 sm:w-64">
+           <div className="relative flex-1 sm:w-64">
               <input
                 type="text"
                 placeholder={`Search ${cfg.label}...`}
@@ -956,24 +1054,54 @@ const MasterData = () => {
                 </button>
               )}
             </div>
-
-            <button
+          <div className="grid grid-cols-1 sm:flex sm:flex-row sm:items-center gap-3 w-full sm:w-auto mt-3 sm:mt-0">
+             {/* <button
               onClick={refreshTab}
               className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-teal-700 transition-colors px-2 py-1.5 rounded-md hover:bg-slate-200 cursor-pointer flex-shrink-0"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loadingTab ? 'animate-spin' : ''}`} />
               Refresh
-            </button>
+            </button> */}
+            {/* Semester Filter Dropdown */}
+            {(activeTab === 'students' || activeTab === 'papers') && (
+              <select
+                value={selectedSemesterFilter}
+                onChange={(e) => {
+                  setSelectedSemesterFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full pl-3 pr-8 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+              >
+                <option value="">All Semesters</option>
+                {[...new Set(allRows.map(r => activeTab === 'students' ? r.currentSemester : r.semester).filter(Boolean))].sort().map(sem => (
+                  <option key={sem} value={sem}>Semester {sem}</option>
+                ))}
+              </select>
+            )}
+
+            {/* Search Input */}
+           
+
+           
             <button
               onClick={() => setAddRecord(true)}
-              className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-teal-700 border border-slate-200 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer flex-shrink-0"
+              className="flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-teal-700 border border-slate-200 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer w-full sm:w-auto"
             >
               <Plus className="h-3.5 w-3.5" />
               Add Record
             </button>
+            {activeTab === 'students' && (
+              <button
+                onClick={() => setShowPromoteModal(true)}
+                className="flex items-center justify-center gap-1.5 bg-slate-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer w-full sm:w-auto"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                Promote
+              </button>
+            )}
             <button
               onClick={() => setModalTab(activeTab)}
-              className="flex items-center gap-1.5 bg-teal-700 hover:bg-teal-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer flex-shrink-0"
+              className="flex items-center justify-center gap-1.5 bg-teal-700 hover:bg-teal-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer w-full sm:w-auto"
             >
               <UploadCloud className="h-3.5 w-3.5" />
               Upload {cfg.label}
@@ -1035,7 +1163,7 @@ const MasterData = () => {
                           {cfg.columns.filter(col => !col.hideInTable).map(col => (
                             <td key={col.key} className="px-4 py-2.5 text-slate-700 whitespace-nowrap">
                               {col.render
-                                ? col.render(row[col.key])
+                                ? col.render(row[col.key], row)
                                 : (row[col.key] ?? <span className="text-slate-300">—</span>)
                               }
                             </td>
@@ -1115,6 +1243,15 @@ const MasterData = () => {
           tabKey={activeTab}
           token={token}
           onClose={() => { setEditRecord(null); setAddRecord(false); }}
+          onSuccess={handleUploadSuccess}
+        />
+      )}
+
+      {/* Promote Students Modal */}
+      {showPromoteModal && (
+        <PromoteStudentsModal
+          token={token}
+          onClose={() => setShowPromoteModal(false)}
           onSuccess={handleUploadSuccess}
         />
       )}
