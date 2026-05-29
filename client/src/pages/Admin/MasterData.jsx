@@ -958,7 +958,7 @@ const MasterData = () => {
 
   // Apply Semester Filter & Search Filter
   const filteredRows = allRows.filter(row => {
-    if ((activeTab === 'students' || activeTab === 'papers') && selectedSemesterFilter) {
+    if ((activeTab === 'students' || activeTab === 'papers' || activeTab === 'subjects') && selectedSemesterFilter) {
       const rowSem = activeTab === 'students' ? row.currentSemester : row.semester;
       if (rowSem !== selectedSemesterFilter) return false;
     }
@@ -1024,14 +1024,17 @@ const MasterData = () => {
 
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50 gap-3">
-          <div className="flex items-center gap-2 text-slate-600 flex-shrink-0">
-            <FileSpreadsheet className="h-4 w-4 text-teal-600" />
-            <span className="text-sm font-medium">{cfg.label}</span>
-            {!loadingTab && (
-              <span className="text-xs text-slate-400 ml-1">({totalRows} {searchQuery ? 'matched' : 'records'})</span>
-            )}
-          </div>
-           <div className="relative flex-1 sm:w-64">
+          
+          {/* Left Side: Title and Search */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-2 text-slate-600 flex-shrink-0">
+              <FileSpreadsheet className="h-4 w-4 text-teal-600" />
+              <span className="text-sm font-medium">{cfg.label}</span>
+              {!loadingTab && (
+                <span className="text-xs text-slate-400 ml-1">({totalRows} {searchQuery ? 'matched' : 'records'})</span>
+              )}
+            </div>
+            <div className="relative w-full sm:w-56">
               <input
                 type="text"
                 placeholder={`Search ${cfg.label}...`}
@@ -1054,7 +1057,9 @@ const MasterData = () => {
                 </button>
               )}
             </div>
-          <div className="grid grid-cols-1 sm:flex sm:flex-row sm:items-center gap-3 w-full sm:w-auto mt-3 sm:mt-0">
+          </div>
+          
+          {/* Right Side: Actions */}<div className="grid grid-cols-1 sm:flex sm:flex-row sm:items-center gap-3 w-full sm:w-auto mt-3 sm:mt-0">
              {/* <button
               onClick={refreshTab}
               className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-teal-700 transition-colors px-2 py-1.5 rounded-md hover:bg-slate-200 cursor-pointer flex-shrink-0"
@@ -1063,7 +1068,7 @@ const MasterData = () => {
               Refresh
             </button> */}
             {/* Semester Filter Dropdown */}
-            {(activeTab === 'students' || activeTab === 'papers') && (
+            {(activeTab === 'students' || activeTab === 'papers' || activeTab === 'subjects') && (
               <select
                 value={selectedSemesterFilter}
                 onChange={(e) => {
@@ -1085,7 +1090,7 @@ const MasterData = () => {
            
             <button
               onClick={() => setAddRecord(true)}
-              className="flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-teal-700 border border-slate-200 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer w-full sm:w-auto"
+              className="flex items-center justify-center gap-1.5 bg-slate-100 whitespace-nowrap hover:bg-slate-200 text-teal-700 border border-slate-200 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer w-full sm:w-auto"
             >
               <Plus className="h-3.5 w-3.5" />
               Add Record
@@ -1101,7 +1106,7 @@ const MasterData = () => {
             )}
             <button
               onClick={() => setModalTab(activeTab)}
-              className="flex items-center justify-center gap-1.5 bg-teal-700 hover:bg-teal-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer w-full sm:w-auto"
+              className="flex items-center whitespace-nowrap justify-center gap-1.5 bg-teal-700 hover:bg-teal-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer w-full sm:w-auto"
             >
               <UploadCloud className="h-3.5 w-3.5" />
               Upload {cfg.label}
