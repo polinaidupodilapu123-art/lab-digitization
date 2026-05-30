@@ -80,11 +80,13 @@ export default function Evaluators() {
 
   const uniqueSemesters = useMemo(() => [...new Set(subjects.map(s => s.semester).filter(Boolean))].sort(), [subjects]);
   const regularSubjects = useMemo(() => {
-    let list = subjects.filter(s => s.studentChoice !== 'C' && s.studentChoice !== 'c');
-    if (selectedSemester) {
-      list = list.filter(s => s.semester === selectedSemester);
-    }
-    return list;
+    if (!selectedSemester) return [];
+    
+    return subjects.filter(s => 
+      s.studentChoice !== 'C' && 
+      s.studentChoice !== 'c' && 
+      s.semester === selectedSemester
+    );
   }, [subjects, selectedSemester]);
   const activeGroup = useMemo(() => groups.find(g => g.groupCode === selectedGroupCode), [groups, selectedGroupCode]);
   const activeGroupSubjects = activeGroup?.subjects || [];
