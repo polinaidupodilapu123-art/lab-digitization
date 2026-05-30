@@ -8,9 +8,14 @@ exports.protect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret123');
       req.user = await User.findById(decoded.id).select('-password');
+      
+      if (req.user && req.user.currentSessionId && req.user.currentSessionId !== decoded.sessionId) {
+        return res.status(401).json({ message: 'Your session has expired because your account was logged in from another device.' });
+      }
+
       next();
     } catch (error) {
-      res.status(401).json({ message: 'Not authorized, token failed' });
+      res.status(401).json({ message: error.message || 'Not authorized, token failed' });
     }
   }
 

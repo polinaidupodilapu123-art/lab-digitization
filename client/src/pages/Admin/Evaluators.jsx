@@ -19,6 +19,7 @@ export default function Evaluators() {
   const [success, setSuccess] = useState('');
 
   // Selection state
+  const [allocationMode, setAllocationMode] = useState('Regular');
   const [selectedSubjects, setSelectedSubjects] = useState([]); // Array of { id, name, type, groupCode }
   const [selectedGroupCode, setSelectedGroupCode] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('');
@@ -42,19 +43,17 @@ export default function Evaluators() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [subRes, groupRes, evRes, colRes, submRes] = await Promise.all([
+        const [subRes, groupRes, evRes, colRes] = await Promise.all([
           axios.get(`${API}/subjects`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API}/groups`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API}/evaluators`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API}/colleges`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API}/subjects-with-submissions`, { headers: { Authorization: `Bearer ${token}` } })
+          axios.get(`${API}/colleges`, { headers: { Authorization: `Bearer ${token}` } })
         ]);
         
         setSubjects(subRes.data || []);
         setGroups(groupRes.data || []);
         setEvaluators(evRes.data || []);
         setColleges(colRes.data || []);
-        setSubmittedSubjects(submRes.data || { subjectIds: [], groupSubjectNames: [], fullyAllocatedSubjectIds: [], fullyAllocatedGroupNames: [] });
       } catch (err) {
         setError('Failed to load basic data.');
         console.error(err);
@@ -64,6 +63,20 @@ export default function Evaluators() {
     };
     fetchData();
   }, [token]);
+
+  useEffect(() => {
+    const fetchSubmitted = async () => {
+      try {
+        const submRes = await axios.get(`${API}/subjects-with-submissions?mode=${allocationMode}`, { headers: { Authorization: `Bearer ${token}` } });
+        setSubmittedSubjects(submRes.data || { subjectIds: [], groupSubjectNames: [], fullyAllocatedSubjectIds: [], fullyAllocatedGroupNames: [] });
+      } catch (err) {
+        console.error('Failed to load submitted subjects', err);
+      }
+    };
+    fetchSubmitted();
+    setSelectedSubjects([]);
+    setStats(null);
+  }, [allocationMode, token]);
 
   const uniqueSemesters = useMemo(() => [...new Set(subjects.map(s => s.semester).filter(Boolean))].sort(), [subjects]);
   const regularSubjects = useMemo(() => {
@@ -133,7 +146,7 @@ export default function Evaluators() {
       const parsedSubjects = selectedSubjects.map(s => s.type === 'CORE' ? { subjectId: s.id } : { groupSubjectName: s.name });
       const res = await axios.get(`${API}/subject-allocation-stats`, {
         headers: { Authorization: `Bearer ${token}` },
-        params: { subjects: JSON.stringify(parsedSubjects) }
+        params: { subjects: JSON.stringify(parsedSubjects), mode: allocationMode }
       });
       setStats(res.data);
     } catch (err) {
@@ -159,20 +172,20 @@ export default function Evaluators() {
     
     try {
       const payload = {
+        allocations: [{
+          subjectId: selectedSubjects[0].type === 'CORE' ? selectedSubjects[0].id : undefined,
+          groupSubjectName: selectedSubjects[0].type === 'GROUP' ? selectedSubjects[0].name : undefined,
+          splitMethod,
+          count: splitMethod === 'COUNT' ? Number(allocationCount) : undefined,
+          collegeIds: splitMethod === 'COLLEGE' ? allocationColleges : undefined,
+          rollStart: splitMethod === 'RANGE' ? rollStart : undefined,
+          rollEnd: splitMethod === 'RANGE' ? rollEnd : undefined,
+          valuationDeadline: valuationDeadline || undefined,
+        }],
         evaluatorId: allocationEvaluatorId,
-        splitMethod,
-        valuationDeadline
+        mode: allocationMode
       };
-
-      payload.subjects = selectedSubjects.map(s => s.type === 'CORE' ? { subjectId: s.id } : { groupSubjectName: s.name });
-
-      if (splitMethod === 'COUNT') payload.count = allocationCount;
-      if (splitMethod === 'COLLEGE') payload.collegeIds = allocationColleges;
-      if (splitMethod === 'RANGE') {
-        payload.rollStart = rollStart;
-        payload.rollEnd = rollEnd;
-      }
-
+      
       const res = await axios.post(`${API}/allocate-subject-bulk`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -243,7 +256,18 @@ export default function Evaluators() {
         </h2>
         
         <div className="flex flex-col md:flex-row gap-6 items-start mb-6">
-          <div className="w-full md:w-1/3 z-50">
+          <div className="w-full md:w-1/4">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Allocation Mode</label>
+            <select
+              className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+              value={allocationMode}
+              onChange={(e) => setAllocationMode(e.target.value)}
+            >
+              <option value="Regular">Regular Subjects</option>
+              <option value="Supply">Backlog / Supply</option>
+            </select>
+          </div>
+          <div className="w-full md:w-1/4 z-50">
             <SearchableDropdown
               label="Filter by Semester"
               placeholder="-- All Semesters --"
@@ -255,7 +279,7 @@ export default function Evaluators() {
               }))}
             />
           </div>
-          <div className="w-full md:w-1/3 z-50">
+          <div className="w-full md:w-1/4 z-50">
             <SearchableDropdown
               label="Filter by Group"
               placeholder="-- Search Group --"
@@ -267,8 +291,8 @@ export default function Evaluators() {
               }))}
             />
           </div>
-          <div className="w-full md:w-1/3">
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Search Subject</label>
+          <div className="w-full md:w-1/4 relative">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Search Subject</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input

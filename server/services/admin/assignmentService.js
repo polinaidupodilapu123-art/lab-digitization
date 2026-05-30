@@ -136,15 +136,18 @@ exports.getAssignmentData = async ({ collegeCode, courseCode, semester, groupCod
     if (groupCode && uniqueGroups.size > 0) {
       let pedagogyNames = [];
       for (const [id, group] of uniqueGroups) {
-        if (group.subjects && group.subjects[i]) {
-          pedagogyNames.push(group.subjects[i]);
+        if (group.subjects && group.subjects.length > 0) {
+          const pedIndex = i % group.subjects.length;
+          if (group.subjects[pedIndex]) {
+            pedagogyNames.push(group.subjects[pedIndex]);
+          }
         }
       }
       pedagogyNames = [...new Set(pedagogyNames)];
       
       displaySubjects.push({
         ...sub,
-        subName: pedagogyNames.length > 0 ? pedagogyNames.join(' / ') : sub.subName,
+        subName: pedagogyNames.length > 0 ? `${pedagogyNames.join(' / ')} - ${sub.subName}` : sub.subName,
         isGroupSubject: true
       });
     } else {
@@ -190,6 +193,7 @@ exports.getPaperGrades = async (studentId) => {
     let paperMaxMarks = 0;
     let evaluatedCount = 0;
     let totalSubjectsCount = paper.subjectIds?.length || 0;
+    let hasFailedSubject = false;
     const subjectsList = [];
 
     (paper.subjectIds || []).forEach(sub => {
@@ -199,6 +203,12 @@ exports.getPaperGrades = async (studentId) => {
       if (assignment && assignment.status === 'Evaluated') {
         obtainedScore += assignment.score || 0;
         evaluatedCount++;
+        
+        const passMark = sub.subPassMarks != null ? sub.subPassMarks : (sub.maxMarks ? sub.maxMarks * 0.4 : 0);
+        if (assignment.score < passMark) {
+          hasFailedSubject = true;
+        }
+
         subjectsList.push({
           subCode: sub.subCode,
           subName: sub.subName,
@@ -230,6 +240,7 @@ exports.getPaperGrades = async (studentId) => {
       passMarks: paper.passMarks || 0,
       maxMarks: paperMaxMarks,
       obtainedScore: evaluatedCount > 0 ? obtainedScore : null,
+      isPassed: evaluatedCount > 0 ? (!hasFailedSubject && obtainedScore >= (paper.passMarks || 0)) : false,
       status: paperStatus,
       subjects: subjectsList
     };

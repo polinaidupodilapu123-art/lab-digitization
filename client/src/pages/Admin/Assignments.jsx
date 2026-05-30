@@ -350,13 +350,16 @@ const Assignments = () => {
   const toggleAllSubjects = () => {
     if (subjects.length === 0) return;
 
+    const targetMode = mode === 'Backlog' ? 'Supply' : 'Regular';
     const unassignedSubjects = subjects.filter(subject => {
       const isAssigned = selectedStudents.length > 0 && assignments.some(a => {
         const aStudentId = a.studentId?._id || a.studentId;
         const aSubjectId = a.subjectId?._id || a.subjectId;
+        const aMode = a.mode || 'Regular';
         return aStudentId && aSubjectId && 
                selectedStudents.includes(aStudentId.toString()) && 
-               aSubjectId.toString() === subject._id.toString();
+               aSubjectId.toString() === subject._id.toString() &&
+               aMode === targetMode;
       });
       return !isAssigned;
     });
@@ -728,12 +731,15 @@ const Assignments = () => {
                   <p className="text-sm text-slate-500 text-center py-10">Select a Semester to view subjects.</p>
                 ) : (
                   subjects.map(subject => {
+                    const targetMode = mode === 'Backlog' ? 'Supply' : 'Regular';
                     const isAssigned = selectedStudents.length > 0 && assignments.some(a => {
                       const aStudentId = a.studentId?._id || a.studentId;
                       const aSubjectId = a.subjectId?._id || a.subjectId;
+                      const aMode = a.mode || 'Regular';
                       return aStudentId && aSubjectId && 
                              selectedStudents.includes(aStudentId.toString()) && 
-                             aSubjectId.toString() === subject._id.toString();
+                             aSubjectId.toString() === subject._id.toString() &&
+                             aMode === targetMode;
                     });
 
                     return (

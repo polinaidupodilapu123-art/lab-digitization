@@ -62,6 +62,10 @@ const userSchema = new mongoose.Schema({
   isSetupComplete: {
     type: Boolean,
     default: false
+  },
+  currentSessionId: {
+    type: String,
+    default: null
   }
 }, { timestamps: true });
 

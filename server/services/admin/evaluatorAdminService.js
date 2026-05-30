@@ -233,8 +233,16 @@ exports.assignSubjectsToEvaluator = async (id, { allocations, subjectIds, groupS
   return { message: 'Subjects assigned successfully', evaluator };
 };
 
-exports.getSubjectsWithSubmissions = async () => {
-  const assignments = await Assignment.find({ status: { $ne: 'Pending' } }).select('subjectId groupSubjectName evaluatorId').lean();
+exports.getSubjectsWithSubmissions = async (mode = 'Regular') => {
+  const query = { status: { $ne: 'Pending' } };
+  
+  if (mode === 'Supply') {
+    query.mode = 'Supply';
+  } else {
+    query.$or = [{ mode: 'Regular' }, { mode: { $exists: false } }, { mode: null }];
+  }
+
+  const assignments = await Assignment.find(query).select('subjectId groupSubjectName evaluatorId').lean();
   
   const subjectsSet = new Set();
   const groupSubjectsSet = new Set();
@@ -264,7 +272,7 @@ exports.getSubjectsWithSubmissions = async () => {
   };
 };
 
-exports.getSubjectAllocationStats = async ({ subjectId, groupSubjectName, subjects }) => {
+exports.getSubjectAllocationStats = async ({ subjectId, groupSubjectName, subjects, mode = 'Regular' }) => {
   let query = {};
   
   if (subjects) {
@@ -290,6 +298,11 @@ exports.getSubjectAllocationStats = async ({ subjectId, groupSubjectName, subjec
   }
 
   const submittedQuery = { ...query, status: { $ne: 'Pending' } };
+  if (mode === 'Supply') {
+    submittedQuery.mode = 'Supply';
+  } else {
+    submittedQuery.$or = [{ mode: 'Regular' }, { mode: { $exists: false } }, { mode: null }];
+  }
   
   const total = await Assignment.countDocuments(submittedQuery);
   const unallocatedAssignments = await Assignment.find({ ...submittedQuery, evaluatorId: null })
@@ -335,7 +348,7 @@ exports.getSubjectAllocationStats = async ({ subjectId, groupSubjectName, subjec
   };
 };
 
-exports.allocateSubjectBulk = async ({ subjectId, groupSubjectName, subjects, evaluatorId, splitMethod, count, collegeIds, rollStart, rollEnd, valuationDeadline }) => {
+exports.allocateSubjectBulk = async ({ subjectId, groupSubjectName, subjects, evaluatorId, splitMethod, count, collegeIds, rollStart, rollEnd, valuationDeadline, mode = 'Regular' }) => {
   const evaluator = await User.findById(evaluatorId);
   if (!evaluator) throw new AppError('Evaluator not found', 404);
 
@@ -354,6 +367,11 @@ exports.allocateSubjectBulk = async ({ subjectId, groupSubjectName, subjects, ev
 
   for (const s of parsedSubjects) {
     const query = { evaluatorId: null, status: { $ne: 'Pending' } };
+    if (mode === 'Supply') {
+      query.mode = 'Supply';
+    } else {
+      query.$or = [{ mode: 'Regular' }, { mode: { $exists: false } }, { mode: null }];
+    }
     if (s.subjectId) query.subjectId = s.subjectId;
     else if (s.groupSubjectName) query.groupSubjectName = s.groupSubjectName;
     else continue;

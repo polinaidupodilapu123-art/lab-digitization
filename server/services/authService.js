@@ -3,9 +3,10 @@ const { College } = require('../models/MasterData');
 const emailService = require('./emailService');
 const AppError = require('../utils/AppError');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
-const generateToken = (id, role) => {
-  return jwt.sign({ id, role }, process.env.JWT_SECRET || 'secret123', {
+const generateToken = (id, role, sessionId) => {
+  return jwt.sign({ id, role, sessionId }, process.env.JWT_SECRET || 'secret123', {
     expiresIn: '30d'
   });
 };
@@ -31,12 +32,16 @@ exports.login = async ({ regdNo, password, email }) => {
     throw new AppError('Invalid credentials', 401);
   }
 
+  const sessionId = crypto.randomUUID();
+  user.currentSessionId = sessionId;
+  await user.save();
+
   return {
     _id: user._id,
     regdNo: user.regdNo,
     fullName: user.fullName,
     role: user.role,
-    token: generateToken(user._id, user.role)
+    token: generateToken(user._id, user.role, sessionId)
   };
 };
 
@@ -128,6 +133,9 @@ exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId })
   user.otpExpiresAt = undefined;
   user.email = email.trim().toLowerCase();
   
+  const sessionId = crypto.randomUUID();
+  user.currentSessionId = sessionId;
+  
   await user.save();
 
   return {
@@ -136,7 +144,7 @@ exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId })
     regdNo: user.regdNo,
     fullName: user.fullName,
     role: user.role,
-    token: generateToken(user._id, user.role)
+    token: generateToken(user._id, user.role, sessionId)
   };
 };
 

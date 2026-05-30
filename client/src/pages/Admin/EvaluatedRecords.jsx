@@ -528,7 +528,7 @@ const EvaluatedRecords = () => {
                 </thead>
                 <tbody>
                   {pagedPaperRows.map((row, idx) => {
-                    const isPassed = row.obtainedScore >= row.passMarks;
+                    const isPassed = row.isPassed;
                     return (
                       <tr key={`${row.regdNo}-${row.paperCode || idx}`} className="border-b border-slate-100 hover:bg-teal-50 transition-colors">
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-medium text-slate-900">{row.fullName}</td>

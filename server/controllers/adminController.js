@@ -210,7 +210,7 @@ exports.getSubjectAllocationStats = async (req, res) => {
 
 exports.getSubjectsWithSubmissions = async (req, res) => {
   try {
-    const result = await evaluatorAdminService.getSubjectsWithSubmissions();
+    const result = await evaluatorAdminService.getSubjectsWithSubmissions(req.query.mode);
     res.json(result);
   } catch (error) {
     res.status(error.statusCode || 500).json({ message: error.message });
