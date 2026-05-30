@@ -192,6 +192,7 @@ const EvaluatedRecords = () => {
       let obtainedScore = 0;
       let paperMaxMarks = 0;
       let evaluatedCount = 0;
+      let hasFailedSubject = false;
       const totalSubjectsCount = paper.subjectIds?.length || 0;
 
       (paper.subjectIds || []).forEach(sub => {
@@ -202,10 +203,17 @@ const EvaluatedRecords = () => {
         if (assignment) {
           obtainedScore += assignment.score || 0;
           evaluatedCount++;
+          
+          const passMark = sub.subPassMarks != null ? sub.subPassMarks : (sub.maxMarks ? sub.maxMarks * 0.4 : 0);
+          if (assignment.score < passMark) {
+            hasFailedSubject = true;
+          }
         }
       });
 
       const isEvaluated = evaluatedCount === totalSubjectsCount && totalSubjectsCount > 0;
+      const isPassed = isEvaluated ? (!hasFailedSubject && obtainedScore >= (paper.passMarks || 0)) : false;
+
       return {
         paperCode: paper.paperCode,
         paperName: paper.paperName,
@@ -213,7 +221,8 @@ const EvaluatedRecords = () => {
         obtainedScore: isEvaluated ? obtainedScore : null,
         maxMarks: paperMaxMarks,
         passMarks: paper.passMarks || 0,
-        status: isEvaluated ? 'Evaluated' : 'Pending'
+        status: isEvaluated ? 'Evaluated' : 'Pending',
+        isPassed
       };
     });
 
@@ -240,7 +249,8 @@ const EvaluatedRecords = () => {
         passMarks: ps.passMarks,
         status: ps.status,
         evaluatedCount: ps.evaluatedCount,
-        totalSubjectsCount: ps.totalSubjectsCount
+        totalSubjectsCount: ps.totalSubjectsCount,
+        isPassed: ps.isPassed
       });
     });
   });
