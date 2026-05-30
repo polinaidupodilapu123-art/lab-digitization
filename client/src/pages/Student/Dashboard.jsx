@@ -194,7 +194,7 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, handleGener
                             className="flex items-center px-3 py-1.5 border border-slate-300 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                           >
                             <Download className="h-3 w-3 mr-1.5" />
-                            Front Page
+                            Download Record
                           </button>
                           <button
                             onClick={() => setUploadTarget(assignment)}
@@ -257,9 +257,14 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
       return;
     }
     
-    // Check file size (1MB limit)
-    if (selected.size > 1024 * 1024) {
-      setError('File size exceeds the 1MB limit.');
+    const isGroupSubject = !!assignment.groupSubjectName;
+    const semester = String(assignment.subjectId?.semester);
+    const isEligibleFor5MB = isGroupSubject && (semester === '3' || semester === '4');
+    
+    const MAX_SIZE = isEligibleFor5MB ? 5 * 1024 * 1024 : 1 * 1024 * 1024;
+    
+    if (selected.size > MAX_SIZE) {
+      setError(`File size exceeds the limit. ${isEligibleFor5MB ? 'Max 5MB allowed.' : 'Max 1MB allowed.'}`);
       setFile(null);
       return;
     }
@@ -348,7 +353,14 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
                   </span>
                   <p className="pl-1">or drag and drop</p>
                 </div>
-                <p className="text-xs text-slate-400">PDF up to 1MB</p>
+                {(() => {
+                  const isGroupSubject = !!assignment.groupSubjectName;
+                  const semester = String(assignment.subjectId?.semester);
+                  const isEligibleFor5MB = isGroupSubject && (semester === '3' || semester === '4');
+                  return (
+                    <p className="text-xs text-slate-400">PDF up to {isEligibleFor5MB ? '5MB' : '1MB'}</p>
+                  );
+                })()}
               </div>
             </div>
           </div>

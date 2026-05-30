@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Users, FileText, CheckCircle, Clock, Filter, RefreshCw, LogOut, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import Notifications from './Notifications';
 import PendingStudents from './PendingStudents';
+import CollegeRecords from './CollegeRecords';
 import { API_BASE_URL } from '../../utils/config';
 
 /* ─── Pure SVG Donut Chart ─── */
@@ -447,6 +448,7 @@ const PrincipalDashboard = () => {
   const navItems = [
     { name: 'Dashboard', path: '/principal', icon: Users },
     { name: 'Pending Students', path: '/principal/pending-students', icon: Clock },
+    { name: 'College Records', path: '/principal/records', icon: FileText },
     { name: 'Notifications', path: '/principal/circulars', icon: Bell },
   ];
 
@@ -527,6 +529,7 @@ const PrincipalDashboard = () => {
         <Routes>
           <Route path="/" element={<PrincipalDashboardStats />} />
           <Route path="/pending-students" element={<PendingStudents />} />
+          <Route path="/records" element={<CollegeRecords />} />
           <Route path="/circulars" element={<Notifications />} />
         </Routes>
       </div>

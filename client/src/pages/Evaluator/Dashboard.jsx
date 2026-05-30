@@ -154,6 +154,16 @@ const Dashboard = () => {
         // Sort newly submitted/created records on top
         const sorted = res.data.sort((a, b) => new Date(b.submittedAt || b.createdAt || 0) - new Date(a.submittedAt || a.createdAt || 0));
         setSubmissions(sorted);
+        
+        const initMarks = {};
+        sorted.forEach(sub => {
+          if (sub.status !== 'Evaluated' && sub.suggestedMarks !== undefined && sub.suggestedMarks !== null) {
+            initMarks[sub._id] = { score: sub.suggestedMarks };
+          }
+        });
+        if (Object.keys(initMarks).length > 0) {
+          setMarks(initMarks);
+        }
       } catch (err) {
         console.error('Failed to load records', err);
       } finally {
@@ -503,6 +513,7 @@ console.log("ccsdc", pagedSubmissions)
                     <th className="px-4 py-3 text-left whitespace-nowrap">Date</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Deadline</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
+                    <th className="px-4 py-3 text-center whitespace-nowrap">Suggested Marks</th>
                     <th className="w-[4.5rem] px-4 py-3 text-left whitespace-nowrap tabular-nums">Score</th>
                     <th className="min-w-[6rem] px-4 py-3 text-left whitespace-nowrap">Remarks</th>
                     <th className="w-[1%] pr-4 text-right px-4 py-3 whitespace-nowrap">Action</th>
@@ -616,6 +627,9 @@ console.log("ccsdc", pagedSubmissions)
                           }`}>
                             {sub.status === 'Evaluated' ? 'Evaluated' : 'Pending Evaluation'}
                           </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center font-medium">
+                          {sub.suggestedMarks !== undefined && sub.suggestedMarks !== null ? sub.suggestedMarks : '—'}
                         </td>
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
                           {sub.status === 'Evaluated' ? (

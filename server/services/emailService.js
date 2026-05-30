@@ -45,7 +45,7 @@ const convertHtmlToText = (html) => {
  */
 exports.sendEvaluatorAllocationEmail = async ({ to, evaluatorName, password, subjectList, groupSubjectList }) => {
   try {
-    const siteUrl = process.env.SITE_URL || 'http://localhost:5173';
+    const siteUrl = process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
     
     // Construct subject list HTML
     let subjectsHtml = '';
@@ -145,7 +145,7 @@ exports.sendStudentReminderEmail = async ({ to, studentName, subjectName, deadli
         <p>Please log in to the student portal and submit your record before the deadline to avoid any evaluation delay or penalty.</p>
         
         <div style="text-align: center; margin: 25px 0;">
-          <a href="${process.env.SITE_URL || 'http://localhost:5173'}/login" style="background-color: #d97706; color: white; padding: 12px 25px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">Upload Lab Record Now</a>
+          <a href="${process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localhost:5173'}/login" style="background-color: #d97706; color: white; padding: 12px 25px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">Upload Lab Record Now</a>
         </div>
 
         <p style="font-size: 12px; color: #64748b; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
@@ -304,7 +304,7 @@ exports.sendStudentOtpEmail = async ({ to, studentName, otp }) => {
  */
 exports.sendStudentAssignmentNotificationEmail = async ({ to, studentName, subjectNames, deadline }) => {
   try {
-    const siteUrl = process.env.SITE_URL || 'http://localhost:5173';
+    const siteUrl = process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
     const formattedDeadline = new Date(deadline).toLocaleDateString('en-GB', {
       day: '2-digit',
       month: '2-digit',
@@ -374,7 +374,7 @@ exports.sendStudentAssignmentNotificationEmail = async ({ to, studentName, subje
  */
 exports.sendPrincipalOnboardingEmail = async ({ to, principalName, collegeName }) => {
   try {
-    const siteUrl = process.env.SITE_URL || 'http://localhost:5173';
+    const siteUrl = process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
     
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
@@ -428,7 +428,7 @@ exports.sendPrincipalOnboardingEmail = async ({ to, principalName, collegeName }
  */
 exports.sendStudentDeadlineReminderEmail = async ({ to, studentName, daysLeft }) => {
   try {
-    const siteUrl = process.env.SITE_URL || 'http://localhost:5173';
+    const siteUrl = process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
     const urgency = daysLeft === 0 ? 'TODAY' : 'TOMORROW';
     
     const htmlContent = `
@@ -469,7 +469,7 @@ exports.sendStudentDeadlineReminderEmail = async ({ to, studentName, daysLeft })
  */
 exports.sendPrincipalDeadlineReminderEmail = async ({ to, principalName, daysLeft, defaultingStudents }) => {
   try {
-    const siteUrl = process.env.SITE_URL || 'http://localhost:5173';
+    const siteUrl = process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
     const urgency = daysLeft === 0 ? 'TODAY' : 'TOMORROW';
     
     // Create HTML table rows for students
@@ -529,7 +529,7 @@ exports.sendPrincipalDeadlineReminderEmail = async ({ to, principalName, daysLef
  */
 exports.sendEvaluatorDeadlineReminderEmail = async ({ to, evaluatorName, daysLeft, pendingCount }) => {
   try {
-    const siteUrl = process.env.SITE_URL || 'http://localhost:5173';
+    const siteUrl = process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
     const urgency = daysLeft === 0 ? 'TODAY' : 'TOMORROW';
     
     const htmlContent = `

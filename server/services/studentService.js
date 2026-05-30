@@ -51,6 +51,17 @@ exports.submitAssignment = async ({ assignmentId, file, user, note }) => {
     throw new AppError('Assignment not found', 404);
   }
 
+  const isGroupSubject = !!assignment.groupSubjectName;
+  const semester = String(assignment.subjectId?.semester);
+  const isEligibleFor5MB = isGroupSubject && (semester === '3' || semester === '4');
+  
+  const MAX_SIZE = isEligibleFor5MB ? 5 * 1024 * 1024 : 1 * 1024 * 1024;
+  
+  if (file.size > MAX_SIZE) {
+    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+    throw new AppError(`File size exceeds the limit. ${isEligibleFor5MB ? 'Max 5MB allowed for this group subject.' : 'Max 1MB allowed for this subject.'}`, 400);
+  }
+
   if (assignment.status === 'Evaluated') {
     if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
     throw new AppError('Evaluation has already completed. You cannot change this record.', 400);

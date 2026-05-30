@@ -174,16 +174,14 @@ export default function Evaluators() {
     
     try {
       const payload = {
-        allocations: [{
-          subjectId: selectedSubjects[0].type === 'CORE' ? selectedSubjects[0].id : undefined,
-          groupSubjectName: selectedSubjects[0].type === 'GROUP' ? selectedSubjects[0].name : undefined,
-          splitMethod,
-          count: splitMethod === 'COUNT' ? Number(allocationCount) : undefined,
-          collegeIds: splitMethod === 'COLLEGE' ? allocationColleges : undefined,
-          rollStart: splitMethod === 'RANGE' ? rollStart : undefined,
-          rollEnd: splitMethod === 'RANGE' ? rollEnd : undefined,
-          valuationDeadline: valuationDeadline || undefined,
-        }],
+        subjectId: selectedSubjects[0].type === 'CORE' ? selectedSubjects[0].id : undefined,
+        groupSubjectName: selectedSubjects[0].type === 'GROUP' ? selectedSubjects[0].name : undefined,
+        splitMethod,
+        count: splitMethod === 'COUNT' ? Number(allocationCount) : undefined,
+        collegeIds: splitMethod === 'COLLEGE' ? allocationColleges : undefined,
+        rollStart: splitMethod === 'RANGE' ? rollStart : undefined,
+        rollEnd: splitMethod === 'RANGE' ? rollEnd : undefined,
+        valuationDeadline: valuationDeadline || undefined,
         evaluatorId: allocationEvaluatorId,
         mode: allocationMode
       };

@@ -16,5 +16,7 @@ router.use(protect, principalOrAdmin);
 
 router.get('/stats', principalController.getPrincipalDashboardStats);
 router.get('/pending-students', principalController.getPendingStudents);
+router.get('/records', principalController.getCollegeRecords);
+router.put('/records/:id/suggest-marks', principalController.suggestMarks);
 
 module.exports = router;

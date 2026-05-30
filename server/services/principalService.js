@@ -168,3 +168,35 @@ exports.getPendingStudents = async (collegeId, { courseId, semester }) => {
     data: pendingStudentsList
   };
 };
+
+exports.getCollegeRecords = async (collegeId) => {
+  const students = await User.find({ role: 'STUDENT', collegeId }).select('_id');
+  const studentIds = students.map(s => s._id);
+
+  const assignments = await Assignment.find({
+    studentId: { $in: studentIds },
+    status: { $in: ['Submitted', 'Evaluated'] }
+  })
+    .populate('studentId', 'fullName regdNo currentSemester')
+    .populate('subjectId', 'subCode subName maxMarks')
+    .sort({ submittedAt: -1 })
+    .lean();
+
+  return assignments;
+};
+
+exports.suggestMarks = async (collegeId, assignmentId, suggestedMarks) => {
+  const assignment = await Assignment.findById(assignmentId).populate('studentId');
+  if (!assignment) {
+    throw new AppError('Assignment not found', 404);
+  }
+
+  if (assignment.studentId.collegeId.toString() !== collegeId.toString()) {
+    throw new AppError('Not authorized to modify this assignment', 403);
+  }
+
+  assignment.suggestedMarks = suggestedMarks;
+  await assignment.save();
+
+  return assignment;
+};

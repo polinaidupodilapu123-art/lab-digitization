@@ -61,6 +61,9 @@ const assignmentSchema = new mongoose.Schema({
   valuationDeadline: {
     type: Date
   },
+  suggestedMarks: {
+    type: Number
+  },
   studentNote: {
     type: String
   }

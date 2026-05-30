@@ -72,7 +72,7 @@ exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academi
         const evaluatorId = subjectEvaluatorMap[subject._id.toString()] || null;
 
         await Assignment.findOneAndUpdate(
-          { studentId: student._id, subjectId: subject._id },
+          { studentId: student._id, subjectId: subject._id, mode: mode || 'Regular' },
           { 
             $set: {
               pagesRequired, 
