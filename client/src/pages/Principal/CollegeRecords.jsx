@@ -75,15 +75,17 @@ const CollegeRecords = () => {
   );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto animate-fadeIn">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-          <FileText className="h-6 w-6 text-teal-600" />
-          Submitted Student Records
-        </h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Review submitted lab records from your college students and provide suggested marks for the external evaluators.
-        </p>
+    <div className="p-4 sm:p-6 bg-slate-50 w-full animate-fade-in">
+      <div className="bg-white p-6 rounded-md border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <FileText className="h-6 w-6 text-teal-600" />
+            Submitted Student Records
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Review submitted lab records from your college students and provide suggested marks for the external evaluators.
+          </p>
+        </div>
       </div>
 
       {error && (
@@ -100,7 +102,7 @@ const CollegeRecords = () => {
       )}
 
       <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+        <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
           <div className="relative w-72">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
@@ -113,9 +115,9 @@ const CollegeRecords = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="w-full relative">
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+            <thead className="sticky top-0 z-10 bg-teal-700 text-white font-semibold">
               <tr>
                 <th className="px-4 py-3">Student Name</th>
                 <th className="px-4 py-3">Regd No.</th>

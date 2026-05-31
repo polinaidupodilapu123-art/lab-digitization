@@ -6,6 +6,7 @@ import { API_BASE_URL } from '../../utils/config';
 import JsBarcode from 'jsbarcode';
 import { pdf } from '@react-pdf/renderer';
 import BarcodePDF from '../../components/BarcodePDF';
+import SessionTimer from '../../components/SessionTimer';
 
 /* ── Pagination component ── */
 const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
@@ -157,7 +158,7 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, handleGener
 
                         return (
                           <span className={`inline-flex px-2.5 py-1 border rounded-md text-xs font-semibold ${borderClass}`}>
-                            {deadlineDate.toLocaleDateString()}
+                            {deadlineDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </span>
                         );
                       })()
@@ -525,7 +526,7 @@ const Dashboard = () => {
   const [supplyPage, setSupplyPage] = useState(1);
 
   return (
-    <div className="min-h-screen bg-slate-50 animate-fade-in">
+    <div className="h-auto min-h-screen md:h-full md:overflow-y-auto bg-slate-50 animate-fade-in">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
@@ -539,6 +540,7 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <SessionTimer />
               <div className="relative">
                 <button
                   onClick={() => setShowProfile(!showProfile)}

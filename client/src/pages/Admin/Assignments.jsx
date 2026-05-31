@@ -136,7 +136,7 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, pageSize = 
                 <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">{assignment.pagesRequired}</td>
                 <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
                   <div className="flex items-center gap-2">
-                    {new Date(assignment.deadline).toLocaleDateString()}
+                    {new Date(assignment.deadline).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     {onEditDeadline && assignment.status === 'Pending' && (
                       <button 
                         onClick={() => onEditDeadline(assignment)}

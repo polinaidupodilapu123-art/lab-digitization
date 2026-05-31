@@ -31,21 +31,33 @@ const NO_HEADER_ROUTES = ['/login', '/register'];
 
 function AppContent() {
   const location = useLocation();
-  const showHeader = !NO_HEADER_ROUTES.includes(location.pathname);
+  const isAuthRoute = NO_HEADER_ROUTES.includes(location.pathname) || location.pathname === '/';
+
+  if (isAuthRoute) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900 font-sans relative">
+        <Routes>
+          <Route path="/" element={<Navigate to="/login" />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+        </Routes>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {showHeader && <Header />}
-      <Routes>
-        <Route path="/" element={<Navigate to="/login" />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-
-        <Route path="/admin/*" element={<AdminDashboard />} />
-        <Route path="/student/*" element={<StudentDashboard />} />
-        <Route path="/evaluator/*" element={<EvaluatorDashboard />} />
-        <Route path="/principal/*" element={<PrincipalDashboard />} />
-      </Routes>
+    <div className="min-h-screen md:h-screen bg-slate-50 text-slate-900 font-sans relative flex flex-col md:overflow-hidden">
+      <Header />
+      <div className="flex-1 flex md:overflow-hidden w-full relative flex-col md:flex-row">
+        <div className="flex-1 w-full h-full">
+          <Routes>
+            <Route path="/admin/*" element={<AdminDashboard />} />
+            <Route path="/student/*" element={<StudentDashboard />} />
+            <Route path="/evaluator/*" element={<EvaluatorDashboard />} />
+            <Route path="/principal/*" element={<PrincipalDashboard />} />
+          </Routes>
+        </div>
+      </div>
     </div>
   );
 }

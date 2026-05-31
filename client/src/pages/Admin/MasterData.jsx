@@ -983,7 +983,7 @@ const MasterData = () => {
   const pagedRows = filteredRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
-    <div className="px-4 py-6 w-full">
+    <div className="p-4 sm:p-6 bg-slate-50 w-full animate-fade-in">
 
       {/* Page Header */}
       <div className="mb-5">
@@ -1115,7 +1115,7 @@ const MasterData = () => {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto custom-scrollbar">
+        <div className="w-full relative">
           {loadingTab ? (
             <div className="flex items-center justify-center py-16 text-slate-400">
               <RefreshCw className="h-6 w-6 animate-spin mr-3" />
@@ -1123,7 +1123,7 @@ const MasterData = () => {
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10 shadow-sm">
                 <tr className="bg-teal-700 text-white text-sm">
                   <th className="px-4 py-3 text-left w-10 whitespace-nowrap">#</th>
                   {cfg.columns.filter(col => !col.hideInTable).map(col => (

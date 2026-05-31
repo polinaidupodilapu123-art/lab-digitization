@@ -217,18 +217,18 @@ export default function Evaluators() {
   if (loading) return <div className="p-8 text-center text-slate-500">Loading allocation data...</div>;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-fadeIn">
+    <div className="px-4 py-6 w-full space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-teal-800 to-teal-900 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-md border border-slate-200 shadow-sm">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full "></div>
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
-            <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-              <BookOpen className="h-6 w-6 text-teal-50" />
+            <div className="rounded-lg">
+              <BookOpen className="h-6 w-6" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight">Subject Allocation</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Subject Allocation</h1>
           </div>
-          <p className="text-teal-100/90 text-sm max-w-2xl leading-relaxed mt-3">
+          <p className="text-sm max-w-2xl mt-3">
             Select a subject to view its total generated assignments. Allocate unassigned records to evaluators by specific counts, colleges, or roll number ranges to prevent duplicate assignments and balance workloads.
           </p>
         </div>
@@ -249,7 +249,7 @@ export default function Evaluators() {
       )}
 
       {/* Main Selection Area */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+      <div className="bg-white rounded-md shadow-sm border border-slate-200 p-6">
         <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <Filter className="h-5 w-5 text-teal-600" />
           1. Select Subject(s) to Allocate

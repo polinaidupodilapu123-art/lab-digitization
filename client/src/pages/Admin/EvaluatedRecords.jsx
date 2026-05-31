@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ClipboardCheck, Search, Download, BookOpen } from 'lucide-react';
+import { ClipboardCheck, Search, Download, BookOpen, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../utils/config';
+import ReallocateModal from '../../components/ReallocateModal';
 
 /* ── Pagination component ── */
 const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
@@ -86,22 +87,32 @@ const EvaluatedRecords = () => {
   const [papers, setPapers] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [paperPage, setPaperPage] = useState(1);
+  const [reallocateTarget, setReallocateTarget] = useState(null);
+  const [toastMessage, setToastMessage] = useState('');
 
   const PAGE_SIZE = 10;
 
+  const fetchAssignments = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/admin/assignments`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      const activeRecords = res.data.filter(a => a.status !== 'Pending');
+      const sorted = activeRecords.sort((a, b) => new Date(b.submittedAt || b.updatedAt || b.createdAt || 0) - new Date(a.submittedAt || a.updatedAt || a.createdAt || 0));
+      setRecords(sorted);
+    } catch (err) {
+      console.error('Failed to load assignments');
+    }
+  };
+
+  const handleReallocateSuccess = (msg) => {
+    setToastMessage(msg);
+    setReallocateTarget(null);
+    fetchAssignments();
+    setTimeout(() => setToastMessage(''), 3000);
+  };
+
   useEffect(() => {
-    const fetchAssignments = async () => {
-      try {
-        const res = await axios.get(`${API_BASE_URL}/api/admin/assignments`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        });
-        const activeRecords = res.data.filter(a => a.status !== 'Pending');
-        const sorted = activeRecords.sort((a, b) => new Date(b.submittedAt || b.updatedAt || b.createdAt || 0) - new Date(a.submittedAt || a.updatedAt || a.createdAt || 0));
-        setRecords(sorted);
-      } catch (err) {
-        console.error('Failed to load assignments');
-      }
-    };
     const fetchPapers = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/api/admin/papers`, {
@@ -314,7 +325,7 @@ const EvaluatedRecords = () => {
   const pagedSupplyPapers = supplyPaperRows.slice((paperPage - 1) * PAGE_SIZE, paperPage * PAGE_SIZE);
 
   return (
-    <div className="px-4 py-6 w-full">
+    <div className="p-4 sm:p-6 bg-slate-50 w-full animate-fade-in">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Evaluated Records</h1>
@@ -322,7 +333,7 @@ const EvaluatedRecords = () => {
         </div>
       </div>
 
-      <div className="flex border-b border-slate-200 mb-6">
+      <div className="flex border-b border-slate-200">
         <button
           onClick={() => { setActiveTab('submissions'); setCurrentPage(1); }}
           className={`px-5 py-2.5 font-medium text-sm transition-colors border-b-2 cursor-pointer rounded-t-md ${
@@ -345,9 +356,8 @@ const EvaluatedRecords = () => {
         </button>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden flex flex-col">
-        {/* Common Toolbar */}
-        <div className="p-5 border-b border-slate-200 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-md rounded-tr-2xl border border-t-0 border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-lg font-semibold text-slate-800 flex items-center">
             <ClipboardCheck className="h-5 w-5 mr-2 text-teal-600" />
             {activeTab === 'submissions' ? `Evaluated Submissions (${filteredRecords.length})` : `Aggregated Paper Grades (${regularPaperRows.length + supplyPaperRows.length})`}
@@ -421,9 +431,9 @@ const EvaluatedRecords = () => {
               </span>
               <h3 className="font-bold text-slate-800 text-sm">Regular Subject Evaluations ({regularRecords.length})</h3>
             </div>
-            <div className="overflow-x-auto sleek-scrollbar">
+            <div className="w-full relative overflow-x-auto sleek-scrollbar">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10 shadow-sm">
                   <tr className="bg-teal-700 text-white text-sm font-semibold">
                     <th className="px-4 py-3 text-left whitespace-nowrap">Student Name</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Roll No.</th>
@@ -432,6 +442,7 @@ const EvaluatedRecords = () => {
                     <th className="px-4 py-3 text-center whitespace-nowrap">Pass Marks</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
                     <th className="px-4 py-3 text-right whitespace-nowrap">Score</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -459,6 +470,17 @@ const EvaluatedRecords = () => {
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-right">
                         <span className="font-bold text-emerald-600 text-base">{record.score !== null ? record.score : '-'}</span>
                         <span className="text-slate-400 text-xs ml-1">/ {record.maxMarks}</span>
+                      </td>
+                      <td className="px-4 py-2.5 whitespace-nowrap text-right">
+                        {record.status !== 'Evaluated' && (
+                          <button
+                            onClick={() => setReallocateTarget(record)}
+                            className="inline-flex items-center px-2 py-1 bg-white border border-teal-200 hover:bg-teal-50 text-teal-700 rounded text-xs font-semibold cursor-pointer shadow-sm transition-colors"
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            Re-allocate
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -489,6 +511,7 @@ const EvaluatedRecords = () => {
                     <th className="px-4 py-3 text-center whitespace-nowrap">Pass Marks</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
                     <th className="px-4 py-3 text-right whitespace-nowrap">Score</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -517,6 +540,17 @@ const EvaluatedRecords = () => {
                         <span className="font-bold text-emerald-600 text-base">{record.score !== null ? record.score : '-'}</span>
                         <span className="text-slate-400 text-xs ml-1">/ {record.maxMarks}</span>
                       </td>
+                      <td className="px-4 py-2.5 whitespace-nowrap text-right">
+                        {record.status !== 'Evaluated' && (
+                          <button
+                            onClick={() => setReallocateTarget(record)}
+                            className="inline-flex items-center px-2 py-1 bg-white border border-teal-200 hover:bg-teal-50 text-teal-700 rounded text-xs font-semibold cursor-pointer shadow-sm transition-colors"
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            Re-allocate
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                   {supplyRecords.length === 0 && (
@@ -539,9 +573,9 @@ const EvaluatedRecords = () => {
               </span>
               <h3 className="font-bold text-slate-800 text-sm">Regular Paper Grades ({regularPaperRows.length})</h3>
             </div>
-            <div className="overflow-x-auto sleek-scrollbar">
+            <div className="w-full relative overflow-x-auto sleek-scrollbar">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10 shadow-sm">
                   <tr className="bg-teal-700 text-white text-sm font-semibold">
                     <th className="px-4 py-3 text-left whitespace-nowrap">Student Name</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Roll No.</th>
@@ -639,6 +673,13 @@ const EvaluatedRecords = () => {
           </>
         )}
       </div>
+      {reallocateTarget && (
+        <ReallocateModal
+          assignment={reallocateTarget}
+          onClose={() => setReallocateTarget(null)}
+          onSuccess={handleReallocateSuccess}
+        />
+      )}
     </div>
   );
 };

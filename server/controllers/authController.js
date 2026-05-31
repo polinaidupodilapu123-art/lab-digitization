@@ -2,7 +2,17 @@ const authService = require('../services/authService');
 
 exports.login = async (req, res) => {
   try {
-    const result = await authService.login(req.body);
+    const result = await authService.login(req.body, req.ip);
+    res.json(result);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
+  }
+};
+
+exports.logout = async (req, res) => {
+  try {
+    const result = await authService.logout(req.user);
     res.json(result);
   } catch (error) {
     const statusCode = error.statusCode || 500;

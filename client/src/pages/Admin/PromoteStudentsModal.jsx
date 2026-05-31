@@ -200,6 +200,18 @@ const PromoteStudentsModal = ({ token, onClose, onSuccess }) => {
                   onChange={val => {
                     setFilters(prev => ({...prev, semester: val}));
                     setCurrentPage(1);
+                    
+                    if (val) {
+                      const currentIndex = semesters.indexOf(val.value);
+                      if (currentIndex !== -1 && currentIndex < semesters.length - 1) {
+                        const nextSem = semesters[currentIndex + 1];
+                        setToSemester({ value: nextSem, label: nextSem });
+                      } else {
+                        setToSemester(null);
+                      }
+                    } else {
+                      setToSemester(null);
+                    }
                   }}
                   placeholder="Current Sem"
                   menuPortalTarget={document.body}
@@ -314,13 +326,16 @@ const PromoteStudentsModal = ({ token, onClose, onSuccess }) => {
                 <div className="flex items-center gap-3 w-full md:w-auto">
                   <div className="w-48">
                     <Select 
-                      options={semesterOptions} 
+                      options={filters.semester && semesters.indexOf(filters.semester.value) < semesters.length - 1 
+                        ? [{ value: semesters[semesters.indexOf(filters.semester.value) + 1], label: semesters[semesters.indexOf(filters.semester.value) + 1] }] 
+                        : []} 
                       value={toSemester}
                       onChange={setToSemester}
                       placeholder="Promote to Sem..."
                       menuPortalTarget={document.body}
                       menuPosition="fixed"
                       styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                      isDisabled={!filters.semester || semesters.indexOf(filters.semester.value) >= semesters.length - 1}
                     />
                   </div>
                   <button 

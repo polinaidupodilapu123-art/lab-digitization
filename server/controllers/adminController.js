@@ -199,6 +199,15 @@ exports.assignSubjectsToEvaluator = async (req, res) => {
   }
 };
 
+exports.reallocateEvaluator = async (req, res) => {
+  try {
+    const result = await evaluatorAdminService.reallocateEvaluator(req.body);
+    res.json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};
+
 exports.getSubjectAllocationStats = async (req, res) => {
   try {
     const result = await evaluatorAdminService.getSubjectAllocationStats(req.query);

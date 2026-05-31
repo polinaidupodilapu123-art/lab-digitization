@@ -76,8 +76,8 @@ const PendingStudents = () => {
   });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="bg-white p-6 rounded-md border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="p-4 sm:p-6 bg-slate-50 w-full animate-fade-in">
+      <div className="bg-white p-6 rounded-md border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Clock className="text-amber-500 h-6 w-6" />
@@ -153,9 +153,9 @@ const PendingStudents = () => {
         </div>
       ) : (
         <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="w-full relative">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10 shadow-sm">
                 <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
                   <th className="px-4 py-3 text-left whitespace-nowrap">HT No</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Student Name</th>

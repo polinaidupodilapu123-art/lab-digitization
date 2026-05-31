@@ -45,11 +45,11 @@ const Login = () => {
   };
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col bg-slate-50 font-sans">
+    <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
       <Header />
 
-      <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 flex justify-center mt-2 md:mt-4 overflow-hidden">
-        <div className="w-full flex flex-col lg:flex-row gap-8 items-stretch justify-center h-fit max-h-full">
+      <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 flex justify-center mt-2 md:mt-4">
+        <div className="w-full flex flex-col lg:flex-row gap-8 items-stretch justify-center h-fit">
           {/* Left Column: Official Notifications Board */}
           <div className="w-full lg:w-7/12 bg-white rounded-md border border-slate-200 p-6 md:p-8 flex flex-col shadow-xl relative overflow-hidden text-slate-800">
           {/* Subtle glowing background decorations */}

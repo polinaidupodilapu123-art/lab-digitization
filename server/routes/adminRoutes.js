@@ -14,6 +14,7 @@ router.post('/students/promote', adminController.promoteStudents);
 router.post('/record/:type', adminController.createRecord);
 router.put('/record/:type/:id', adminController.updateRecord);
 router.delete('/record/:type/:id', adminController.deleteRecord);
+router.post('/reallocate-evaluator', adminController.reallocateEvaluator);
 
 // Data fetching
 router.get('/students', adminController.getStudents);

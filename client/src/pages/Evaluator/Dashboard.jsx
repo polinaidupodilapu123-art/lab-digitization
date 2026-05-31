@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogOut, FileCheck, BookOpen, AlertCircle, FileText, Search, X, User as UserIcon, Filter } from 'lucide-react';
 import axios from 'axios';
 import SearchableDropdown from '../../components/SearchableDropdown';
+import SessionTimer from '../../components/SessionTimer';
 import { API_BASE_URL } from '../../utils/config';
 
 /* ── Pagination component ── */
@@ -307,7 +308,7 @@ const Dashboard = () => {
   const pagedSubmissions = filteredSubmissions.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 console.log("ccsdc", pagedSubmissions)
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="h-auto min-h-screen md:h-full md:overflow-y-auto bg-slate-50 animate-fade-in">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
@@ -321,6 +322,7 @@ console.log("ccsdc", pagedSubmissions)
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <SessionTimer />
               <div className="relative">
                 <button
                   onClick={() => setShowProfile(!showProfile)}
@@ -579,8 +581,8 @@ console.log("ccsdc", pagedSubmissions)
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center font-semibold">
                           {sub.subjectId?.subPassMarks ?? '—'}
                         </td>
-                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
-                          {sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString() : '—'}
+                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap text-sm">
+                          {sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
                         </td>
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
                           {sub.valuationDeadline ? (

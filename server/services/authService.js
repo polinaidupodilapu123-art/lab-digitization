@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const SessionLog = require('../models/SessionLog');
 const { College } = require('../models/MasterData');
 const emailService = require('./emailService');
 const AppError = require('../utils/AppError');
@@ -7,11 +8,11 @@ const crypto = require('crypto');
 
 const generateToken = (id, role, sessionId) => {
   return jwt.sign({ id, role, sessionId }, process.env.JWT_SECRET || 'secret123', {
-    expiresIn: '30d'
+    expiresIn: '45m'
   });
 };
 
-exports.login = async ({ regdNo, password, email }) => {
+exports.login = async ({ regdNo, password, email }, ipAddress = 'Unknown') => {
   let user;
   if (regdNo) {
     user = await User.findOne({ regdNo: new RegExp(`^${regdNo.trim()}$`, 'i') });
@@ -36,6 +37,22 @@ exports.login = async ({ regdNo, password, email }) => {
   user.currentSessionId = sessionId;
   await user.save();
 
+  // Determine Location if possible (mocked based on IP or simple lookup could go here, for now save IP)
+  let location = 'Local/Unknown';
+  if (ipAddress && ipAddress !== '::1' && ipAddress !== '127.0.0.1' && ipAddress !== 'Unknown') {
+    location = 'Remote Network';
+  }
+
+  // Record Session
+  await SessionLog.create({
+    userId: user._id,
+    userName: user.fullName || user.regdNo,
+    role: user.role,
+    loginTime: new Date(),
+    ipAddress,
+    location
+  });
+
   return {
     _id: user._id,
     regdNo: user.regdNo,
@@ -43,6 +60,20 @@ exports.login = async ({ regdNo, password, email }) => {
     role: user.role,
     token: generateToken(user._id, user.role, sessionId)
   };
+};
+
+exports.logout = async (user) => {
+  if (user && user.currentSessionId) {
+    const sessionLog = await SessionLog.findOne({ userId: user._id }).sort({ loginTime: -1 });
+    if (sessionLog && !sessionLog.logoutTime) {
+      sessionLog.logoutTime = new Date();
+      sessionLog.durationSeconds = Math.round((sessionLog.logoutTime - sessionLog.loginTime) / 1000);
+      await sessionLog.save();
+    }
+    user.currentSessionId = null;
+    await user.save();
+  }
+  return { message: 'Logged out successfully' };
 };
 
 exports.sendOtp = async ({ regdNo, email, role, collegeId }) => {
