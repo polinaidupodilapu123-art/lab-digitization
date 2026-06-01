@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { Users, BookOpen, CheckCircle, Search, ChevronDown, Check, AlertCircle, Filter, Edit, Clock, X, Square, CheckSquare } from 'lucide-react';
 import { API_BASE_URL } from '../../utils/config';
@@ -64,15 +64,16 @@ export default function Evaluators() {
     fetchData();
   }, [token]);
 
+  const fetchSubmitted = useCallback(async () => {
+    try {
+      const submRes = await axios.get(`${API}/subjects-with-submissions?mode=${allocationMode}`, { headers: { Authorization: `Bearer ${token}` } });
+      setSubmittedSubjects(submRes.data || { subjectIds: [], groupSubjectNames: [], fullyAllocatedSubjectIds: [], fullyAllocatedGroupNames: [] });
+    } catch (err) {
+      console.error('Failed to load submitted subjects', err);
+    }
+  }, [allocationMode, token]);
+
   useEffect(() => {
-    const fetchSubmitted = async () => {
-      try {
-        const submRes = await axios.get(`${API}/subjects-with-submissions?mode=${allocationMode}`, { headers: { Authorization: `Bearer ${token}` } });
-        setSubmittedSubjects(submRes.data || { subjectIds: [], groupSubjectNames: [], fullyAllocatedSubjectIds: [], fullyAllocatedGroupNames: [] });
-      } catch (err) {
-        console.error('Failed to load submitted subjects', err);
-      }
-    };
     fetchSubmitted();
     setSelectedSubjects([]);
     setStats(null);
@@ -165,6 +166,7 @@ export default function Evaluators() {
   const handleAllocate = async (e) => {
     e.preventDefault();
     if (!allocationEvaluatorId) return setError('Please select an evaluator.');
+    if (!valuationDeadline) return setError('Please select a valuation date.');
     if (splitMethod === 'COUNT' && (!allocationCount || allocationCount <= 0)) return setError('Please enter a valid count.');
     if (splitMethod === 'COLLEGE' && allocationColleges.length === 0) return setError('Please select at least one college.');
 
@@ -190,7 +192,8 @@ export default function Evaluators() {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      setSuccess(res.data.message);
+      const allocatedSubjectName = selectedSubjects[0].name;
+      setSuccess(`"${allocatedSubjectName}" is successfully allocated.`);
       
       // Reset form fields
       setSplitMethod('ALL');
@@ -199,8 +202,12 @@ export default function Evaluators() {
       setRollStart('');
       setRollEnd('');
       
-      // Refresh stats
+      // Refresh stats and submitted records
       fetchStats();
+      fetchSubmitted();
+      
+      // Auto-hide success message after 4 seconds
+      setTimeout(() => setSuccess(''), 4000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to allocate assignments.');
     } finally {
@@ -242,9 +249,11 @@ export default function Evaluators() {
       )}
 
       {success && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg flex items-center gap-2 shadow-sm">
-          <CheckCircle className="h-5 w-5" />
-          <span className="font-medium text-sm">{success}</span>
+        <div className="fixed bottom-6 right-6 z-[100] animate-slide-up">
+          <div className="bg-emerald-600 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3">
+            <CheckCircle className="h-6 w-6 text-emerald-100" />
+            <span className="font-semibold text-sm">{success}</span>
+          </div>
         </div>
       )}
 
@@ -448,9 +457,10 @@ export default function Evaluators() {
                       />
                     </div>
                     <div className="w-full md:w-1/3">
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Valuation Date <span className="text-slate-400 font-normal text-xs ml-1">(Optional)</span></label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Valuation Date <span className="text-red-500">*</span></label>
                       <input
                         type="date"
+                        required
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                         value={valuationDeadline}
                         onChange={e => setValuationDeadline(e.target.value)}

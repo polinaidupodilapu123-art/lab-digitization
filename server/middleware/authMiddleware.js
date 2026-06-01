@@ -25,7 +25,7 @@ exports.protect = async (req, res, next) => {
 };
 
 exports.adminOnly = (req, res, next) => {
-  if (req.user && req.user.role === 'ADMIN') {
+  if (req.user && (req.user.role === 'ADMIN' || req.user.role === 'SYSTEM_ADMIN')) {
     next();
   } else {
     res.status(403).json({ message: 'Not authorized as an admin' });

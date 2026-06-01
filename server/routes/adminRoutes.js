@@ -46,4 +46,6 @@ router.post('/allocate-subject-bulk', adminController.allocateSubjectBulk);
 
 router.get('/backlog-candidates', adminController.getBacklogCandidates);
 router.post('/bulk-assign-backlogs', adminController.bulkAssignBacklogs);
+router.get('/session-logs/summary', adminController.getSessionLogSummary);
+router.get('/session-logs', adminController.getSessionLogs);
 module.exports = router;

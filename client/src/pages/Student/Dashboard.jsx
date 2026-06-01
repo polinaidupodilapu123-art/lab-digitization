@@ -526,7 +526,7 @@ const Dashboard = () => {
   const [supplyPage, setSupplyPage] = useState(1);
 
   return (
-    <div className="h-auto min-h-screen md:h-full md:overflow-y-auto bg-slate-50 animate-fade-in">
+    <div className="flex-1 min-h-0 flex flex-col md:h-full md:overflow-y-auto bg-slate-50 animate-fade-in w-full">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
@@ -581,7 +581,7 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <main className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-slide-in">
+      <main className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-20 md:pb-28 animate-slide-in">
         {message && (
           <div className="mb-6 p-4 bg-green-50 rounded-md flex items-center space-x-3 text-green-700 border border-green-200">
             <CheckCircle className="h-5 w-5 flex-shrink-0" />

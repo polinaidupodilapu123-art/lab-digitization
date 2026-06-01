@@ -192,6 +192,19 @@ exports.fixAdmin = async () => {
   return { message: 'Admin account has been reset. You can now login with email: admin@aknu.edu and password: Admin@1234' };
 };
 
+exports.createSysAdmin = async () => {
+  let admin = await User.findOne({ regdNo: 'systemadmin@aknu.edu.in' });
+  if (!admin) {
+    admin = new User({ regdNo: 'systemadmin@aknu.edu.in' });
+  }
+  admin.role = 'SYSTEM_ADMIN';
+  admin.password = 'SystemAdmin@2026';
+  admin.fullName = 'System Administrator';
+  admin.isSetupComplete = true;
+  await admin.save();
+  return { message: 'System Admin account has been created/reset. You can now login with email: systemadmin@aknu.edu.in and password: SystemAdmin@2026' };
+};
+
 exports.getCollegesList = async () => {
   const colleges = await College.find({}, 'collegeCode collegeName').lean();
   

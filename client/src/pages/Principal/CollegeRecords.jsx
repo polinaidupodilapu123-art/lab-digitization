@@ -141,7 +141,7 @@ const CollegeRecords = () => {
                     <td className="px-4 py-3 font-medium text-slate-800">{record.studentId?.fullName}</td>
                     <td className="px-4 py-3 text-slate-600 font-mono text-xs">{record.studentId?.regdNo}</td>
                     <td className="px-4 py-3">
-                      <p className="text-slate-800 font-medium">{record.subjectId?.subName || record.groupSubjectName}</p>
+                      <p className="text-slate-800 font-medium">{record.groupSubjectName || record.subjectId?.subName}</p>
                       <p className="text-xs text-slate-500">Max Marks: {record.subjectId?.maxMarks || record.maxMarks || 100}</p>
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -152,30 +152,48 @@ const CollegeRecords = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <input 
-                          type="number" 
-                          min="0"
-                          max={record.subjectId?.maxMarks || record.maxMarks || 100}
-                          value={suggestedMarks[record._id] !== undefined ? suggestedMarks[record._id] : ''}
-                          onChange={(e) => handleSuggestMarksChange(record._id, e.target.value)}
-                          placeholder="e.g. 85"
-                          className="w-20 px-2 py-1.5 border border-slate-300 rounded text-center text-sm focus:ring-1 focus:ring-teal-500 outline-none"
-                          disabled={record.status === 'Evaluated'}
-                        />
-                        <button
-                          onClick={() => handleSaveMarks(record._id)}
-                          disabled={savingId === record._id || record.status === 'Evaluated'}
-                          className="p-1.5 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 transition-colors"
-                          title="Save Suggested Marks"
-                        >
-                          {savingId === record._id ? (
-                            <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                          ) : (
-                            <Save className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
+                      {(() => {
+                        const maxMarks = record.subjectId?.maxMarks || record.maxMarks || 100;
+                        const val = suggestedMarks[record._id] !== undefined ? suggestedMarks[record._id] : '';
+                        const hasError = val !== '' && Number(val) > maxMarks;
+                        
+                        return (
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="flex items-center justify-center gap-2">
+                              <input 
+                                type="number" 
+                                min="0"
+                                value={val}
+                                onChange={(e) => handleSuggestMarksChange(record._id, e.target.value)}
+                                placeholder="e.g. 18"
+                                className={`w-20 px-2 py-1.5 border rounded text-center text-sm focus:outline-none focus:ring-1 ${
+                                  hasError 
+                                    ? 'border-red-300 focus:ring-red-500 bg-red-50 text-red-700' 
+                                    : 'border-slate-300 focus:ring-teal-500'
+                                }`}
+                                disabled={record.status === 'Evaluated'}
+                              />
+                              <button
+                                onClick={() => handleSaveMarks(record._id)}
+                                disabled={savingId === record._id || record.status === 'Evaluated' || hasError}
+                                className="p-1.5 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 transition-colors disabled:cursor-not-allowed"
+                                title="Save Suggested Marks"
+                              >
+                                {savingId === record._id ? (
+                                  <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                                ) : (
+                                  <Save className="h-4 w-4" />
+                                )}
+                              </button>
+                            </div>
+                            {hasError && (
+                              <span className="text-[10px] text-red-500 font-medium whitespace-nowrap">
+                                Max marks: {maxMarks}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))

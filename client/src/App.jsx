@@ -48,8 +48,8 @@ function AppContent() {
   return (
     <div className="min-h-screen md:h-screen bg-slate-50 text-slate-900 font-sans relative flex flex-col md:overflow-hidden">
       <Header />
-      <div className="flex-1 flex md:overflow-hidden w-full relative flex-col md:flex-row">
-        <div className="flex-1 w-full h-full">
+      <div className="flex-1 flex md:overflow-hidden w-full relative flex-col md:flex-row min-h-0 min-w-0">
+        <div className="flex-1 flex flex-col w-full h-full min-h-0 min-w-0 relative">
           <Routes>
             <Route path="/admin/*" element={<AdminDashboard />} />
             <Route path="/student/*" element={<StudentDashboard />} />

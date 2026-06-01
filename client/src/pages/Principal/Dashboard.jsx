@@ -525,7 +525,7 @@ const PrincipalDashboard = () => {
 
       {/* Main Content */}
       <div className="flex-1 min-w-0 relative overflow-y-auto md:overflow-y-auto">
-        <div className="absolute top-4 right-4 z-40">
+        <div className="absolute top-8 right-8 z-40">
           <SessionTimer />
         </div>
         <Routes>

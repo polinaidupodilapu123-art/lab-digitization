@@ -294,3 +294,48 @@ exports.bulkAssignBacklogs = async (req, res) => {
     res.status(error.statusCode || 500).json({ message: error.message });
   }
 };
+
+exports.getSessionLogs = async (req, res) => {
+  try {
+    const SessionLog = require('../models/SessionLog');
+    const logs = await SessionLog.find()
+      .populate({
+        path: 'userId',
+        select: 'fullName role email regdNo collegeId',
+        populate: { path: 'collegeId', select: 'collegeName collegeCode' }
+      })
+      .sort({ loginTime: -1 })
+      .lean();
+    res.json(logs);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};
+
+exports.getSessionLogSummary = async (req, res) => {
+  try {
+    const SessionLog = require('../models/SessionLog');
+    
+    const summary = await SessionLog.aggregate([
+      {
+        $group: {
+          _id: "$userId",
+          totalLogins: { $sum: 1 },
+          totalDurationSeconds: { $sum: { $ifNull: ["$durationSeconds", 0] } },
+          lastLoginTime: { $max: "$loginTime" }
+        }
+      }
+    ]);
+
+    const User = require('../models/User');
+    const populatedSummary = await User.populate(summary, {
+      path: '_id',
+      select: 'fullName role email regdNo collegeId',
+      populate: { path: 'collegeId', select: 'collegeName collegeCode' }
+    });
+
+    res.json(populatedSummary);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};

@@ -42,7 +42,7 @@ exports.getAssignedRecords = async (evaluatorId) => {
   })
     .populate({
       path: 'studentId',
-      select: 'fullName regdNo collegeId courseId academicYear',
+      select: 'fullName regdNo collegeId courseId academicYear currentSemester',
       populate: [
         { path: 'collegeId', select: 'collegeName collegeCode' },
         { path: 'courseId', select: 'courseName courseCode' }
@@ -51,7 +51,13 @@ exports.getAssignedRecords = async (evaluatorId) => {
     .populate('subjectId')
     .lean();
 
-  return records;
+  const filteredRecords = records.filter(record => {
+    if (record.mode === 'Supply') return true;
+    if (!record.studentId || !record.subjectId) return false;
+    return String(record.subjectId.semester) === String(record.studentId.currentSemester);
+  });
+
+  return filteredRecords;
 };
 
 exports.gradeRecord = async ({ assignmentId, score, feedback, evaluatorId }) => {

@@ -17,18 +17,16 @@ exports.getPrincipalDashboardStats = async (collegeId, { courseId, semester }) =
   if (courseId) studentQuery.courseId = courseId;
   if (semester) studentQuery.currentSemester = semester;
 
-  const students = await User.find(studentQuery).select('_id');
+  const students = await User.find(studentQuery).select('_id currentSemester');
   const studentIds = students.map(s => s._id);
+  const studentMap = {};
+  students.forEach(s => {
+    studentMap[s._id.toString()] = s.currentSemester;
+  });
 
   const assignmentQuery = { studentId: { $in: studentIds } };
 
   const totalStudents = students.length;
-  const totalSubmitted = await Assignment.countDocuments({ ...assignmentQuery, status: 'Submitted' });
-  const totalEvaluated = await Assignment.countDocuments({ ...assignmentQuery, status: 'Evaluated' });
-  const totalPending = await Assignment.countDocuments({ ...assignmentQuery, status: 'Pending' });
-  
-  const uniquePendingStudentIds = await Assignment.distinct('studentId', { ...assignmentQuery, status: 'Pending' });
-  const totalPendingStudents = uniquePendingStudentIds.length;
 
   const collegeStudentFilters = await User.find({ role: 'STUDENT', collegeId })
     .populate('courseId', 'courseCode courseName')
@@ -56,17 +54,30 @@ exports.getPrincipalDashboardStats = async (collegeId, { courseId, semester }) =
   });
 
   const assignments = await Assignment.find(assignmentQuery)
-    .populate('subjectId', 'subCode subName')
+    .populate('subjectId', 'subCode subName createdAt semester')
     .lean();
 
-  const subjectProgressMap = {};
+  const filteredAssignments = assignments.filter(asg => {
+    if (asg.mode === 'Supply') return true;
+    const sId = asg.studentId.toString();
+    const currSem = studentMap[sId];
+    return asg.subjectId && String(asg.subjectId.semester) === String(currSem);
+  });
 
-  assignments.forEach(asg => {
+  const subjectProgressMap = {};
+  let totalSubmitted = 0, totalEvaluated = 0, totalPending = 0;
+  const uniquePendingStudentIds = new Set();
+
+  filteredAssignments.forEach(asg => {
     let label = '';
-    if (asg.subjectId) {
-      label = asg.subjectId.subCode;
-    } else if (asg.groupSubjectName) {
+    let sortVal = 0;
+    
+    if (asg.groupSubjectName) {
       label = asg.groupSubjectName;
+      sortVal = asg.subjectId ? new Date(asg.subjectId.createdAt || 0).getTime() : 0;
+    } else if (asg.subjectId) {
+      label = asg.subjectId.subName || asg.subjectId.subCode;
+      sortVal = new Date(asg.subjectId.createdAt || 0).getTime();
     } else {
       label = 'Other';
     }
@@ -74,18 +85,32 @@ exports.getPrincipalDashboardStats = async (collegeId, { courseId, semester }) =
     if (!subjectProgressMap[label]) {
       subjectProgressMap[label] = {
         subjectLabel: label,
+        sortVal: sortVal,
         submitted: 0,
         evaluated: 0,
         pending: 0
       };
     }
 
-    if (asg.status === 'Submitted') subjectProgressMap[label].submitted++;
-    else if (asg.status === 'Evaluated') subjectProgressMap[label].evaluated++;
-    else if (asg.status === 'Pending') subjectProgressMap[label].pending++;
+    if (asg.status === 'Submitted') {
+      subjectProgressMap[label].submitted++;
+      totalSubmitted++;
+    } else if (asg.status === 'Evaluated') {
+      subjectProgressMap[label].evaluated++;
+      totalEvaluated++;
+    } else if (asg.status === 'Pending') {
+      subjectProgressMap[label].pending++;
+      totalPending++;
+      uniquePendingStudentIds.add(asg.studentId.toString());
+    }
   });
 
-  const subjectProgressData = Object.values(subjectProgressMap).sort((a, b) => a.subjectLabel.localeCompare(b.subjectLabel));
+  const totalPendingStudents = uniquePendingStudentIds.size;
+
+  const subjectProgressData = Object.values(subjectProgressMap).sort((a, b) => {
+    if (a.sortVal !== b.sortVal) return b.sortVal - a.sortVal;
+    return a.subjectLabel.localeCompare(b.subjectLabel);
+  });
 
   return {
     college: {
@@ -127,16 +152,23 @@ exports.getPendingStudents = async (collegeId, { courseId, semester }) => {
     studentId: { $in: studentIds },
     status: 'Pending'
   })
-    .populate('subjectId', 'subCode subName aliasName')
+    .populate('subjectId', 'subCode subName aliasName createdAt semester')
     .lean();
 
   const studentPendingMap = {};
   
   pendingAssignments.forEach(asg => {
     const sId = asg.studentId.toString();
+    const student = students.find(s => s._id.toString() === sId);
+    if (!student) return;
+
+    if (asg.mode !== 'Supply') {
+      if (!asg.subjectId || String(asg.subjectId.semester) !== String(student.currentSemester)) {
+        return;
+      }
+    }
+
     if (!studentPendingMap[sId]) {
-      const student = students.find(s => s._id.toString() === sId);
-      if (student) {
         studentPendingMap[sId] = {
           _id: student._id,
           fullName: student.fullName,
@@ -148,15 +180,23 @@ exports.getPendingStudents = async (collegeId, { courseId, semester }) => {
           pendingSubjects: []
         };
       }
-    }
-    
+
     if (studentPendingMap[sId]) {
       const subjectObj = {
-        shortName: asg.subjectId ? (asg.subjectId.aliasName || asg.subjectId.subCode || asg.subjectId.subName) : (asg.groupSubjectName || 'Unknown'),
-        fullName: asg.subjectId ? asg.subjectId.subName : (asg.groupSubjectName || 'Unknown Subject')
+        shortName: asg.groupSubjectName || (asg.subjectId ? (asg.subjectId.aliasName || asg.subjectId.subName || asg.subjectId.subCode) : 'Unknown'),
+        fullName: asg.groupSubjectName || (asg.subjectId ? asg.subjectId.subName : 'Unknown Subject'),
+        sortVal: asg.subjectId ? new Date(asg.subjectId.createdAt || 0).getTime() : 0
       };
       studentPendingMap[sId].pendingSubjects.push(subjectObj);
     }
+  });
+
+  // Sort each student's pending subjects
+  Object.values(studentPendingMap).forEach(student => {
+    student.pendingSubjects.sort((a, b) => {
+      if (a.sortVal !== b.sortVal) return b.sortVal - a.sortVal;
+      return a.fullName.localeCompare(b.fullName);
+    });
   });
 
   const pendingStudentsList = Object.values(studentPendingMap).sort((a, b) => 
@@ -178,11 +218,17 @@ exports.getCollegeRecords = async (collegeId) => {
     status: { $in: ['Submitted', 'Evaluated'] }
   })
     .populate('studentId', 'fullName regdNo currentSemester')
-    .populate('subjectId', 'subCode subName maxMarks')
+    .populate('subjectId', 'subCode subName maxMarks semester')
     .sort({ submittedAt: -1 })
     .lean();
 
-  return assignments;
+  const filteredAssignments = assignments.filter(asg => {
+    if (asg.mode === 'Supply') return true;
+    if (!asg.studentId || !asg.subjectId) return false;
+    return String(asg.subjectId.semester) === String(asg.studentId.currentSemester);
+  });
+
+  return filteredAssignments;
 };
 
 exports.suggestMarks = async (collegeId, assignmentId, suggestedMarks) => {

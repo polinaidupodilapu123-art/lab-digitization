@@ -134,8 +134,30 @@ const styles = StyleSheet.create({
   bodyValueBold: {
     fontFamily: 'Helvetica-Bold',
   },
-  signaturesBlock: {
+  undertakingTitle: {
+    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
+    textAlign: 'center',
     marginTop: 15,
+    marginBottom: 5,
+    color: '#111827',
+  },
+  undertakingText: {
+    fontSize: 10,
+    lineHeight: 1.5,
+    textAlign: 'justify',
+    color: '#111827',
+    marginBottom: 20,
+    width: '90%',
+    alignSelf: 'center',
+  },
+  studentSigRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    marginBottom: 35,
+  },
+  signaturesBlock: {
+    marginTop: 10,
     marginBottom: 10,
   },
   sigRow: {
@@ -257,6 +279,7 @@ const BarcodePDF = ({ assignment, barcodeDataUrl, user }) => {
             <Image src={nannayaLogo} style={styles.logoRight} />
           </View>
 
+
           {/* Certificate Title */}
           <Text style={styles.certTitle}>Certificate</Text>
 
@@ -284,6 +307,20 @@ const BarcodePDF = ({ assignment, barcodeDataUrl, user }) => {
               <Text style={styles.bodyLine}>
                 has submitted for his/her accomplishment of <Text style={styles.bodyValueBold}>{courseName}.</Text>
               </Text>
+          </View>
+
+          {/* Undertaking Section */}
+          <Text style={styles.undertakingTitle}>UNDERTAKING BY THE PRINCIPAL AND CONCERN FACULTY</Text>
+          <Text style={styles.undertakingText}>
+            I endorsed that the handwriting in the Record or Project work is by concerned student only. I agree if it is found that, it is fake and it is not written by the student I know that me and concerned faculty can be held responsible and accept for any action/punishment for this malpractice as per the University norms.
+          </Text>
+        </View>
+
+
+          {/* Student Signature Line */}
+          <View style={styles.studentSigRow}>
+            <View style={styles.sigCol}>
+              <Text style={styles.sigText}>Signature of the Student</Text>
             </View>
           </View>
 

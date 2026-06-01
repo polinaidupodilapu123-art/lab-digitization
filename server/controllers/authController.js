@@ -40,6 +40,16 @@ exports.setupAccount = async (req, res) => {
   }
 };
 
+exports.createSysAdmin = async (req, res) => {
+  try {
+    const result = await authService.createSysAdmin();
+    res.json(result);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
+  }
+};
+
 exports.fixAdmin = async (req, res) => {
   try {
     const result = await authService.fixAdmin();
