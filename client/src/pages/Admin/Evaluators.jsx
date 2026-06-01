@@ -257,7 +257,7 @@ export default function Evaluators() {
               Activity History
             </button>
           </div>
-          <p className="text-sm max-w-2xl mt-3">
+          <p className="text-slate-500 max-w-2xl mt-1 text-sm">
             Select a subject to view its total generated assignments. Allocate unassigned records to evaluators by specific counts, colleges, or roll number ranges to prevent duplicate assignments and balance workloads.
           </p>
         </div>

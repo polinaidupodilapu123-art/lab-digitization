@@ -347,7 +347,7 @@ const EvaluatedRecords = () => {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Evaluated Records</h1>
-          <p className="text-slate-500 mt-1">Review all lab records that have been graded by evaluators.</p>
+          <p className="text-slate-500 text-sm mt-1">Review all lab records that have been graded by evaluators.</p>
         </div>
         <button
           onClick={() => setShowActivity(true)}
