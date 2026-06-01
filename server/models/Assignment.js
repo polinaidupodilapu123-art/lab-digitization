@@ -66,6 +66,9 @@ const assignmentSchema = new mongoose.Schema({
   },
   studentNote: {
     type: String
+  },
+  extractedText: {
+    type: String
   }
 }, { timestamps: true });
 

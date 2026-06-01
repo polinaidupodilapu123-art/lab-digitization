@@ -12,7 +12,7 @@ const generateToken = (id, role, sessionId) => {
   });
 };
 
-exports.login = async ({ regdNo, password, email }, ipAddress = 'Unknown') => {
+exports.login = async ({ regdNo, password, email, faceDescriptor }, ipAddress = 'Unknown') => {
   let user;
   if (regdNo) {
     user = await User.findOne({ regdNo: new RegExp(`^${regdNo.trim()}$`, 'i') });
@@ -31,6 +31,34 @@ exports.login = async ({ regdNo, password, email }, ipAddress = 'Unknown') => {
   const isMatch = await user.comparePassword(password);
   if (!isMatch) {
     throw new AppError('Invalid credentials', 401);
+  }
+
+  // Face Authentication logic for students
+  if (user.role === 'STUDENT') {
+    if (!faceDescriptor) {
+      // Frontend needs to capture face
+      return { status: 'FACE_REQUIRED', message: 'Face authentication required.' };
+    }
+
+    if (!user.faceDescriptor || user.faceDescriptor.length !== 128) {
+      throw new AppError('Face enrollment data is missing or invalid. Please contact Administrator.', 400);
+    }
+
+    if (!Array.isArray(faceDescriptor) || faceDescriptor.length !== 128) {
+      throw new AppError('Invalid live face data received.', 400);
+    }
+
+    // Calculate Euclidean distance
+    let distance = 0;
+    for (let i = 0; i < 128; i++) {
+      distance += Math.pow((faceDescriptor[i] || 0) - (user.faceDescriptor[i] || 0), 2);
+    }
+    distance = Math.sqrt(distance);
+
+    // Threshold: 0.55 is a good balance for face-api.js
+    if (distance > 0.55) {
+      throw new AppError(`Face authentication failed. (Distance: ${distance.toFixed(2)})`, 401);
+    }
   }
 
   const sessionId = crypto.randomUUID();
@@ -128,7 +156,7 @@ exports.sendOtp = async ({ regdNo, email, role, collegeId }) => {
   };
 };
 
-exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId }) => {
+exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, faceDescriptor }) => {
   let user;
   if (role === 'PRINCIPAL') {
     if (!email || !collegeId || !otp || !password) {
@@ -158,24 +186,28 @@ exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId })
     throw new AppError('OTP has expired. Please request a new one.', 400);
   }
 
+  if (role !== 'PRINCIPAL') {
+    if (!faceDescriptor || !Array.isArray(faceDescriptor) || faceDescriptor.length !== 128) {
+      throw new AppError('Face capture is required to set up your account.', 400);
+    }
+    user.faceDescriptor = faceDescriptor;
+  }
+
   user.password = password;
   user.isSetupComplete = true;
   user.tempOtp = undefined;
   user.otpExpiresAt = undefined;
   user.email = email.trim().toLowerCase();
   
-  const sessionId = crypto.randomUUID();
-  user.currentSessionId = sessionId;
+  // NOTE: According to the new flow, we do NOT automatically create a session and log them in here.
+  // We want them to navigate to Login page and authenticate with their newly captured face.
+  user.currentSessionId = null;
   
   await user.save();
 
   return {
-    message: 'Account setup successful. You can now log in.',
-    _id: user._id,
-    regdNo: user.regdNo,
-    fullName: user.fullName,
-    role: user.role,
-    token: generateToken(user._id, user.role, sessionId)
+    message: 'Account setup successful. Please log in with your face verification.',
+    requireLogin: true
   };
 };
 

@@ -27,6 +27,7 @@ router.use(protect);
 
 router.get('/assignments', studentController.getMyAssignments);
 router.post('/assignments/:assignmentId/submit', upload.single('file'), studentController.submitAssignment);
+router.post('/assignments/:assignmentId/log-download', studentController.logDownload);
 router.get('/paper-grades', adminController.getPaperGrades);
 
 module.exports = router;

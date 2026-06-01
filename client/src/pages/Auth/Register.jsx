@@ -4,6 +4,7 @@ import axios from 'axios';
 import { User, Lock, Mail, MessageSquare, ArrowRight, ArrowLeft, CheckCircle2, Eye, EyeOff, Search, ChevronDown, Check } from 'lucide-react';
 import { API_BASE_URL } from '../../utils/config';
 import Header from '../../components/Header';
+import FaceScanner from '../../components/FaceScanner';
 
 const Register = () => {
   const [step, setStep] = useState(1); // 1 = Registration & Email, 2 = OTP & Password
@@ -16,6 +17,7 @@ const Register = () => {
   const [role, setRole] = useState('STUDENT');
   const [colleges, setColleges] = useState([]);
   const [collegeId, setCollegeId] = useState('');
+  const [faceDescriptor, setFaceDescriptor] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -134,6 +136,11 @@ const Register = () => {
       return setError('Please enter the OTP sent to your email.');
     }
 
+    if (role === 'STUDENT' && !faceDescriptor) {
+      setLoading(false);
+      return setError('Face capture is required.');
+    }
+
     try {
       const res = await axios.post(`${API_BASE_URL}/api/auth/setup`, {
         regdNo: role === 'PRINCIPAL' ? email : regdNo,
@@ -141,25 +148,15 @@ const Register = () => {
         otp,
         password,
         role,
-        collegeId: role === 'PRINCIPAL' ? collegeId : undefined
+        collegeId: role === 'PRINCIPAL' ? collegeId : undefined,
+        faceDescriptor
       });
 
       setSuccess(true);
       
-      // Auto login after 2 seconds
+      // Navigate to login after 2 seconds
       setTimeout(() => {
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('user', JSON.stringify({
-          _id: res.data._id,
-          regdNo: res.data.regdNo,
-          fullName: res.data.fullName,
-          role: res.data.role
-        }));
-        if (res.data.role === 'PRINCIPAL') {
-          navigate('/principal');
-        } else {
-          navigate('/student');
-        }
+        navigate('/login', { state: { message: 'Setup complete! Please log in to continue.' } });
       }, 2000);
 
     } catch (err) {
@@ -463,7 +460,19 @@ const Register = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-2">
+                {role === 'STUDENT' && (
+                  <div className="border-t border-slate-100 pt-4 mt-2">
+                    <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wider text-center">Face Enrollment</label>
+                    <p className="text-[11px] text-slate-500 text-center mb-3">Please capture your face to secure your account. You will need this to log in.</p>
+                    <FaceScanner onCapture={(descriptor) => {
+                      setFaceDescriptor(descriptor);
+                      setError('');
+                    }} mode="enroll" />
+                    {!faceDescriptor && <p className="text-xs text-red-500 font-medium text-center mt-2">Face capture is required to complete setup.</p>}
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2 mt-4">
                   <button
                     type="button"
                     onClick={() => { setStep(1); setError(''); }}
@@ -474,7 +483,7 @@ const Register = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={loading || isOtpExpired}
+                    disabled={loading || isOtpExpired || (role === 'STUDENT' && !faceDescriptor)}
                     className="flex-[2] flex items-center justify-center space-x-1.5 bg-teal-700 hover:bg-teal-800 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-medium py-2.5 rounded-md transition-colors cursor-pointer text-sm shadow-sm"
                   >
                     {loading ? (

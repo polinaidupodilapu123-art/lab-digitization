@@ -587,7 +587,7 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
 };
 
 /* ── Upload Modal ── */
-const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess, setRefreshTrigger }) => {
+const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
   const [file, setFile]               = useState(null);
   const [semester, setSemester]       = useState('');
   const [academicYear, setAcademicYear] = useState('');
@@ -623,7 +623,6 @@ const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess, setRefreshTrigger
       setResult({ message: res.data.message, successCount: res.data.successCount });
       setRowErrors(res.data.errors || []);
       setFile(null);
-      setRefreshTrigger(prev => prev + 1);
       const errors = res.data.errors || [];
       if ((res.data.successCount || 0) > 0) {
         if (errors.length === 0) {

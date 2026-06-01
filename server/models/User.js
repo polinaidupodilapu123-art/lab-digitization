@@ -66,6 +66,10 @@ const userSchema = new mongoose.Schema({
   currentSessionId: {
     type: String,
     default: null
+  },
+  faceDescriptor: {
+    type: [Number],
+    default: []
   }
 }, { timestamps: true });
 

@@ -9,6 +9,10 @@ import BarcodePDF from '../../components/BarcodePDF';
 import CertificatePDF from '../../components/CertificatePDF';
 import SessionTimer from '../../components/SessionTimer';
 import ActivityFeed from '../../components/ActivityFeed';
+import * as pdfjsLib from 'pdfjs-dist/build/pdf';
+import Tesseract from 'tesseract.js';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.mjs`;
 
 /* ── Pagination component ── */
 const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
@@ -246,8 +250,46 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, handleGener
 const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [scanProgress, setScanProgress] = useState('');
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+
+  const extractTextFromPDF = async (fileObj) => {
+    try {
+      const arrayBuffer = await fileObj.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      
+      const numPages = Math.min(pdf.numPages, 30); // limit to 30 pages just in case
+      // Start from page 2 to skip the cover/certificate page
+      const startPage = numPages > 1 ? 2 : 1;
+      for (let i = startPage; i <= numPages; i++) {
+        setScanProgress(`Scanning page ${i} of ${numPages}...`);
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        
+        await page.render({ canvasContext: context, viewport }).promise;
+        const imgData = canvas.toDataURL('image/jpeg', 0.8);
+        
+        const { data: { text } } = await Tesseract.recognize(imgData, 'eng', {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              setScanProgress(`Scanning page ${i} of ${numPages} (${Math.round(m.progress * 100)}%)`);
+            }
+          }
+        });
+        fullText += text + ' ';
+      }
+      return fullText;
+    } catch (err) {
+      console.error('OCR Error:', err);
+      return ''; // fallback to empty if OCR fails
+    }
+  };
 
   const handleFileChange = (e) => {
     const selected = e.target.files[0];
@@ -285,11 +327,18 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
 
     setUploading(true);
     setError('');
+    setScanProgress('Initializing scanner...');
+
+    const extractedText = await extractTextFromPDF(file);
+    setScanProgress('');
 
     const formData = new FormData();
     formData.append('file', file);
     if (note.trim()) {
       formData.append('note', note.trim());
+    }
+    if (extractedText.trim()) {
+      formData.append('extractedText', extractedText);
     }
 
     try {
@@ -411,7 +460,8 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-md text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              disabled={uploading}
+              className="px-4 py-2 rounded-md text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
@@ -421,7 +471,7 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
               className="flex items-center gap-2 px-5 py-2 rounded-md text-sm font-semibold text-white bg-teal-700 hover:bg-teal-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-              {uploading ? 'Uploading…' : 'Submit Record'}
+              {uploading ? (scanProgress || 'Uploading…') : 'Submit Record'}
             </button>
           </div>
         </form>
@@ -518,6 +568,17 @@ const Dashboard = () => {
       link.download = `Barcode_${assignment.subjectId?.subCode || 'Subject'}_${rollNumber}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
+
+      // Log download activity
+      try {
+        const token = localStorage.getItem('token');
+        await axios.post(`${API_BASE_URL}/api/student/assignments/${assignment._id}/log-download`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setRefreshTrigger(prev => prev + 1);
+      } catch (logErr) {
+        console.error('Failed to log download activity', logErr);
+      }
     } catch (err) {
       console.error('Error generating PDF', err);
       alert('Failed to generate PDF. Please try again.');

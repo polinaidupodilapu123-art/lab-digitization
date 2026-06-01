@@ -12,12 +12,16 @@
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
     "axios": "^1.16.1",
+    "face-api.js": "^0.22.2",
     "jsbarcode": "^3.12.3",
     "lucide-react": "^1.16.0",
+    "pdfjs-dist": "^6.0.227",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.15.1",
     "react-select": "^5.10.2",
+    "string-similarity": "^4.0.4",
+    "tesseract.js": "^7.0.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
