@@ -6,6 +6,9 @@ import { API_BASE_URL } from '../utils/config';
 const ReallocateModal = ({ assignment, onClose, onSuccess }) => {
   const [evaluators, setEvaluators] = useState([]);
   const [selectedEvaluator, setSelectedEvaluator] = useState('');
+  const [valuationDeadline, setValuationDeadline] = useState(
+    assignment.valuationDeadline ? new Date(assignment.valuationDeadline).toISOString().split('T')[0] : ''
+  );
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -28,8 +31,8 @@ const ReallocateModal = ({ assignment, onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedEvaluator) {
-      setError('Please select an evaluator');
+    if (!selectedEvaluator && !valuationDeadline) {
+      setError('Please select an evaluator or set a new deadline');
       return;
     }
 
@@ -37,12 +40,16 @@ const ReallocateModal = ({ assignment, onClose, onSuccess }) => {
     setError('');
 
     try {
+      const payload = { assignmentId: assignment._id };
+      if (selectedEvaluator) payload.newEvaluatorId = selectedEvaluator;
+      if (valuationDeadline) payload.valuationDeadline = valuationDeadline;
+
       await axios.post(
         `${API_BASE_URL}/api/admin/reallocate-evaluator`,
-        { assignmentId: assignment._id, newEvaluatorId: selectedEvaluator },
+        payload,
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
-      onSuccess('Assignment successfully re-allocated!');
+      onSuccess(selectedEvaluator ? 'Assignment successfully re-allocated!' : 'Deadline successfully updated!');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to re-allocate');
       setSubmitting(false);
@@ -55,7 +62,7 @@ const ReallocateModal = ({ assignment, onClose, onSuccess }) => {
         <div className="flex items-center justify-between px-6 py-4 bg-teal-700 text-white">
           <div className="flex items-center gap-2">
             <UserCheck className="h-5 w-5" />
-            <h3 className="text-lg font-semibold">Re-allocate Subject</h3>
+            <h3 className="text-lg font-semibold">Manage Allocation</h3>
           </div>
           <button onClick={onClose} className="text-white/70 hover:text-white transition-colors cursor-pointer p-0.5">
             <X className="h-5 w-5" />
@@ -82,7 +89,7 @@ const ReallocateModal = ({ assignment, onClose, onSuccess }) => {
                 onChange={(e) => setSelectedEvaluator(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-teal-500 text-sm bg-white"
               >
-                <option value="">-- Choose Evaluator --</option>
+                <option value="">-- Keep Current Evaluator --</option>
                 {evaluators.map(ev => (
                   <option key={ev._id} value={ev._id} disabled={ev._id === assignment.evaluatorId}>
                     {ev.fullName} ({ev.regdNo}) {ev._id === assignment.evaluatorId ? '(Current)' : ''}
@@ -90,6 +97,17 @@ const ReallocateModal = ({ assignment, onClose, onSuccess }) => {
                 ))}
               </select>
             )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">New Evaluation Deadline (Optional)</label>
+            <input
+              type="date"
+              value={valuationDeadline}
+              onChange={(e) => setValuationDeadline(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-teal-500 text-sm bg-white"
+            />
           </div>
 
           {error && (
@@ -108,10 +126,10 @@ const ReallocateModal = ({ assignment, onClose, onSuccess }) => {
             </button>
             <button
               type="submit"
-              disabled={submitting || loading || !selectedEvaluator}
+              disabled={submitting || loading || (!selectedEvaluator && !valuationDeadline)}
               className="px-4 py-2 rounded-md text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50 cursor-pointer"
             >
-              {submitting ? 'Re-allocating...' : 'Re-allocate'}
+              {submitting ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>

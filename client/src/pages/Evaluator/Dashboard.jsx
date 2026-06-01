@@ -361,7 +361,7 @@ console.log("ccsdc", pagedSubmissions)
         </div>
       </header>
 
-      <main className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-20 md:pb-28 animate-slide-in">
+      <main className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-5 animate-slide-in">
         <div className="mb-8 flex justify-between items-end flex-wrap gap-4">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Assigned Records</h2>

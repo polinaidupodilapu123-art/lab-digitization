@@ -165,7 +165,7 @@ exports.getAssignments = async () => {
   return await Assignment.find()
     .populate({
       path: 'studentId',
-      select: 'fullName regdNo currentSemester collegeId courseId',
+      select: 'fullName regdNo currentSemester collegeId courseId academicYear',
       populate: [
         { path: 'collegeId', select: 'collegeName' },
         { path: 'courseId', select: 'courseName' }

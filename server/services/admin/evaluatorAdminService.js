@@ -435,8 +435,12 @@ exports.allocateSubjectBulk = async ({ subjectId, groupSubjectName, subjects, ev
 };
 
 exports.reallocateEvaluator = async ({ assignmentId, newEvaluatorId, valuationDeadline }) => {
-  if (!assignmentId || !newEvaluatorId) {
-    throw new AppError('Assignment ID and new Evaluator ID are required', 400);
+  if (!assignmentId) {
+    throw new AppError('Assignment ID is required', 400);
+  }
+
+  if (!newEvaluatorId && !valuationDeadline) {
+    throw new AppError('Must provide either a new evaluator or a new deadline', 400);
   }
 
   const assignment = await Assignment.findById(assignmentId).populate('subjectId');
@@ -448,51 +452,57 @@ exports.reallocateEvaluator = async ({ assignmentId, newEvaluatorId, valuationDe
     throw new AppError('Cannot re-allocate an assignment that is already evaluated', 400);
   }
 
-  const oldEvaluatorId = assignment.evaluatorId;
-  const newEvaluator = await User.findById(newEvaluatorId);
-  
-  if (!newEvaluator || newEvaluator.role !== 'EVALUATOR') {
-    throw new AppError('Invalid new evaluator selected', 400);
+  let subjectsUpdated = false;
+  let newEvaluator = null;
+
+  if (newEvaluatorId) {
+    newEvaluator = await User.findById(newEvaluatorId);
+    
+    if (!newEvaluator || newEvaluator.role !== 'EVALUATOR') {
+      throw new AppError('Invalid new evaluator selected', 400);
+    }
+
+    assignment.evaluatorId = newEvaluatorId;
+
+    // Add subject to evaluator's profile if not present
+    if (assignment.subjectId) {
+      const subId = assignment.subjectId._id || assignment.subjectId;
+      if (!(newEvaluator.subjects || []).includes(subId.toString())) {
+        newEvaluator.subjects = [...(newEvaluator.subjects || []), subId];
+        subjectsUpdated = true;
+      }
+    } else if (assignment.groupSubjectName) {
+      if (!(newEvaluator.groupSubjects || []).includes(assignment.groupSubjectName)) {
+        newEvaluator.groupSubjects = [...(newEvaluator.groupSubjects || []), assignment.groupSubjectName];
+        subjectsUpdated = true;
+      }
+    }
   }
 
-  assignment.evaluatorId = newEvaluatorId;
   if (valuationDeadline) {
     assignment.valuationDeadline = new Date(valuationDeadline);
   }
+  
   await assignment.save();
-
-  // Add subject to evaluator's profile if not present
-  let subjectsUpdated = false;
-  if (assignment.subjectId) {
-    const subId = assignment.subjectId._id || assignment.subjectId;
-    if (!(newEvaluator.subjects || []).includes(subId.toString())) {
-      newEvaluator.subjects = [...(newEvaluator.subjects || []), subId];
-      subjectsUpdated = true;
-    }
-  } else if (assignment.groupSubjectName) {
-    if (!(newEvaluator.groupSubjects || []).includes(assignment.groupSubjectName)) {
-      newEvaluator.groupSubjects = [...(newEvaluator.groupSubjects || []), assignment.groupSubjectName];
-      subjectsUpdated = true;
-    }
-  }
-
-  if (subjectsUpdated) {
+  if (subjectsUpdated && newEvaluator) {
     await newEvaluator.save();
   }
 
   try {
-    let allocatedRegularSubjects = [];
-    if (newEvaluator.subjects && newEvaluator.subjects.length > 0) {
-      allocatedRegularSubjects = await Subject.find({ _id: { $in: newEvaluator.subjects } }).lean();
+    if (newEvaluator) {
+      let allocatedRegularSubjects = [];
+      if (newEvaluator.subjects && newEvaluator.subjects.length > 0) {
+        allocatedRegularSubjects = await Subject.find({ _id: { $in: newEvaluator.subjects } }).lean();
+      }
+      
+      await emailService.sendEvaluatorAllocationEmail({
+        to: newEvaluator.regdNo, // Using regdNo as email for evaluators in this system
+        evaluatorName: newEvaluator.fullName,
+        password: null, // Don't send password for reallocation
+        subjectList: allocatedRegularSubjects,
+        groupSubjectList: newEvaluator.groupSubjects || []
+      });
     }
-    
-    await emailService.sendEvaluatorAllocationEmail({
-      to: newEvaluator.regdNo, // Using regdNo as email for evaluators in this system
-      evaluatorName: newEvaluator.fullName,
-      password: null, // Don't send password for reallocation
-      subjectList: allocatedRegularSubjects,
-      groupSubjectList: newEvaluator.groupSubjects || []
-    });
   } catch (emailErr) {
     console.error('Evaluator email notification failed:', emailErr.message);
   }

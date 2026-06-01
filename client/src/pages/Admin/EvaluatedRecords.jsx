@@ -247,7 +247,7 @@ const EvaluatedRecords = () => {
       const formatExportData = (rows) => rows.map(r => ({
         'College Name': r.studentId?.collegeId?.collegeName || "ADIKAVI NANNAYA UNIVERSITY",
         'Course': r.studentId?.courseId?.courseName || "Programme",
-        'Academic Year': r.academicYear || "",
+        'Academic Year': r.academicYear || r.studentId?.academicYear || "",
         'Semester': r.studentId?.currentSemester || r.subjectId?.semester || "",
         'Mode': r.mode || "Regular",
         'Registration Number': r.studentId?.regdNo || "",
