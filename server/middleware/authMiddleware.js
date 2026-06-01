@@ -9,7 +9,9 @@ exports.protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret123');
       req.user = await User.findById(decoded.id).select('-password');
       
-      if (req.user && req.user.currentSessionId && req.user.currentSessionId !== decoded.sessionId) {
+      // Single concurrent session logic: only one valid token allowed per user at a time
+      // Exception: PRINCIPAL role can have multiple concurrent sessions for shared lecturer access
+      if (req.user && req.user.role !== 'PRINCIPAL' && req.user.currentSessionId && req.user.currentSessionId !== decoded.sessionId) {
         return res.status(401).json({ message: 'Your session has expired because your account was logged in from another device.' });
       }
 
@@ -29,5 +31,29 @@ exports.adminOnly = (req, res, next) => {
     next();
   } else {
     res.status(403).json({ message: 'Not authorized as an admin' });
+  }
+};
+
+exports.systemAdminOnly = (req, res, next) => {
+  if (req.user && req.user.role === 'SYSTEM_ADMIN') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Not authorized as a system admin' });
+  }
+};
+
+exports.evaluatorOnly = (req, res, next) => {
+  if (req.user && req.user.role === 'EVALUATOR') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Not authorized as an evaluator' });
+  }
+};
+
+exports.principalOnly = (req, res, next) => {
+  if (req.user && req.user.role === 'PRINCIPAL') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Not authorized as a principal' });
   }
 };

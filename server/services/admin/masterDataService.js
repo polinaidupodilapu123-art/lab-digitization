@@ -577,6 +577,11 @@ exports.updateRecord = async (type, id, body) => {
       if (existing) throw new AppError('An evaluator with this email already exists.', 400);
     }
     
+    let diffMessages = [];
+    if (body.fullName && body.fullName !== evaluator.fullName) diffMessages.push(`fullName changed from '${evaluator.fullName}' to '${body.fullName}'`);
+    if (body.regdNo && body.regdNo !== evaluator.regdNo) diffMessages.push(`email changed from '${evaluator.regdNo}' to '${body.regdNo}'`);
+    const diffString = diffMessages.length > 0 ? diffMessages.join(', ') : 'No visible fields changed';
+
     evaluator.fullName = body.fullName || evaluator.fullName;
     evaluator.regdNo = body.regdNo || evaluator.regdNo;
     
@@ -591,13 +596,18 @@ exports.updateRecord = async (type, id, body) => {
     
     await evaluator.save();
     const updated = await User.findById(id).populate('subjects').select('-password');
-    return { message: 'Evaluator updated successfully', record: updated };
+    return { message: 'Evaluator updated successfully', record: updated, diffString };
   }
 
   if (type === 'principals') {
     const principal = await User.findById(id);
     if (!principal) throw new AppError('Principal not found', 404);
     
+    let diffMessages = [];
+    if (body.fullName && body.fullName !== principal.fullName) diffMessages.push(`fullName changed from '${principal.fullName}' to '${body.fullName}'`);
+    if (body.regdNo && body.regdNo !== principal.regdNo) diffMessages.push(`email changed from '${principal.regdNo}' to '${body.regdNo}'`);
+    const diffString = diffMessages.length > 0 ? diffMessages.join(', ') : 'No visible fields changed';
+
     principal.fullName = body.fullName || principal.fullName;
     principal.regdNo = body.regdNo || principal.regdNo;
     
@@ -615,7 +625,7 @@ exports.updateRecord = async (type, id, body) => {
     
     const mapped = updated.toObject();
     mapped.collegeCode = updated.collegeId?.collegeCode || '';
-    return { message: 'Principal updated successfully', record: mapped };
+    return { message: 'Principal updated successfully', record: mapped, diffString };
   }
 
   if (type === 'papers' && body.subjectIds && Array.isArray(body.subjectIds)) {
@@ -653,9 +663,24 @@ exports.updateRecord = async (type, id, body) => {
     }
   }
 
+  const oldRecord = await Model.findById(id).lean();
+  if (!oldRecord) throw new AppError('Record not found', 404);
+
+  let diffMessages = [];
+  for (const key of Object.keys(body)) {
+    if (['password', 'plainPassword', '_id', '__v', 'createdAt', 'updatedAt'].includes(key)) continue;
+    
+    const oldVal = oldRecord[key] !== undefined ? String(oldRecord[key]) : '';
+    const newVal = body[key] !== undefined ? String(body[key]) : '';
+    
+    if (oldVal !== newVal) {
+      diffMessages.push(`${key} changed from '${oldVal}' to '${newVal}'`);
+    }
+  }
+  const diffString = diffMessages.length > 0 ? diffMessages.join(', ') : 'No visible fields changed';
+
   const updated = await Model.findByIdAndUpdate(id, body, { new: true, runValidators: true });
-  if (!updated) throw new AppError('Record not found', 404);
-  return { message: 'Record updated successfully', record: updated };
+  return { message: 'Record updated successfully', record: updated, diffString };
 };
 
 exports.deleteRecord = async (type, id) => {
@@ -712,7 +737,7 @@ exports.getPrincipals = async () => {
 };
 
 exports.getColleges = async () => {
-  return await College.find();
+  return await College.find().sort({ collegeCode: 1 });
 };
 
 exports.getGroups = async () => {

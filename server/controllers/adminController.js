@@ -1,6 +1,7 @@
 const masterDataService = require('../services/admin/masterDataService');
 const assignmentService = require('../services/admin/assignmentService');
 const evaluatorAdminService = require('../services/admin/evaluatorAdminService');
+const activityLogService = require('../services/admin/activityLogService');
 
 // ── Master Data ────────────────────────────────────────────────────────────
 
@@ -12,6 +13,16 @@ exports.uploadMasterData = async (req, res) => {
       academicYear: req.body.academicYear,
       file: req.file
     });
+
+    // We do fire-and-forget logging here to not block the request
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'CREATE_MASTER_DATA',
+      entityType: 'MasterData',
+      details: { type: req.params.type, description: `Uploaded multiple ${req.params.type}s via Excel` }
+    }).catch(err => console.error("Activity logging failed:", err));
+
     res.status(200).json(result);
   } catch (error) {
     const statusCode = error.statusCode || 500;
@@ -22,6 +33,16 @@ exports.uploadMasterData = async (req, res) => {
 exports.createRecord = async (req, res) => {
   try {
     const result = await masterDataService.createRecord(req.params.type, req.body);
+    
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'CREATE_MASTER_DATA',
+      entityId: result.record?._id,
+      entityType: 'MasterData',
+      details: { type: req.params.type, ...req.body }
+    });
+
     res.status(201).json(result);
   } catch (error) {
     const statusCode = error.statusCode || 500;
@@ -32,6 +53,15 @@ exports.createRecord = async (req, res) => {
 exports.promoteStudents = async (req, res) => {
   try {
     const result = await masterDataService.promoteStudents(req.body);
+    
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'UPDATE_MASTER_DATA',
+      entityType: 'MasterData',
+      details: { type: 'students', description: `Promoted students from Semester ${req.body.currentSemester} to Semester ${req.body.promoteToSemester}` }
+    }).catch(err => console.error("Activity logging failed:", err));
+
     res.status(200).json(result);
   } catch (error) {
     const statusCode = error.statusCode || 500;
@@ -42,6 +72,18 @@ exports.promoteStudents = async (req, res) => {
 exports.updateRecord = async (req, res) => {
   try {
     const result = await masterDataService.updateRecord(req.params.type, req.params.id, req.body);
+    
+    const recordName = result.fullName || result.collegeName || result.subName || result.paperName || result.courseName || result.groupName || 'record';
+
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'UPDATE_MASTER_DATA',
+      entityId: req.params.id,
+      entityType: 'MasterData',
+      details: { type: req.params.type, description: `Updated ${req.params.type} ${recordName} - ${result.diffString}` }
+    }).catch(err => console.error("Activity logging failed:", err));
+
     res.json(result);
   } catch (error) {
     const statusCode = error.statusCode || 500;
@@ -52,6 +94,16 @@ exports.updateRecord = async (req, res) => {
 exports.deleteRecord = async (req, res) => {
   try {
     const result = await masterDataService.deleteRecord(req.params.type, req.params.id);
+    
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'DELETE_MASTER_DATA',
+      entityId: req.params.id,
+      entityType: 'MasterData',
+      details: { type: req.params.type, description: `Deleted ${req.params.type} record` }
+    }).catch(err => console.error("Activity logging failed:", err));
+
     res.json(result);
   } catch (error) {
     const statusCode = error.statusCode || 500;
@@ -163,6 +215,15 @@ exports.getUniqueGroupSubjects = async (req, res) => {
 exports.createEvaluator = async (req, res) => {
   try {
     const result = await evaluatorAdminService.createEvaluator(req.body);
+    
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'CREATE_MASTER_DATA',
+      entityType: 'MasterData',
+      details: { type: 'evaluators', description: `Created evaluator: ${req.body.fullName}` }
+    }).catch(err => console.error("Activity logging failed:", err));
+
     res.status(201).json(result);
   } catch (error) {
     res.status(error.statusCode || 500).json({ message: error.message });
@@ -175,6 +236,15 @@ exports.assignSubjects = async (req, res) => {
       ...req.body,
       createdBy: req.user._id
     });
+
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'CREATE_ASSIGNMENT',
+      entityType: 'Assignment',
+      details: { description: `Assigned ${req.body.subjectIds?.length || 0} subjects to ${req.body.studentIds?.length || 0} students.` }
+    }).catch(err => console.error("Activity logging failed:", err));
+
     res.status(200).json(result);
   } catch (error) {
     res.status(error.statusCode || 500).json({ message: error.message });
@@ -184,6 +254,15 @@ exports.assignSubjects = async (req, res) => {
 exports.assignToEvaluator = async (req, res) => {
   try {
     const result = await evaluatorAdminService.assignToEvaluator(req.body);
+
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'ALLOCATE_EVALUATOR',
+      entityType: 'Assignment',
+      details: { description: `Allocated assignments to evaluator: ${req.body.evaluatorId}` }
+    }).catch(err => console.error("Activity logging failed:", err));
+
     res.status(200).json(result);
   } catch (error) {
     res.status(error.statusCode || 500).json({ message: error.message });
@@ -193,6 +272,14 @@ exports.assignToEvaluator = async (req, res) => {
 exports.assignSubjectsToEvaluator = async (req, res) => {
   try {
     const result = await evaluatorAdminService.assignSubjectsToEvaluator(req.params.id, req.body);
+
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'ALLOCATE_EVALUATOR',
+      details: { description: `Assigned subjects to evaluator: ${req.params.id} - ${result.diffString}` }
+    }).catch(err => console.error("Activity logging failed:", err));
+
     res.json(result);
   } catch (error) {
     res.status(error.statusCode || 500).json({ message: error.message });
@@ -202,6 +289,24 @@ exports.assignSubjectsToEvaluator = async (req, res) => {
 exports.reallocateEvaluator = async (req, res) => {
   try {
     const result = await evaluatorAdminService.reallocateEvaluator(req.body);
+
+    const assignment = result.assignment || {};
+    const subjectName = assignment.groupSubjectName || assignment.subjectId?.subName || req.body.assignmentId;
+
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: req.body.newEvaluatorId ? 'REALLOCATE_EVALUATOR' : 'EXTEND_DEADLINE',
+      entityId: req.body.assignmentId,
+      entityType: 'Assignment',
+      details: { 
+        ...req.body, 
+        description: req.body.newEvaluatorId 
+          ? `Reallocated assignment (${subjectName}) - ${result.diffString}` 
+          : `Extended deadline for assignment (${subjectName}) - ${result.diffString}` 
+      }
+    }).catch(err => console.error("Activity logging failed:", err));
+
     res.json(result);
   } catch (error) {
     res.status(error.statusCode || 500).json({ message: error.message });
@@ -229,6 +334,14 @@ exports.getSubjectsWithSubmissions = async (req, res) => {
 exports.allocateSubjectBulk = async (req, res) => {
   try {
     const result = await evaluatorAdminService.allocateSubjectBulk(req.body);
+
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'ALLOCATE_EVALUATOR',
+      details: { ...req.body, countAllocated: result.count, description: result.diffString }
+    }).catch(err => console.error("Activity logging failed:", err));
+
     res.json(result);
   } catch (error) {
     res.status(error.statusCode || 500).json({ message: error.message });
@@ -289,6 +402,17 @@ exports.bulkAssignBacklogs = async (req, res) => {
       ...req.body,
       createdBy: req.user ? req.user._id : null
     });
+
+    if (req.user) {
+      activityLogService.logActivity({
+        userId: req.user._id,
+        userRole: req.user.role,
+        actionType: 'CREATE_ASSIGNMENT',
+        entityType: 'Assignment',
+        details: { description: `Assigned backlogs to students` }
+      }).catch(err => console.error("Activity logging failed:", err));
+    }
+
     res.json(result);
   } catch (error) {
     res.status(error.statusCode || 500).json({ message: error.message });
@@ -335,6 +459,40 @@ exports.getSessionLogSummary = async (req, res) => {
     });
 
     res.json(populatedSummary);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};
+
+exports.updateCollegePasswords = async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const bcrypt = require('bcryptjs');
+    
+    // Default logic: set to 'password123' if no password is provided in body, or what's in req.body.password
+    const newPassword = req.body.password || 'password123';
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    
+    const result = await User.updateMany(
+      { role: 'PRINCIPAL' },
+      { 
+        $set: { 
+          password: hashedPassword,
+          isSetupComplete: false
+        } 
+      }
+    );
+
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'UPDATE_MASTER_DATA',
+      entityType: 'User',
+      details: { description: `Reset all college passwords to a default.` }
+    }).catch(err => console.error("Activity logging failed:", err));
+    
+    res.json({ message: `Successfully updated passwords for ${result.modifiedCount} colleges.` });
   } catch (error) {
     res.status(error.statusCode || 500).json({ message: error.message });
   }

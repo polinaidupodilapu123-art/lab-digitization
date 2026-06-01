@@ -8,7 +8,7 @@ const crypto = require('crypto');
 
 const generateToken = (id, role, sessionId) => {
   return jwt.sign({ id, role, sessionId }, process.env.JWT_SECRET || 'secret123', {
-    expiresIn: '45m'
+    expiresIn: '2h'
   });
 };
 

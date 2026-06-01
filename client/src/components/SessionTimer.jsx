@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const SessionTimer = () => {
-  const [timeLeft, setTimeLeft] = useState(45 * 60); // 45 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(120 * 60); // 120 minutes in seconds
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -15,7 +15,7 @@ const SessionTimer = () => {
       const loginTime = new Date(loginTimeStr);
       const now = new Date();
       const diffSeconds = Math.floor((now - loginTime) / 1000);
-      const remaining = (45 * 60) - diffSeconds;
+      const remaining = (120 * 60) - diffSeconds;
       if (remaining <= 0) {
         handleLogout();
       } else {

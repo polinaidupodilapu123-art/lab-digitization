@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Users, BookOpen, AlertCircle, CheckCircle, Filter, Edit,Download, Upload, RefreshCw, Search, X } from 'lucide-react';
+import { Users, BookOpen, AlertCircle, CheckCircle, Filter, Edit, Download, Upload, RefreshCw, Search, X, Activity } from 'lucide-react';
 import axios from 'axios';
 import SearchableDropdown from '../../components/SearchableDropdown';
 import { downloadAssignmentScoresXlsx } from '../../utils/exportUtils';
 import { API_BASE_URL } from '../../utils/config';
+import ActivityFeed from '../../components/ActivityFeed';
 
 /* ── Pagination component ── */
 const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
@@ -204,6 +205,8 @@ const Assignments = () => {
   const [deadline, setDeadline] = useState('');
 
   const [mode, setMode] = useState('Regular');
+  const [showActivity, setShowActivity] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadSemester, setUploadSemester] = useState('');
@@ -405,6 +408,7 @@ const Assignments = () => {
       setTimeout(() => setMessage(''), 4000);
       setSelectedStudents([]);
       setSelectedSubjects([]);
+      setRefreshTrigger(prev => prev + 1);
       setSelectedCollege('');
       setSelectedCourse('');
       setSelectedSemester('');
@@ -503,6 +507,7 @@ const Assignments = () => {
       );
       setMessage(res.data.message || 'Deadline updated successfully!');
       fetchAssignments();
+      setRefreshTrigger(prev => prev + 1);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update deadline');
     }
@@ -511,9 +516,25 @@ const Assignments = () => {
 
   return (
     <div className="px-4 py-6 w-full">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Manage Assignments</h1>
-        <p className="text-slate-500 mt-2 text-sm">Generate subject assignments for students, handle backlogs, and view all records.</p>
+      {showActivity && (
+        <ActivityFeed 
+          actionTypes={['EXTEND_DEADLINE', 'CREATE_ASSIGNMENT', 'UPDATE_ASSIGNMENT', 'REALLOCATE_EVALUATOR', 'ALLOCATE_EVALUATOR']}
+          onClose={() => setShowActivity(false)}
+          refreshTrigger={refreshTrigger}
+        />
+      )}
+      <div className="mb-6 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Manage Assignments</h1>
+          <p className="text-slate-500 mt-2 text-sm">Generate subject assignments for students, handle backlogs, and view all records.</p>
+        </div>
+        <button
+          onClick={() => setShowActivity(true)}
+          className="flex items-center cursor-pointer gap-2 px-4 py-2 mt-1 bg-white border border-slate-200 shadow-sm rounded-md text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium sm:mr-[130px]"
+        >
+          <Activity className="h-4 w-4 text-teal-600" />
+          Activity History
+        </button>
       </div>
 
       <div className="flex overflow-x-auto elegant-scrollbar border-b border-slate-200 mb-6 whitespace-nowrap">

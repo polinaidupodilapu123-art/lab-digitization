@@ -90,11 +90,24 @@ exports.gradeRecord = async ({ assignmentId, score, feedback, evaluatorId }) => 
     throw new AppError('Score cannot be negative.', 400);
   }
 
+  let diffMessages = [];
+  if (assignment.status === 'Evaluated' && assignment.score !== score) {
+    diffMessages.push(`score changed from '${assignment.score}' to '${score}'`);
+  } else if (assignment.status !== 'Evaluated') {
+    diffMessages.push(`Evaluated assignment with score '${score}'`);
+  }
+  
+  if (assignment.feedback !== feedback) {
+    diffMessages.push(`feedback changed`);
+  }
+
+  const diffString = diffMessages.length > 0 ? diffMessages.join(', ') : 'No visible fields changed';
+
   assignment.score = score;
   assignment.feedback = feedback;
   assignment.status = 'Evaluated';
   assignment.evaluatorId = evaluatorId;
   await assignment.save();
 
-  return { message: 'Record graded successfully', assignment };
+  return { message: 'Record graded successfully', assignment, diffString };
 };

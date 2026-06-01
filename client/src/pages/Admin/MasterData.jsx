@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { UploadCloud, CheckCircle, X, FileSpreadsheet, Plus, RefreshCw, ChevronLeft, ChevronRight, Edit2, Trash2, Eye, EyeOff, UserPlus } from 'lucide-react';
+import { UploadCloud, CheckCircle, X, FileSpreadsheet, Plus, RefreshCw, ChevronLeft, ChevronRight, Edit2, Trash2, Eye, EyeOff, UserPlus, History, Activity } from 'lucide-react';
 
 import PromoteStudentsModal from './PromoteStudentsModal';
-
-
+import ActivityFeed from '../../components/ActivityFeed';
 
 import { API_BASE_URL } from '../../utils/config';
 
@@ -458,12 +457,12 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
         });
         onSuccess(tabKey, 'Record created successfully!');
       } else {
-        // Update existing record
         await axios.put(`${API}/record/${tabKey}/${record._id}`, formData, {
           headers: { Authorization: `Bearer ${token}` }
         });
         onSuccess(tabKey, 'Record updated successfully!');
       }
+      setRefreshTrigger(prev => prev + 1);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update record');
     } finally {
@@ -588,7 +587,7 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
 };
 
 /* ── Upload Modal ── */
-const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
+const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess, setRefreshTrigger }) => {
   const [file, setFile]               = useState(null);
   const [semester, setSemester]       = useState('');
   const [academicYear, setAcademicYear] = useState('');
@@ -624,6 +623,7 @@ const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
       setResult({ message: res.data.message, successCount: res.data.successCount });
       setRowErrors(res.data.errors || []);
       setFile(null);
+      setRefreshTrigger(prev => prev + 1);
       const errors = res.data.errors || [];
       if ((res.data.successCount || 0) > 0) {
         if (errors.length === 0) {
@@ -835,6 +835,8 @@ const MasterData = () => {
   const [pages, setPages]           = useState({}); // { students: 1, colleges: 1, … }
   const [searchQuery, setSearchQuery] = useState(''); // Global search state
   const [selectedSemesterFilter, setSelectedSemesterFilter] = useState('');
+  const [showActivity, setShowActivity] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const token = localStorage.getItem('token');
 
@@ -912,6 +914,7 @@ const MasterData = () => {
     }
     setPages(prev => ({ ...prev, [tab]: 1 }));
     setSearchQuery('');
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const handleDelete = async (recordId) => {
@@ -921,6 +924,7 @@ const MasterData = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchTab(activeTab, true);
+      setRefreshTrigger(prev => prev + 1);
       showGlobalMessage('Record deleted successfully!');
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete record');
@@ -983,12 +987,21 @@ const MasterData = () => {
   const pagedRows = filteredRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
-    <div className="p-4 sm:p-6 bg-slate-50 w-full animate-fade-in">
+    <div className="p-4 sm:p-4 bg-slate-50 w-full animate-fade-in">
 
       {/* Page Header */}
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold text-slate-900">Master Data Management</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Upload, manage, and edit foundational system data via Excel sheets.</p>
+      <div className="mb-5 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Master Data Management</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Upload, manage, and edit foundational system data via Excel sheets.</p>
+        </div>
+        <button
+          onClick={() => setShowActivity(true)}
+          className="flex items-center cursor-pointer gap-2 px-4 py-2 mt-3 bg-white border border-slate-200 shadow-sm rounded-md text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium sm:mr-[130px]"
+        >
+          <Activity className="h-4 w-4 text-teal-600" />
+          Activity History
+        </button>
       </div>
 
       {/* Global success banner */}
@@ -1258,6 +1271,15 @@ const MasterData = () => {
           token={token}
           onClose={() => setShowPromoteModal(false)}
           onSuccess={handleUploadSuccess}
+        />
+      )}
+
+      {/* Activity Feed Slide-over */}
+      {showActivity && (
+        <ActivityFeed 
+          actionTypes={['CREATE_MASTER_DATA', 'UPDATE_MASTER_DATA', 'DELETE_MASTER_DATA']}
+          onClose={() => setShowActivity(false)}
+          refreshTrigger={refreshTrigger}
         />
       )}
     </div>

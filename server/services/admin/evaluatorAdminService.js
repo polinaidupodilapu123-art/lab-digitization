@@ -142,8 +142,11 @@ exports.assignSubjectsToEvaluator = async (id, { allocations, subjectIds, groupS
   const evaluator = await User.findById(id);
   if (!evaluator) throw new AppError('Evaluator not found', 404);
 
-  let finalSubjectIds = (evaluator.subjects || []).map(sid => sid.toString());
-  let finalGroupSubjects = evaluator.groupSubjects || [];
+  const oldSubjectIds = (evaluator.subjects || []).map(sid => sid.toString());
+  const oldGroupSubjects = [...(evaluator.groupSubjects || [])];
+
+  let finalSubjectIds = [...oldSubjectIds];
+  let finalGroupSubjects = [...oldGroupSubjects];
 
   if (allocations && Array.isArray(allocations) && allocations.length > 0) {
     for (const allocation of allocations) {
@@ -230,7 +233,15 @@ exports.assignSubjectsToEvaluator = async (id, { allocations, subjectIds, groupS
     console.error('Evaluator email notification failed:', emailErr.message);
   }
 
-  return { message: 'Subjects assigned successfully', evaluator };
+  const addedSubjects = finalSubjectIds.filter(id => !oldSubjectIds.includes(id));
+  const addedGroupSubjects = finalGroupSubjects.filter(name => !oldGroupSubjects.includes(name));
+  
+  let diffMessages = [];
+  if (addedSubjects.length > 0) diffMessages.push(`Added ${addedSubjects.length} regular subjects`);
+  if (addedGroupSubjects.length > 0) diffMessages.push(`Added ${addedGroupSubjects.length} group subjects`);
+  const diffString = diffMessages.length > 0 ? diffMessages.join(', ') : 'No subjects added';
+
+  return { message: 'Subjects assigned successfully', evaluator, diffString };
 };
 
 exports.getSubjectsWithSubmissions = async (mode = 'Regular') => {
@@ -431,7 +442,8 @@ exports.allocateSubjectBulk = async ({ subjectId, groupSubjectName, subjects, ev
     console.error('Evaluator email notification failed:', emailErr.message);
   }
 
-  return { message: `Successfully allocated ${totalAllocated} assignments to evaluator.`, count: totalAllocated };
+  const diffString = `Allocated ${totalAllocated} assignments to ${evaluator.fullName}`;
+  return { message: `Successfully allocated ${totalAllocated} assignments to evaluator.`, count: totalAllocated, diffString };
 };
 
 exports.reallocateEvaluator = async ({ assignmentId, newEvaluatorId, valuationDeadline }) => {
@@ -443,7 +455,7 @@ exports.reallocateEvaluator = async ({ assignmentId, newEvaluatorId, valuationDe
     throw new AppError('Must provide either a new evaluator or a new deadline', 400);
   }
 
-  const assignment = await Assignment.findById(assignmentId).populate('subjectId');
+  const assignment = await Assignment.findById(assignmentId).populate('subjectId evaluatorId');
   if (!assignment) {
     throw new AppError('Assignment not found', 404);
   }
@@ -452,6 +464,8 @@ exports.reallocateEvaluator = async ({ assignmentId, newEvaluatorId, valuationDe
     throw new AppError('Cannot re-allocate an assignment that is already evaluated', 400);
   }
 
+  let diffMessages = [];
+  
   let subjectsUpdated = false;
   let newEvaluator = null;
 
@@ -460,6 +474,11 @@ exports.reallocateEvaluator = async ({ assignmentId, newEvaluatorId, valuationDe
     
     if (!newEvaluator || newEvaluator.role !== 'EVALUATOR') {
       throw new AppError('Invalid new evaluator selected', 400);
+    }
+    
+    if (String(assignment.evaluatorId?._id) !== String(newEvaluatorId)) {
+      const oldEvName = assignment.evaluatorId ? assignment.evaluatorId.fullName : 'None';
+      diffMessages.push(`Evaluator changed from '${oldEvName}' to '${newEvaluator.fullName}'`);
     }
 
     assignment.evaluatorId = newEvaluatorId;
@@ -480,8 +499,15 @@ exports.reallocateEvaluator = async ({ assignmentId, newEvaluatorId, valuationDe
   }
 
   if (valuationDeadline) {
+    const oldDate = assignment.valuationDeadline ? new Date(assignment.valuationDeadline).toISOString().split('T')[0] : 'None';
+    const newDate = new Date(valuationDeadline).toISOString().split('T')[0];
+    if (oldDate !== newDate) {
+      diffMessages.push(`Deadline changed from '${oldDate}' to '${newDate}'`);
+    }
     assignment.valuationDeadline = new Date(valuationDeadline);
   }
+  
+  const diffString = diffMessages.length > 0 ? diffMessages.join(', ') : 'No visible fields changed';
   
   await assignment.save();
   if (subjectsUpdated && newEvaluator) {
@@ -507,5 +533,5 @@ exports.reallocateEvaluator = async ({ assignmentId, newEvaluatorId, valuationDe
     console.error('Evaluator email notification failed:', emailErr.message);
   }
 
-  return { message: 'Re-allocation successful', assignment };
+  return { message: 'Re-allocation successful', assignment, diffString };
 };

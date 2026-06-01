@@ -1,4 +1,5 @@
 const evaluatorService = require('../services/evaluatorService');
+const activityLogService = require('../services/admin/activityLogService');
 
 exports.getAssignedSubjects = async (req, res) => {
   try {
@@ -28,6 +29,16 @@ exports.gradeRecord = async (req, res) => {
       feedback: req.body.feedback,
       evaluatorId: req.user._id
     });
+
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'EVALUATE_MARKS',
+      entityId: req.params.assignmentId,
+      entityType: 'Assignment',
+      details: { score: req.body.score, feedback: req.body.feedback, description: `Evaluated Assignment ${req.params.assignmentId} - ${result.diffString}` }
+    }).catch(err => console.error("Activity logging failed:", err));
+
     res.json(result);
   } catch (error) {
     const statusCode = error.statusCode || 500;

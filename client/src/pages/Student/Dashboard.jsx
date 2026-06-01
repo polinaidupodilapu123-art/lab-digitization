@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Book, FileText, Download, Upload, X, RefreshCw, CheckCircle, User as UserIcon, ChevronRight } from 'lucide-react';
+import { LogOut, Book, FileText, Download, Upload, X, RefreshCw, CheckCircle, User as UserIcon, ChevronRight, Activity } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../utils/config';
 import JsBarcode from 'jsbarcode';
 import { pdf } from '@react-pdf/renderer';
 import BarcodePDF from '../../components/BarcodePDF';
+import CertificatePDF from '../../components/CertificatePDF';
 import SessionTimer from '../../components/SessionTimer';
+import ActivityFeed from '../../components/ActivityFeed';
 
 /* ── Pagination component ── */
 const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
@@ -437,6 +439,8 @@ const Dashboard = () => {
   const [message, setMessage] = useState('');
   const [profileData, setProfileData] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -525,8 +529,45 @@ const Dashboard = () => {
   const [regularPage, setRegularPage] = useState(1);
   const [supplyPage, setSupplyPage] = useState(1);
 
+  const allSubmitted = assignments.length > 0 && assignments.every(a => a.status === 'Submitted' || a.status === 'Evaluated');
+  
+  let latestCompletionDate = '';
+  if (allSubmitted) {
+    const dates = assignments.map(a => {
+      const dateStr = a.updatedAt || a.submittedAt || a.createdAt;
+      return dateStr ? new Date(dateStr) : new Date(0);
+    });
+    const latestDate = new Date(Math.max(...dates));
+    const dd = String(latestDate.getDate()).padStart(2, '0');
+    const mm = String(latestDate.getMonth() + 1).padStart(2, '0');
+    const yyyy = latestDate.getFullYear();
+    latestCompletionDate = `${dd}/${mm}/${yyyy}`;
+  }
+
+  const handleGenerateCertificate = async () => {
+    try {
+      const blob = await pdf(<CertificatePDF user={profileData || user} completionDate={latestCompletionDate} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Certificate_${user.regdNo}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error generating Certificate PDF', err);
+      alert('Failed to generate Certificate. Please try again.');
+    }
+  };
+
   return (
     <div className="flex-1 min-h-0 flex flex-col md:h-full md:overflow-y-auto bg-slate-50 animate-fade-in w-full">
+      {showActivity && (
+        <ActivityFeed 
+          actionTypes={['UPLOAD_RECORD', 'DOWNLOAD_RECORD']} 
+          onClose={() => setShowActivity(false)} 
+          refreshTrigger={refreshTrigger} 
+        />
+      )}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
@@ -540,6 +581,13 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowActivity(true)}
+                className="hidden sm:flex items-center text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors border border-teal-200 cursor-pointer shadow-sm"
+              >
+                <Activity className="h-4 w-4 mr-1.5" />
+                Activity History
+              </button>
               <SessionTimer />
               <div className="relative">
                 <button
@@ -591,13 +639,24 @@ const Dashboard = () => {
             </button>
           </div>
         )}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-slate-900">
-            My Practical Records
-          </h2>
-          <p className="text-slate-500 mt-1">
-            Download barcode sheets, upload completed records, and monitor submission deadlines.
-          </p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">
+              My Practical Records
+            </h2>
+            <p className="text-slate-500 mt-1">
+              Download barcode sheets, upload completed records, and monitor submission deadlines.
+            </p>
+          </div>
+          {allSubmitted && (
+            <button
+              onClick={handleGenerateCertificate}
+              className="flex items-center cursor-pointer justify-center px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white rounded-md shadow-md text-sm font-semibold transition-all transform hover:-translate-y-0.5"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download Certificate
+            </button>
+          )}
         </div>
 
         {/* Tables */}
@@ -631,6 +690,7 @@ const Dashboard = () => {
             setUploadTarget(null);
             setMessage(successMsg);
             setTimeout(() => setMessage(''), 4000);
+            setRefreshTrigger(prev => prev + 1);
             fetchMyAssignments();
           }}
         />

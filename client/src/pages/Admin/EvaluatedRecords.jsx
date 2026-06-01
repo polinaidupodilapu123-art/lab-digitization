@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { ClipboardCheck, Search, Download, BookOpen, RefreshCw } from 'lucide-react';
+import { ClipboardCheck, Search, Download, BookOpen, RefreshCw, Activity } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../utils/config';
 import ReallocateModal from '../../components/ReallocateModal';
+import ActivityFeed from '../../components/ActivityFeed';
 
 /* ── Pagination component ── */
 const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
@@ -89,6 +90,8 @@ const EvaluatedRecords = () => {
   const [paperPage, setPaperPage] = useState(1);
   const [reallocateTarget, setReallocateTarget] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
+  const [showActivity, setShowActivity] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const PAGE_SIZE = 10;
 
@@ -273,10 +276,17 @@ const EvaluatedRecords = () => {
       }
 
       XLSX.writeFile(workbook, `Subject_Evaluations_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+      await axios.post(`${API_BASE_URL}/api/admin/activities`, {
+        actionType: 'EXPORT_EXCEL',
+        entityType: 'Assignment',
+        details: { description: 'Exported Evaluated Records to Excel' }
+      }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }});
     } catch (err) {
       console.error('Export failed:', err);
       alert('Failed to export to Excel.');
     }
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const handleExportPaperGrades = async () => {
@@ -312,10 +322,17 @@ const EvaluatedRecords = () => {
       }
 
       XLSX.writeFile(workbook, `Paper_Grades_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+      await axios.post(`${API_BASE_URL}/api/admin/activities`, {
+        actionType: 'EXPORT_EXCEL',
+        entityType: 'Assignment',
+        details: { description: 'Exported Paper Grades Report to Excel' }
+      }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }});
     } catch (err) {
       console.error('Export failed:', err);
       alert('Failed to export to Excel.');
     }
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const pagedRegularRecords = regularRecords.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -325,12 +342,20 @@ const EvaluatedRecords = () => {
   const pagedSupplyPapers = supplyPaperRows.slice((paperPage - 1) * PAGE_SIZE, paperPage * PAGE_SIZE);
 
   return (
-    <div className="p-4 sm:p-6 bg-slate-50 w-full animate-fade-in">
+    <div className="p-4 sm:p-4 bg-slate-50 w-full animate-fade-in">
+      {showActivity && <ActivityFeed actionTypes={['EXPORT_EXCEL', 'REALLOCATE_EVALUATOR', 'EXTEND_DEADLINE']} onClose={() => setShowActivity(false)} refreshTrigger={refreshTrigger} />}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Evaluated Records</h1>
           <p className="text-slate-500 mt-1">Review all lab records that have been graded by evaluators.</p>
         </div>
+        <button
+          onClick={() => setShowActivity(true)}
+          className="flex items-center cursor-pointer gap-2 px-4 py-2 mt-1 bg-white border border-slate-200 shadow-sm rounded-md text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium sm:mr-[130px]"
+        >
+          <Activity className="h-4 w-4 text-teal-600" />
+          Activity History
+        </button>
       </div>
 
       <div className="flex border-b border-slate-200">

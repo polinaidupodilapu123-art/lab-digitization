@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const adminController = require('../controllers/adminController');
-const { protect, adminOnly } = require('../middleware/authMiddleware');
+const activityController = require('../controllers/activityController');
+const { protect, adminOnly, systemAdminOnly } = require('../middleware/authMiddleware');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -48,4 +49,8 @@ router.get('/backlog-candidates', adminController.getBacklogCandidates);
 router.post('/bulk-assign-backlogs', adminController.bulkAssignBacklogs);
 router.get('/session-logs/summary', adminController.getSessionLogSummary);
 router.get('/session-logs', adminController.getSessionLogs);
+router.post('/college-passwords', systemAdminOnly, adminController.updateCollegePasswords);
+
+// Activity Logs
+// Exports
 module.exports = router;

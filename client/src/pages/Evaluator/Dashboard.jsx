@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, FileCheck, BookOpen, AlertCircle, FileText, Search, X, User as UserIcon, Filter } from 'lucide-react';
+import { LogOut, FileCheck, BookOpen, AlertCircle, FileText, Search, X, User as UserIcon, Activity } from 'lucide-react';
 import axios from 'axios';
 import SearchableDropdown from '../../components/SearchableDropdown';
 import SessionTimer from '../../components/SessionTimer';
+import ActivityFeed from '../../components/ActivityFeed';
 import { API_BASE_URL } from '../../utils/config';
 
 /* ── Pagination component ── */
@@ -92,6 +93,8 @@ const Dashboard = () => {
   const [loadingRecords, setLoadingRecords] = useState(true);
   const [profileData, setProfileData] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -209,6 +212,7 @@ const Dashboard = () => {
       setSubmissions(prev => prev.map(sub => 
         sub._id === id ? { ...sub, status: 'Evaluated', score: Number(data.score), feedback: data.remarks } : sub
       ));
+      setRefreshTrigger(prev => prev + 1);
       alert('Marks saved successfully!');
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to save marks');
@@ -306,7 +310,24 @@ const Dashboard = () => {
 
   const PAGE_SIZE = 10;
   const pagedSubmissions = filteredSubmissions.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-console.log("ccsdc", pagedSubmissions)
+
+  const logDownload = async (assignmentId, downloadUrl) => {
+    try {
+      await axios.post(
+        `${API_BASE_URL}/api/evaluator/activities`,
+        {
+          actionType: 'DOWNLOAD_RECORD',
+          entityId: assignmentId,
+          entityType: 'Assignment',
+          details: { url: downloadUrl }
+        },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+    } catch (e) {
+      console.error("Failed to log activity");
+    }
+  };
+
   return (
     <div className="flex-1 min-h-0 flex flex-col md:h-full md:overflow-y-auto bg-slate-50 animate-fade-in w-full">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
@@ -323,6 +344,13 @@ console.log("ccsdc", pagedSubmissions)
             </div>
             <div className="flex items-center gap-3">
               <SessionTimer />
+              <button
+                onClick={() => setShowActivity(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-600 transition-colors cursor-pointer border border-slate-200 text-sm font-medium"
+              >
+                <Activity className="h-4 w-4" />
+                Activity
+              </button>
               <div className="relative">
                 <button
                   onClick={() => setShowProfile(!showProfile)}
@@ -360,6 +388,10 @@ console.log("ccsdc", pagedSubmissions)
           </div>
         </div>
       </header>
+
+      {showActivity && (
+        <ActivityFeed onClose={() => setShowActivity(false)} refreshTrigger={refreshTrigger} actionTypes={['EVALUATE_MARKS']} />
+      )}
 
       <main className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-5 animate-slide-in">
         <div className="mb-8 flex justify-between items-end flex-wrap gap-4">
@@ -512,8 +544,7 @@ console.log("ccsdc", pagedSubmissions)
                     <th className="px-4 py-3 text-center whitespace-nowrap">Document</th>
                     <th className="px-4 py-3 text-center whitespace-nowrap">Max Marks</th>
                     <th className="px-4 py-3 text-center whitespace-nowrap">Pass Marks</th>
-                    <th className="px-4 py-3 text-left whitespace-nowrap">Date</th>
-                    <th className="px-4 py-3 text-left whitespace-nowrap">Deadline</th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap">Valuation Deadline</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
                     <th className="px-4 py-3 text-center whitespace-nowrap">Suggested Marks</th>
                     <th className="w-[4.5rem] px-4 py-3 text-left whitespace-nowrap tabular-nums">Score</th>
@@ -557,6 +588,7 @@ console.log("ccsdc", pagedSubmissions)
                                 href={`${API_BASE_URL}${sub.filePath}`} 
                                 target="_blank" 
                                 rel="noreferrer" 
+                                onClick={() => logDownload(sub._id, `${API_BASE_URL}${sub.filePath}`)}
                                 className="inline-flex items-center justify-center p-2 text-teal-600 hover:text-white hover:bg-teal-700 rounded-md transition-colors border border-teal-200 hover:border-teal-700 cursor-pointer"
                                 title="View Submission PDF"
                               >
@@ -581,9 +613,7 @@ console.log("ccsdc", pagedSubmissions)
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center font-semibold">
                           {sub.subjectId?.subPassMarks ?? '—'}
                         </td>
-                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap text-sm">
-                          {sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
-                        </td>
+                      
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
                           {sub.valuationDeadline ? (
                             (() => {

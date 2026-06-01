@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import { Users, BookOpen, CheckCircle, Search, ChevronDown, Check, AlertCircle, Filter, Edit, Clock, X, Square, CheckSquare } from 'lucide-react';
+import { Users, BookOpen, CheckCircle, Search, ChevronDown, Check, AlertCircle, Filter, Edit, Clock, X, Square, CheckSquare, Activity } from 'lucide-react';
 import { API_BASE_URL } from '../../utils/config';
 import SearchableDropdown from '../../components/SearchableDropdown';
+import ActivityFeed from '../../components/ActivityFeed';
 
 const API = `${API_BASE_URL}/api/admin`;
 
@@ -17,6 +18,8 @@ export default function Evaluators() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showActivity, setShowActivity] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Selection state
   const [allocationMode, setAllocationMode] = useState('Regular');
@@ -202,6 +205,9 @@ export default function Evaluators() {
       setRollStart('');
       setRollEnd('');
       
+      setSuccess(res.data.message || 'Records allocated successfully.');
+      setRefreshTrigger(prev => prev + 1);
+      
       // Refresh stats and submitted records
       fetchStats();
       fetchSubmitted();
@@ -224,16 +230,32 @@ export default function Evaluators() {
   if (loading) return <div className="p-8 text-center text-slate-500">Loading allocation data...</div>;
 
   return (
-    <div className="px-4 py-6 w-full space-y-6">
+    <div className="px-4 py-4 w-full space-y-4">
+      {showActivity && (
+        <ActivityFeed 
+          actionTypes={['CREATE_EVALUATOR', 'ALLOCATE_EVALUATOR']}
+          onClose={() => setShowActivity(false)}
+          refreshTrigger={refreshTrigger}
+        />
+      )}
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-md border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-3 rounded-md border border-slate-200 shadow-sm">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full "></div>
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="rounded-lg">
-              <BookOpen className="h-6 w-6" />
+        <div className="relative z-10 flex-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="rounded-lg">
+                <BookOpen className="h-6 w-6" />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight">Subject Allocation</h1>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Subject Allocation</h1>
+            <button
+              onClick={() => setShowActivity(true)}
+              className="flex items-center cursor-pointer gap-2 px-4 py-2 mt-1 bg-white border border-slate-200 shadow-sm rounded-md text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium sm:mr-[130px]"
+            >
+              <Activity className="h-4 w-4 text-teal-600" />
+              Activity History
+            </button>
           </div>
           <p className="text-sm max-w-2xl mt-3">
             Select a subject to view its total generated assignments. Allocate unassigned records to evaluators by specific counts, colleges, or roll number ranges to prevent duplicate assignments and balance workloads.
