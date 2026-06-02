@@ -113,17 +113,16 @@ const SessionLogs = () => {
   });
 
   return (
-    <div className="p-4 sm:p-6 bg-slate-50 w-full animate-fade-in flex-1 h-full flex flex-col">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
+    <div className="p-4 sm:p-4 bg-slate-50 w-full animate-fade-in flex-1 h-full flex flex-col">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center">
             <ShieldAlert className="w-7 h-7 mr-3 text-teal-600" />
             System Session Logs
           </h1>
-          <p className="text-sm text-slate-500 mt-1">Track user login, logout, and session duration across the system.</p>
+          <p className="text-sm text-slate-500 mt-0.5">Track user login, logout, and session duration across the system.</p>
         </div>
-        
-              </div>
+      </div>
 
       <div className="flex space-x-1 bg-slate-200/50 p-1 rounded-lg mb-4 shrink-0 w-full justify-between">
        <div className="flex space-x-1"> <button

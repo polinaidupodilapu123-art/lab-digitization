@@ -332,9 +332,9 @@ const Dashboard = () => {
     <div className="flex-1 min-h-0 flex flex-col md:h-full md:overflow-y-auto bg-slate-50 animate-fade-in w-full">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center">
-              <div className="bg-emerald-600 text-white p-2 rounded-md mr-3">
+          <div className="flex flex-col md:flex-row justify-between min-h-[4rem] h-auto items-center py-4 md:py-0 gap-4 md:gap-0">
+            <div className="flex items-center flex-col sm:flex-row text-center sm:text-left gap-2 sm:gap-0">
+              <div className="bg-emerald-600 text-white p-2 rounded-md sm:mr-3">
                 <FileCheck className="h-5 w-5" />
               </div>
               <div>
@@ -342,7 +342,7 @@ const Dashboard = () => {
                 <p className="text-sm text-slate-500 font-medium">{user.fullName}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
               <SessionTimer />
               <button
                 onClick={() => setShowActivity(true)}
@@ -379,9 +379,9 @@ const Dashboard = () => {
 
               <button
                 onClick={handleLogout}
-                className="flex items-center text-slate-500 hover:text-red-600 font-medium px-3 py-2 rounded-md hover:bg-red-50 transition-colors cursor-pointer"
+                className="flex items-center text-slate-500 hover:text-red-600 font-medium px-2 sm:px-3 py-2 rounded-md hover:bg-red-50 transition-colors cursor-pointer text-sm sm:text-base"
               >
-                <LogOut className="h-5 w-5 mr-2" />
+                <LogOut className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
                 Logout
               </button>
             </div>

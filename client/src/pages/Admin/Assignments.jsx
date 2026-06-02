@@ -523,10 +523,10 @@ const Assignments = () => {
           refreshTrigger={refreshTrigger}
         />
       )}
-      <div className="mb-6 flex justify-between items-start">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Manage Assignments</h1>
-          <p className="text-slate-500 mt-2 text-sm">Generate subject assignments for students, handle backlogs, and view all records.</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Manage Assignments</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Generate subject assignments for students, handle backlogs, and view all records.</p>
         </div>
         <button
           onClick={() => setShowActivity(true)}

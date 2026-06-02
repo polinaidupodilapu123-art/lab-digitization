@@ -989,14 +989,14 @@ const MasterData = () => {
     <div className="p-4 sm:p-4 bg-slate-50 w-full animate-fade-in">
 
       {/* Page Header */}
-      <div className="mb-5 flex items-start justify-between">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Master Data Management</h1>
           <p className="text-slate-500 text-sm mt-0.5">Upload, manage, and edit foundational system data via Excel sheets.</p>
         </div>
         <button
           onClick={() => setShowActivity(true)}
-          className="flex items-center cursor-pointer gap-2 px-4 py-2 mt-3 bg-white border border-slate-200 shadow-sm rounded-md text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium sm:mr-[130px]"
+          className="flex items-center cursor-pointer gap-2 px-4 py-2 mt-1 bg-white border border-slate-200 shadow-sm rounded-md text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium sm:mr-[130px]"
         >
           <Activity className="h-4 w-4 text-teal-600" />
           Activity History
@@ -1127,7 +1127,7 @@ const MasterData = () => {
         </div>
 
         {/* Table */}
-        <div className="w-full relative">
+        <div className="w-full relative overflow-x-auto sleek-scrollbar">
           {loadingTab ? (
             <div className="flex items-center justify-center py-16 text-slate-400">
               <RefreshCw className="h-6 w-6 animate-spin mr-3" />

@@ -239,28 +239,20 @@ export default function Evaluators() {
         />
       )}
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-3 rounded-md border border-slate-200 shadow-sm">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full "></div>
-        <div className="relative z-10 flex-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="rounded-lg">
-                <BookOpen className="h-6 w-6" />
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight">Subject Allocation</h1>
-            </div>
-            <button
-              onClick={() => setShowActivity(true)}
-              className="flex items-center cursor-pointer gap-2 px-4 py-2 mt-1 bg-white border border-slate-200 shadow-sm rounded-md text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium sm:mr-[130px]"
-            >
-              <Activity className="h-4 w-4 text-teal-600" />
-              Activity History
-            </button>
-          </div>
-          <p className="text-slate-500 max-w-2xl mt-1 text-sm">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Subject Allocation</h1>
+          <p className="text-slate-500 text-sm mt-0.5 max-w-2xl">
             Select a subject to view its total generated assignments. Allocate unassigned records to evaluators by specific counts, colleges, or roll number ranges to prevent duplicate assignments and balance workloads.
           </p>
         </div>
+        <button
+          onClick={() => setShowActivity(true)}
+          className="flex items-center cursor-pointer gap-2 px-4 py-2 mt-1 bg-white border border-slate-200 shadow-sm rounded-md text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium sm:mr-[130px]"
+        >
+          <Activity className="h-4 w-4 text-teal-600" />
+          Activity History
+        </button>
       </div>
 
       {error && (

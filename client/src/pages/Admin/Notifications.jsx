@@ -124,20 +124,19 @@ const Notifications = () => {
   );
 
   return (
-    <div className="px-4 py-6 w-full space-y-6">
+    <div className="p-4 sm:p-4 bg-slate-50 w-full animate-fade-in space-y-6">
       
       {/* Header Panel */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-md border border-slate-200 shadow-sm">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Bell className="h-6 w-6 text-teal-600 animate-pulse" />
             University Notifications & Circulars
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-slate-500 text-sm mt-0.5">
             Publish official announcements and upload downloadable B.Ed college circulars.
           </p>
         </div>
-      
       </div>
 
       {/* Filter and Content Panel */}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Users, BookOpen, School, Database, LogOut, CheckSquare, ClipboardList, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, BookOpen, School, Database, LogOut, CheckSquare, ClipboardList, Bell, ChevronLeft, ChevronRight, Menu, X } from 'lucide-react';
 import MasterData from './MasterData';
 import Assignments from './Assignments';
 import Evaluators from './Evaluators';
@@ -14,6 +14,7 @@ const Dashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(window.innerWidth >= 1024);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
@@ -47,15 +48,31 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-full bg-slate-50">
+    <div className="flex flex-col md:flex-row h-full bg-slate-50 overflow-hidden">
+      {/* Mobile Header */}
+      <div className="md:hidden flex items-center justify-between bg-white border-b border-slate-200 p-4 shrink-0 z-50">
+        <div>
+          <h2 className="text-xl font-bold text-teal-600 truncate">Admin Panel</h2>
+          <p className="text-[10px] text-slate-500 mt-0.5 truncate">Lab Digitization System</p>
+        </div>
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 bg-slate-100 rounded-md text-slate-600 hover:bg-slate-200 transition-colors focus:outline-none"
+        >
+          {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
+      </div>
+
       {/* Sidebar */}
       <div 
         className={`${
-          isSidebarExpanded ? 'w-full md:w-64' : 'w-full md:w-20'
-        } bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out md:h-full z-50`}
+          isMobileMenuOpen ? 'flex absolute left-0 right-0 top-[73px] z-50 overflow-y-auto shadow-lg max-h-[calc(100vh-73px)] border-b pb-2 h-auto' : 'hidden md:flex'
+        } ${
+          isSidebarExpanded ? 'md:w-64' : 'md:w-20'
+        } bg-white md:border-b-0 md:border-r border-slate-200 flex-col flex-shrink-0 transition-all duration-300 ease-in-out md:h-full md:relative md:pb-0 md:shadow-none`}
       >
-        <div className={`p-4 flex items-center ${isSidebarExpanded ? 'justify-between' : 'justify-between md:justify-center'} border-b border-slate-100`}>
-          <div className={`${!isSidebarExpanded ? 'block md:hidden' : 'block'}`}>
+        <div className={`hidden md:flex p-4 items-center ${isSidebarExpanded ? 'justify-between' : 'justify-center'} border-b border-slate-100`}>
+          <div className={`${!isSidebarExpanded ? 'hidden' : 'block'}`}>
             <h2 className="text-xl font-bold text-teal-600 truncate">Admin Panel</h2>
             <p className="text-[10px] text-slate-500 mt-0.5 truncate">Lab Digitization System</p>
           </div>
@@ -76,12 +93,12 @@ const Dashboard = () => {
               <Link
                 key={item.name}
                 to={item.path}
-                title={!isSidebarExpanded ? item.name : ""}
+                onClick={() => setIsMobileMenuOpen(false)}
                 className={`flex items-center px-3 py-3 rounded-md transition-all group relative ${
                   isActive
                     ? 'bg-teal-50 text-teal-700 font-medium'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                } ${isSidebarExpanded ? 'space-x-3' : 'justify-center'}`}
+                } ${isSidebarExpanded || isMobileMenuOpen ? 'space-x-3' : 'justify-center'}`}
               >
                 <Icon className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-teal-600' : 'text-slate-400 group-hover:text-teal-500 transition-colors'}`} />
                 <span className={`${!isSidebarExpanded ? 'inline md:hidden' : 'inline'} truncate ml-3 md:ml-0 ${isSidebarExpanded ? 'md:ml-3' : ''}`}>{item.name}</span>
@@ -117,8 +134,8 @@ const Dashboard = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 min-w-0 relative overflow-y-auto md:overflow-y-auto">
-        <div className="absolute top-8 right-6 z-40">
+      <div className="flex-1 min-w-0 relative overflow-y-auto md:overflow-y-auto flex flex-col w-full">
+        <div className="absolute top-2 right-4 md:top-8 md:right-6 z-40 hidden md:block">
           <SessionTimer />
         </div>
         <Routes>
