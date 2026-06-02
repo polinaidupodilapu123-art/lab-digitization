@@ -60,62 +60,114 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
     }
   };
 
-  const captureFace = async () => {
+  const livenessStateRef = useRef('WAIT_OPEN');
+  const scanLoopRef = useRef(null);
+
+  const getDistance = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+
+  const calculateEAR = (eye) => {
+    const v1 = getDistance(eye[1], eye[5]);
+    const v2 = getDistance(eye[2], eye[4]);
+    const h = getDistance(eye[0], eye[3]);
+    return (v1 + v2) / (2.0 * h);
+  };
+
+  const processSuccessfulCapture = async (detection) => {
+    if (mode === 'enroll') {
+      setSuccess(true);
+      setStatus('Face Captured Successfully!');
+      stopCamera();
+      setTimeout(() => {
+        onCapture(Array.from(detection.descriptor));
+      }, 1000);
+    } else {
+      // verify mode
+      setStatus('Verifying face with server...');
+      try {
+        await onCapture(Array.from(detection.descriptor));
+        setSuccess(true);
+        setStatus('Face Verified!');
+        stopCamera();
+      } catch (serverErr) {
+        setScanning(false);
+        setError(serverErr.message || 'Face Verification Failed');
+        setStatus('Verification failed. Try again.');
+      }
+    }
+  };
+
+  const captureFace = () => {
     if (!isModelLoaded || !cameraActive || !videoRef.current) return;
     
     setScanning(true);
-    setStatus('Scanning face...');
     setError('');
+    setStatus('Please blink your eyes...');
+    livenessStateRef.current = 'WAIT_OPEN';
 
-    try {
-      const detection = await faceapi
-        .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks()
-        .withFaceDescriptor();
+    const scanFrame = async () => {
+      try {
+        // If the component stopped scanning (e.g. error or success), break loop
+        if (!videoRef.current || !videoRef.current.srcObject) return;
 
-      if (!detection) {
-        setScanning(false);
-        setError('No face detected. Please ensure your face is clearly visible.');
-        setStatus('Ready. Please look at the camera.');
-        return;
-      }
+        const detection = await faceapi
+          .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptor();
 
-      if (mode === 'enroll') {
-        setSuccess(true);
-        setStatus('Face Captured Successfully!');
-        stopCamera();
-        setTimeout(() => {
-          onCapture(Array.from(detection.descriptor));
-        }, 1000);
-      } else {
-        // verify mode
-        setStatus('Verifying face with server...');
-        try {
-          await onCapture(Array.from(detection.descriptor));
-          setSuccess(true);
-          setStatus('Face Verified!');
-          stopCamera();
-        } catch (serverErr) {
-          setScanning(false);
-          setError(serverErr.message || 'Face Verification Failed');
-          setStatus('Verification failed. Try again.');
+        if (detection) {
+          const landmarks = detection.landmarks;
+          const leftEye = landmarks.getLeftEye();
+          const rightEye = landmarks.getRightEye();
+
+          const leftEAR = calculateEAR(leftEye);
+          const rightEAR = calculateEAR(rightEye);
+          const avgEAR = (leftEAR + rightEAR) / 2.0;
+
+          if (livenessStateRef.current === 'WAIT_OPEN') {
+            if (avgEAR > 0.26) {
+              livenessStateRef.current = 'WAIT_CLOSED';
+            }
+          } else if (livenessStateRef.current === 'WAIT_CLOSED') {
+            if (avgEAR < 0.22) { // Eyes closed (Blink detected)
+              livenessStateRef.current = 'BLINKED';
+            }
+          } else if (livenessStateRef.current === 'BLINKED') {
+            if (avgEAR > 0.26) {
+              // Full blink completed (Eyes reopened)!
+              processSuccessfulCapture(detection);
+              return; // Stop the loop
+            }
+          }
         }
-      }
+        
+        // Continue scanning
+        scanLoopRef.current = setTimeout(scanFrame, 50);
 
-    } catch (err) {
-      console.error('Error scanning face:', err);
-      setError('An error occurred while scanning.');
-      setScanning(false);
-    }
+      } catch (err) {
+        console.error('Error scanning face:', err);
+        // keep trying
+        scanLoopRef.current = setTimeout(scanFrame, 200);
+      }
+    };
+
+    scanFrame();
   };
 
   const handleRetry = () => {
     setError('');
     setSuccess(false);
+    setScanning(false);
+    if (scanLoopRef.current) clearTimeout(scanLoopRef.current);
     setStatus('Ready. Please look at the camera.');
-    // Only restart camera if it was stopped. But in error state we didn't stop it.
     if (!cameraActive) startCamera();
   };
+
+  // Ensure loop is cleared on unmount
+  useEffect(() => {
+    return () => {
+      if (scanLoopRef.current) clearTimeout(scanLoopRef.current);
+    };
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center space-y-4 my-2">

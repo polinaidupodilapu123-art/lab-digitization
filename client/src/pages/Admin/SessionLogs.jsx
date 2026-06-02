@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ShieldAlert, Download, Search, LayoutList, Users } from 'lucide-react';
 import { API_BASE_URL } from '../../utils/config';
-import * as XLSX from 'xlsx';
 
 const formatDuration = (seconds) => {
   if (seconds === undefined || seconds === null) return '-';
@@ -43,7 +42,8 @@ const SessionLogs = () => {
     fetchLogs();
   }, []);
 
-  const handleExportDetailed = () => {
+  const handleExportDetailed = async () => {
+    const XLSX = await import('xlsx');
     const exportData = filteredLogs.map(log => {
       const isPrincipal = log.userId?.role === 'PRINCIPAL';
       const colName = isPrincipal ? (log.userId?.collegeId?.collegeName || 'N/A') : '-';
@@ -70,7 +70,8 @@ const SessionLogs = () => {
     XLSX.writeFile(workbook, `Detailed_Session_Logs_${formattedDate}.xlsx`);
   };
 
-  const handleExportSummary = () => {
+  const handleExportSummary = async () => {
+    const XLSX = await import('xlsx');
     const exportData = filteredSummary.map(s => {
       const isPrincipal = s._id?.role === 'PRINCIPAL';
       const colName = isPrincipal ? (s._id?.collegeId?.collegeName || 'N/A') : '-';
