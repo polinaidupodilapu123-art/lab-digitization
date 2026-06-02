@@ -7,6 +7,7 @@ router.post('/login', authController.login);
 router.post('/logout', protect, authController.logout);
 router.post('/send-otp', authController.sendOtp);
 router.post('/setup', authController.setupAccount);
+router.post('/check-duplicate-face', authController.checkDuplicateFace);
 router.get('/fix-admin', authController.fixAdmin);
 router.get('/create-sysadmin', authController.createSysAdmin);
 router.get('/colleges', authController.getCollegesList);

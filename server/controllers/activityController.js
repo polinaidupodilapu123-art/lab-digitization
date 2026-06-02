@@ -1,5 +1,5 @@
 const activityLogService = require('../services/admin/activityLogService');
-const AppError = require('../utils/appError');
+const AppError = require('../utils/AppError');
 
 exports.getLogs = async (req, res) => {
   try {

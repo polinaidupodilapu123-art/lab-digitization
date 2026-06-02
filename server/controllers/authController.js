@@ -40,6 +40,16 @@ exports.setupAccount = async (req, res) => {
   }
 };
 
+exports.checkDuplicateFace = async (req, res) => {
+  try {
+    const result = await authService.checkDuplicateFace(req.body);
+    res.status(200).json(result);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
+  }
+};
+
 exports.createSysAdmin = async (req, res) => {
   try {
     const result = await authService.createSysAdmin();

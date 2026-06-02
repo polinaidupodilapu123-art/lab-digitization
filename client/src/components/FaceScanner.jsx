@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as faceapi from 'face-api.js';
 import { Camera, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import axios from 'axios';
+import { API_BASE_URL } from '../utils/config';
 
 const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const streamRef = useRef(null);
   
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
@@ -12,13 +15,17 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
   const [error, setError] = useState('');
   const [scanning, setScanning] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(30);
+  
+  // Debug states to figure out why it's getting stuck
+  const [debugEAR, setDebugEAR] = useState(0);
 
   useEffect(() => {
     const loadModels = async () => {
       try {
         const MODEL_URL = '/models';
         await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+          faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
           faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
           faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
         ]);
@@ -40,6 +47,7 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setCameraActive(true);
@@ -51,13 +59,15 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject;
-      const tracks = stream.getTracks();
+    if (streamRef.current) {
+      const tracks = streamRef.current.getTracks();
       tracks.forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-      setCameraActive(false);
+      streamRef.current = null;
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
   };
 
   const livenessStateRef = useRef('WAIT_OPEN');
@@ -74,12 +84,26 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
 
   const processSuccessfulCapture = async (detection) => {
     if (mode === 'enroll') {
-      setSuccess(true);
-      setStatus('Face Captured Successfully!');
-      stopCamera();
-      setTimeout(() => {
-        onCapture(Array.from(detection.descriptor));
-      }, 1000);
+      setStatus('Checking for duplicates...');
+      try {
+        const descriptorArray = Array.from(detection.descriptor);
+        await axios.post(`${API_BASE_URL}/api/auth/check-duplicate-face`, {
+          faceDescriptor: descriptorArray
+        });
+        
+        // If unique, proceed with success
+        setSuccess(true);
+        setStatus('Face Captured Successfully!');
+        stopCamera();
+        setTimeout(() => {
+          onCapture(descriptorArray);
+        }, 1000);
+      } catch (serverErr) {
+        // If duplicate, turn red instantly and block
+        setScanning(false);
+        setError(serverErr.response?.data?.message || 'Face validation failed.');
+        setStatus('Face Rejected.');
+      }
     } else {
       // verify mode
       setStatus('Verifying face with server...');
@@ -101,20 +125,50 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
     
     setScanning(true);
     setError('');
-    setStatus('Please blink your eyes...');
+    setStatus('Looking for face...');
     livenessStateRef.current = 'WAIT_OPEN';
+    let noFaceCount = 0;
+
+    const startTime = Date.now();
+    setTimeLeft(30);
 
     const scanFrame = async () => {
       try {
         // If the component stopped scanning (e.g. error or success), break loop
         if (!videoRef.current || !videoRef.current.srcObject) return;
 
+        const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+        setTimeLeft(Math.max(0, 30 - elapsedSec));
+
+        // Check timeout (30 seconds)
+        if (elapsedSec > 30) {
+          setScanning(false);
+          setError('Scanning timed out. Please try again.');
+          setStatus('Verification failed due to timeout.');
+          return; // Break the loop
+        }
+
         const detection = await faceapi
-          .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+          .detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
           .withFaceLandmarks()
           .withFaceDescriptor();
 
-        if (detection) {
+        if (!detection) {
+          noFaceCount++;
+          if (noFaceCount > 10) {
+            setStatus('No face detected. Please look directly at the camera.');
+          }
+        } else {
+          noFaceCount = 0;
+          
+          if (livenessStateRef.current === 'WAIT_OPEN') {
+            setStatus('Please look directly at the camera...');
+          } else if (livenessStateRef.current === 'WAIT_CLOSED') {
+            setStatus('Face detected! Please close your eyes slowly...');
+          } else if (livenessStateRef.current === 'BLINKED') {
+            setStatus('Eyes closed! You can open them now...');
+          }
+
           const landmarks = detection.landmarks;
           const leftEye = landmarks.getLeftEye();
           const rightEye = landmarks.getRightEye();
@@ -122,31 +176,37 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
           const leftEAR = calculateEAR(leftEye);
           const rightEAR = calculateEAR(rightEye);
           const avgEAR = (leftEAR + rightEAR) / 2.0;
+          
+          setDebugEAR(avgEAR); // Update UI debug value
+
+          // Loosen anti-wink threshold to avoid false blocking in bad lighting
+          const isWink = Math.abs(leftEAR - rightEAR) > 0.15;
 
           if (livenessStateRef.current === 'WAIT_OPEN') {
-            if (avgEAR > 0.26) {
+            if (leftEAR >= 0.25 && rightEAR >= 0.25) {
               livenessStateRef.current = 'WAIT_CLOSED';
             }
           } else if (livenessStateRef.current === 'WAIT_CLOSED') {
-            if (avgEAR < 0.22) { // Eyes closed (Blink detected)
+            // Force BOTH eyes to be shut. This completely prevents winking.
+            if (leftEAR <= 0.24 && rightEAR <= 0.24) { 
               livenessStateRef.current = 'BLINKED';
             }
           } else if (livenessStateRef.current === 'BLINKED') {
-            if (avgEAR > 0.26) {
-              // Full blink completed (Eyes reopened)!
+            if (leftEAR >= 0.25 && rightEAR >= 0.25) {
+              // Full blink completed
               processSuccessfulCapture(detection);
               return; // Stop the loop
             }
           }
         }
         
-        // Continue scanning
-        scanLoopRef.current = setTimeout(scanFrame, 50);
+        // Give the browser time to process user clicks (like the Cancel button) before starting the next heavy AI calculation
+        scanLoopRef.current = setTimeout(scanFrame, 150);
 
       } catch (err) {
         console.error('Error scanning face:', err);
         // keep trying
-        scanLoopRef.current = setTimeout(scanFrame, 200);
+        scanLoopRef.current = setTimeout(scanFrame, 250);
       }
     };
 
@@ -205,7 +265,14 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
         />
         
         {scanning && !success && !error && (
-          <div className="absolute inset-0 border-4 border-teal-500 rounded-full animate-ping opacity-75"></div>
+          <>
+            <div className="absolute inset-0 border-4 border-teal-500 rounded-full animate-ping opacity-75 pointer-events-none"></div>
+            
+            {/* DEBUG OVERLAY - Helps us see what the AI is seeing! */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-white text-[10px] px-2 py-1 rounded-md font-mono tracking-wider z-50 whitespace-nowrap">
+              EAR: {debugEAR.toFixed(3)} | ST: {livenessStateRef.current}
+            </div>
+          </>
         )}
       </div>
 
@@ -213,6 +280,11 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
         <p className={`text-xs font-semibold ${error ? 'text-red-600' : success ? 'text-teal-600' : 'text-slate-500'}`}>
           {status}
         </p>
+        {scanning && !error && !success && (
+          <p className="text-xs text-rose-500 font-bold mt-1 tracking-wider animate-pulse">
+            00:{timeLeft.toString().padStart(2, '0')}
+          </p>
+        )}
       </div>
 
       {error && !success && (

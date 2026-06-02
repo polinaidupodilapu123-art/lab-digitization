@@ -187,7 +187,7 @@ const Register = () => {
             <h2 className="text-2xl font-bold text-slate-900 mb-2">Setup Complete!</h2>
             <p className="text-slate-500 mb-6 text-sm">Your password has been successfully created and verified.</p>
             <p className="text-xs font-semibold text-teal-600 animate-pulse bg-teal-50 py-2 rounded-md">
-              Redirecting to your dashboard...
+              Redirecting to login page...
             </p>
           </div>
         ) : (

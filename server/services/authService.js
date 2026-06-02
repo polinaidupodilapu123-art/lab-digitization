@@ -156,6 +156,40 @@ exports.sendOtp = async ({ regdNo, email, role, collegeId }) => {
   };
 };
 
+exports.checkDuplicateFace = async ({ faceDescriptor, regdNo, email, role, collegeId }) => {
+  if (!faceDescriptor || !Array.isArray(faceDescriptor) || faceDescriptor.length !== 128) {
+    throw new AppError('Invalid face descriptor.', 400);
+  }
+
+  // Find the current user to skip them
+  let currentUser = null;
+  if (role === 'PRINCIPAL' && email && collegeId) {
+    currentUser = await User.findOne({ regdNo: email, collegeId, role: 'PRINCIPAL' });
+  } else if (regdNo) {
+    currentUser = await User.findOne({ regdNo, role: 'STUDENT' });
+  }
+
+  const existingUsers = await User.find({ isSetupComplete: true }, 'regdNo faceDescriptor').lean();
+
+  for (const existingUser of existingUsers) {
+    if (!existingUser.faceDescriptor || existingUser.faceDescriptor.length !== 128) continue;
+    
+    if (currentUser && existingUser._id.toString() === currentUser._id.toString()) continue;
+    
+    let distance = 0;
+    for (let i = 0; i < 128; i++) {
+      distance += Math.pow((faceDescriptor[i] || 0) - (existingUser.faceDescriptor[i] || 0), 2);
+    }
+    distance = Math.sqrt(distance);
+    
+    if (distance <= 0.65) {
+      throw new AppError(`Security Alert: This face is already registered to another student (${existingUser.regdNo}). You cannot register the same face for multiple accounts.`, 400);
+    }
+  }
+
+  return { message: 'Face is unique' };
+};
+
 exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, faceDescriptor }) => {
   let user;
   if (role === 'PRINCIPAL') {
@@ -190,6 +224,10 @@ exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, f
     if (!faceDescriptor || !Array.isArray(faceDescriptor) || faceDescriptor.length !== 128) {
       throw new AppError('Face capture is required to set up your account.', 400);
     }
+
+    // Delegate duplicate checking to the reusable method
+    await exports.checkDuplicateFace({ faceDescriptor, regdNo, email, role, collegeId });
+
     user.faceDescriptor = faceDescriptor;
   }
 
