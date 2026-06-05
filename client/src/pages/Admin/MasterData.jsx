@@ -20,6 +20,9 @@ const TAB_CONFIG = {
       { key: 'collegeName', header: 'College Name' },
       { key: 'location',    header: 'Location', optional: true },
       { key: 'district',    header: 'District', optional: true },
+      { key: 'latitude',    header: 'Latitude', optional: true },
+      { key: 'longitude',   header: 'Longitude', optional: true },
+      { key: 'radiusMeter', header: 'Geofence Radius (m)', optional: true },
     ],
   },
   courses: {

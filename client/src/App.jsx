@@ -24,6 +24,7 @@ axios.interceptors.response.use(
       // If we get a 401, clear tokens and kick them out (unless already on login page)
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('loginTime');
       if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
         window.location.href = '/login';
       }

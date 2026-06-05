@@ -136,7 +136,7 @@ const Register = () => {
       return setError('Please enter the OTP sent to your email.');
     }
 
-    if (role === 'STUDENT' && !faceDescriptor) {
+    if ((role === 'STUDENT' || role === 'PRINCIPAL') && !faceDescriptor) {
       setLoading(false);
       return setError('Face capture is required.');
     }
@@ -460,7 +460,7 @@ const Register = () => {
                   </div>
                 </div>
 
-                {role === 'STUDENT' && (
+                {(role === 'STUDENT' || role === 'PRINCIPAL') && (
                   <div className="border-t border-slate-100 pt-4 mt-2">
                     <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wider text-center">Face Enrollment</label>
                     <p className="text-[11px] text-slate-500 text-center mb-3">Please capture your face to secure your account. You will need this to log in.</p>
@@ -483,7 +483,7 @@ const Register = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={loading || isOtpExpired || (role === 'STUDENT' && !faceDescriptor)}
+                    disabled={loading || isOtpExpired || ((role === 'STUDENT' || role === 'PRINCIPAL') && !faceDescriptor)}
                     className="flex-[2] flex items-center justify-center space-x-1.5 bg-teal-700 hover:bg-teal-800 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-medium py-2.5 rounded-md transition-colors cursor-pointer text-sm shadow-sm"
                   >
                     {loading ? (

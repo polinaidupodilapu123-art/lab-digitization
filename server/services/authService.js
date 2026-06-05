@@ -6,13 +6,30 @@ const AppError = require('../utils/AppError');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371e3; // Earth's radius in meters
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+    Math.cos(phi1) *
+      Math.cos(phi2) *
+      Math.sin(deltaLambda / 2) *
+      Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in meters
+};
+
 const generateToken = (id, role, sessionId) => {
   return jwt.sign({ id, role, sessionId }, process.env.JWT_SECRET || 'secret123', {
     expiresIn: '2h'
   });
 };
 
-exports.login = async ({ regdNo, password, email, faceDescriptor }, ipAddress = 'Unknown') => {
+exports.login = async ({ regdNo, password, email, faceDescriptor, latitude, longitude }, ipAddress = 'Unknown') => {
   let user;
   if (regdNo) {
     user = await User.findOne({ regdNo: new RegExp(`^${regdNo.trim()}$`, 'i') });
@@ -24,7 +41,7 @@ exports.login = async ({ regdNo, password, email, faceDescriptor }, ipAddress = 
     throw new AppError('Invalid credentials', 401);
   }
 
-  if (user.role === 'STUDENT' && !user.isSetupComplete) {
+  if ((user.role === 'STUDENT' || user.role === 'PRINCIPAL') && !user.isSetupComplete) {
     throw new AppError('Please create your account before login', 403);
   }
 
@@ -33,8 +50,8 @@ exports.login = async ({ regdNo, password, email, faceDescriptor }, ipAddress = 
     throw new AppError('Invalid credentials', 401);
   }
 
-  // Face Authentication logic for students
-  if (user.role === 'STUDENT') {
+  // Face Authentication logic for students and principals
+  if (user.role === 'STUDENT' || user.role === 'PRINCIPAL') {
     if (!faceDescriptor) {
       // Frontend needs to capture face
       return { status: 'FACE_REQUIRED', message: 'Face authentication required.' };
@@ -58,6 +75,23 @@ exports.login = async ({ regdNo, password, email, faceDescriptor }, ipAddress = 
     // Threshold: 0.55 is a good balance for face-api.js
     if (distance > 0.55) {
       throw new AppError(`Face authentication failed. (Distance: ${distance.toFixed(2)})`, 401);
+    }
+  }
+
+  // GPS Geofencing logic for Principals
+  if (user.role === 'PRINCIPAL') {
+    const college = await College.findById(user.collegeId);
+    if (college && typeof college.latitude === 'number' && typeof college.longitude === 'number') {
+      if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+        throw new AppError('GPS Location access is required to log in.', 400);
+      }
+
+      const distance = calculateDistance(latitude, longitude, college.latitude, college.longitude);
+      const limit = college.radiusMeter || 200;
+
+      if (distance > limit) {
+        throw new AppError(`Access Denied: You must log in from within the college campus surroundings. (Distance: ${distance.toFixed(0)}m, Limit: ${limit}m)`, 403);
+      }
     }
   }
 
@@ -183,7 +217,7 @@ exports.checkDuplicateFace = async ({ faceDescriptor, regdNo, email, role, colle
     distance = Math.sqrt(distance);
     
     if (distance <= 0.65) {
-      throw new AppError(`Security Alert: This face is already registered to another student (${existingUser.regdNo}). You cannot register the same face for multiple accounts.`, 400);
+      throw new AppError(`Security Alert: This face is already registered to another user (${existingUser.regdNo}). You cannot register the same face for multiple accounts.`, 400);
     }
   }
 
@@ -220,7 +254,7 @@ exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, f
     throw new AppError('OTP has expired. Please request a new one.', 400);
   }
 
-  if (role !== 'PRINCIPAL') {
+  if (role === 'STUDENT' || role === 'PRINCIPAL') {
     if (!faceDescriptor || !Array.isArray(faceDescriptor) || faceDescriptor.length !== 128) {
       throw new AppError('Face capture is required to set up your account.', 400);
     }

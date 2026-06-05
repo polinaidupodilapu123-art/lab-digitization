@@ -156,16 +156,31 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
         const collegeCode = row['college code']?.toString()?.trim();
         if (!collegeCode) { rowErrors.push({ row: rowNum, message: 'College Code is empty.' }); continue; }
         
+        const updateData = {
+          collegeName: row['college name']?.trim(), 
+          location: row['location']?.trim(), 
+          district: row['district']?.trim()
+        };
+
+        if (row['latitude'] !== undefined) {
+          const latVal = Number(row['latitude']);
+          if (!isNaN(latVal)) updateData.latitude = latVal;
+        }
+        if (row['longitude'] !== undefined) {
+          const lonVal = Number(row['longitude']);
+          if (!isNaN(lonVal)) updateData.longitude = lonVal;
+        }
+
+        const radiusKey = Object.keys(row).find(k => k === 'radius meter' || k === 'radiusmeter' || k === 'radius' || k === 'radius_meter');
+        if (radiusKey && row[radiusKey] !== undefined) {
+          const radVal = Number(row[radiusKey]);
+          if (!isNaN(radVal)) updateData.radiusMeter = radVal;
+        }
+
         operations.push({
           updateOne: {
             filter: { collegeCode },
-            update: { 
-              $set: {
-                collegeName: row['college name']?.trim(), 
-                location: row['location']?.trim(), 
-                district: row['district']?.trim() 
-              }
-            },
+            update: { $set: updateData },
             upsert: true
           }
         });

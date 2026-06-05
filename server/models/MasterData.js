@@ -5,7 +5,10 @@ const collegeSchema = new mongoose.Schema({
   collegeName: { type: String, required: true },
   location:    { type: String },
   district:    { type: String },
-  courses:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }]
+  courses:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
+  latitude:    { type: Number },
+  longitude:   { type: Number },
+  radiusMeter: { type: Number, default: 200 } // Geofence radius limit in meters
 }, { timestamps: true });
 
 const subjectSchema = new mongoose.Schema({

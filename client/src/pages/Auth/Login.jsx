@@ -6,6 +6,36 @@ import { API_BASE_URL } from '../../utils/config';
 import Header from '../../components/Header';
 import FaceScanner from '../../components/FaceScanner';
 
+const getCoordinates = () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported by your browser.'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        let msg = 'Failed to retrieve location.';
+        if (error.code === 1) {
+          msg = 'Location permission was denied. Please allow location access in your browser settings.';
+        } else if (error.code === 2) {
+          msg = 'Location position is unavailable. Please check your system/OS location settings.';
+        } else if (error.code === 3) {
+          msg = 'Location request timed out. Please try again.';
+        }
+        reject(new Error(msg));
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 10000 }
+    );
+  });
+};
+
 const Login = () => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -47,6 +77,17 @@ const Login = () => {
       const payload = { regdNo: identifier, password };
       if (faceDescriptor) {
         payload.faceDescriptor = faceDescriptor;
+        
+        // Fetch GPS coordinates for geofence check (primarily for Principals)
+        try {
+          const coords = await getCoordinates();
+          payload.latitude = coords.latitude;
+          payload.longitude = coords.longitude;
+        } catch (locErr) {
+          setError(locErr.message || 'GPS Location access is required to log in.');
+          setLoading(false);
+          return;
+        }
       }
       
       const res = await axios.post(`${API_BASE_URL}/api/auth/login`, payload);
@@ -62,6 +103,7 @@ const Login = () => {
       setShowFaceAuth(false);
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data));
+      localStorage.setItem('loginTime', new Date().toISOString());
 
       if (res.data.role === 'ADMIN' || res.data.role === 'SYSTEM_ADMIN') navigate('/admin');
       else if (res.data.role === 'EVALUATOR') navigate('/evaluator');
