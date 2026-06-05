@@ -16,16 +16,13 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
   const [scanning, setScanning] = useState(false);
   const [success, setSuccess] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
-  
-  // Debug states to figure out why it's getting stuck
-  const [debugEAR, setDebugEAR] = useState(0);
 
   useEffect(() => {
     const loadModels = async () => {
       try {
         const MODEL_URL = '/models';
         await Promise.all([
-          faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
           faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
           faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
         ]);
@@ -70,7 +67,6 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
     setCameraActive(false);
   };
 
-  const livenessStateRef = useRef('WAIT_OPEN');
   const scanLoopRef = useRef(null);
 
   const getDistance = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
@@ -126,7 +122,11 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
     setScanning(true);
     setError('');
     setStatus('Looking for face...');
-    livenessStateRef.current = 'WAIT_OPEN';
+    
+    let livenessState = 'CALIBRATING'; // CALIBRATING -> WAIT_BLINK -> EYES_CLOSED -> SUCCESS
+    let baselineEAR = null;
+    let baselineSum = 0;
+    let baselineFrames = 0;
     let noFaceCount = 0;
 
     const startTime = Date.now();
@@ -134,22 +134,22 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
 
     const scanFrame = async () => {
       try {
-        // If the component stopped scanning (e.g. error or success), break loop
         if (!videoRef.current || !videoRef.current.srcObject) return;
 
-        const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+        const elapsedMs = Date.now() - startTime;
+        const elapsedSec = Math.floor(elapsedMs / 1000);
         setTimeLeft(Math.max(0, 30 - elapsedSec));
 
-        // Check timeout (30 seconds)
         if (elapsedSec > 30) {
           setScanning(false);
           setError('Scanning timed out. Please try again.');
           setStatus('Verification failed due to timeout.');
-          return; // Break the loop
+          return;
         }
 
+        // Use TinyFaceDetector for 5x faster processing speed
         const detection = await faceapi
-          .detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+          .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
           .withFaceLandmarks()
           .withFaceDescriptor();
 
@@ -160,15 +160,8 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
           }
         } else {
           noFaceCount = 0;
-          
-          if (livenessStateRef.current === 'WAIT_OPEN') {
-            setStatus('Please look directly at the camera...');
-          } else if (livenessStateRef.current === 'WAIT_CLOSED') {
-            setStatus('Face detected! Please close your eyes slowly...');
-          } else if (livenessStateRef.current === 'BLINKED') {
-            setStatus('Eyes closed! You can open them now...');
-          }
 
+          // Perform natural blink liveness check
           const landmarks = detection.landmarks;
           const leftEye = landmarks.getLeftEye();
           const rightEye = landmarks.getRightEye();
@@ -176,37 +169,41 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
           const leftEAR = calculateEAR(leftEye);
           const rightEAR = calculateEAR(rightEye);
           const avgEAR = (leftEAR + rightEAR) / 2.0;
-          
-          setDebugEAR(avgEAR); // Update UI debug value
 
-          // Loosen anti-wink threshold to avoid false blocking in bad lighting
-          const isWink = Math.abs(leftEAR - rightEAR) > 0.15;
-
-          if (livenessStateRef.current === 'WAIT_OPEN') {
-            if (leftEAR >= 0.25 && rightEAR >= 0.25) {
-              livenessStateRef.current = 'WAIT_CLOSED';
+          if (livenessState === 'CALIBRATING') {
+            setStatus('Hold still. Calibrating camera...');
+            if (avgEAR > 0.18) {
+              baselineSum += avgEAR;
+              baselineFrames++;
+              if (baselineFrames >= 3) {
+                baselineEAR = baselineSum / 3;
+                livenessState = 'WAIT_BLINK';
+              }
             }
-          } else if (livenessStateRef.current === 'WAIT_CLOSED') {
-            // Force BOTH eyes to be shut. This completely prevents winking.
-            if (leftEAR <= 0.24 && rightEAR <= 0.24) { 
-              livenessStateRef.current = 'BLINKED';
+          } else if (livenessState === 'WAIT_BLINK') {
+            setStatus('Blink naturally to verify.');
+            
+            // Check for closed eyes: 25% reduction from open eye baseline (highly sensitive for fast natural blinks)
+            if (avgEAR < baselineEAR * 0.75) {
+              livenessState = 'EYES_CLOSED';
             }
-          } else if (livenessStateRef.current === 'BLINKED') {
-            if (leftEAR >= 0.25 && rightEAR >= 0.25) {
-              // Full blink completed
+          } else if (livenessState === 'EYES_CLOSED') {
+            setStatus('Blink detected. Processing...');
+            
+            // Check for reopened eyes: recovered to at least 85% of baseline
+            if (avgEAR >= baselineEAR * 0.85) {
               processSuccessfulCapture(detection);
-              return; // Stop the loop
+              return;
             }
           }
         }
         
-        // Give the browser time to process user clicks (like the Cancel button) before starting the next heavy AI calculation
-        scanLoopRef.current = setTimeout(scanFrame, 150);
+        // Fast frame polling interval
+        scanLoopRef.current = setTimeout(scanFrame, 80);
 
       } catch (err) {
         console.error('Error scanning face:', err);
-        // keep trying
-        scanLoopRef.current = setTimeout(scanFrame, 250);
+        scanLoopRef.current = setTimeout(scanFrame, 150);
       }
     };
 
@@ -222,7 +219,6 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
     if (!cameraActive) startCamera();
   };
 
-  // Ensure loop is cleared on unmount
   useEffect(() => {
     return () => {
       if (scanLoopRef.current) clearTimeout(scanLoopRef.current);
@@ -266,12 +262,10 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
         
         {scanning && !success && !error && (
           <>
-            <div className="absolute inset-0 border-4 border-teal-500 rounded-full animate-ping opacity-75 pointer-events-none"></div>
-            
-            {/* DEBUG OVERLAY - Helps us see what the AI is seeing! */}
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-white text-[10px] px-2 py-1 rounded-md font-mono tracking-wider z-50 whitespace-nowrap">
-              EAR: {debugEAR.toFixed(3)} | ST: {livenessStateRef.current}
-            </div>
+            {/* Premium visual camera guides */}
+            <div className="absolute inset-2 border-2 border-dashed border-teal-400/60 rounded-full animate-[spin_20s_linear_infinite] pointer-events-none"></div>
+            <div className="absolute inset-4 border border-teal-500/20 rounded-full pointer-events-none"></div>
+            <div className="absolute inset-0 border-4 border-teal-500 rounded-full animate-pulse opacity-50 pointer-events-none"></div>
           </>
         )}
       </div>
