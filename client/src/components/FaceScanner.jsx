@@ -128,6 +128,7 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
     let baselineSum = 0;
     let baselineFrames = 0;
     let noFaceCount = 0;
+    let continuousFaceDetectedFrames = 0;
 
     const startTime = Date.now();
     setTimeLeft(30);
@@ -155,11 +156,13 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
 
         if (!detection) {
           noFaceCount++;
+          continuousFaceDetectedFrames = 0;
           if (noFaceCount > 10) {
             setStatus('No face detected. Please look directly at the camera.');
           }
         } else {
           noFaceCount = 0;
+          continuousFaceDetectedFrames++;
 
           // Perform natural blink liveness check
           const landmarks = detection.landmarks;
@@ -181,7 +184,11 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
               }
             }
           } else if (livenessState === 'WAIT_BLINK') {
-            setStatus('Blink naturally to verify.');
+            if (continuousFaceDetectedFrames >= 40) {
+              setStatus('Blink naturally, or hold still to capture...');
+            } else {
+              setStatus('Blink naturally to verify.');
+            }
             
             // Check for closed eyes: 25% reduction from open eye baseline (highly sensitive for fast natural blinks)
             if (avgEAR < baselineEAR * 0.75) {
@@ -195,6 +202,13 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
               processSuccessfulCapture(detection);
               return;
             }
+          }
+
+          // Fallback capture: if face is continuously detected for ~6 seconds
+          if (continuousFaceDetectedFrames >= 75) {
+            setStatus('Analyzing face...');
+            processSuccessfulCapture(detection);
+            return;
           }
         }
         

@@ -12,7 +12,7 @@ const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
   if (totalPages <= 1) return null;
 
   const start = (page - 1) * pageSize + 1;
-  const end   = Math.min(page * pageSize, total);
+  const end = Math.min(page * pageSize, total);
 
   return (
     <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50 flex-wrap gap-3">
@@ -49,11 +49,10 @@ const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
               <button
                 key={p}
                 onClick={() => onPage(p)}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
-                  p === page
-                    ? 'bg-teal-700 text-white border border-teal-700'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                }`}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${p === page
+                  ? 'bg-teal-700 text-white border border-teal-700'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                  }`}
               >
                 {p}
               </button>
@@ -109,11 +108,11 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, pageSize = 
               <th className="px-4 py-3 text-left whitespace-nowrap">Student</th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Roll No.</th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Pages</th>
-              <th className="px-4 py-3 text-left whitespace-nowrap">Deadline</th>
+              <th className="px-4 py-3 text-left whitespace-nowrap">Record Submission Deadline</th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Assigned Evaluator</th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Evaluated by</th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
-              <th className="px-4 py-3 text-right whitespace-nowrap">Score</th>
+              <th className="px-4 py-3 text-right whitespace-nowrap">Final Marks</th>
             </tr>
           </thead>
           <tbody>
@@ -125,8 +124,8 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, pageSize = 
                 </td>
                 <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold
-                    ${assignment.mode === 'Supply' 
-                      ? 'bg-purple-100 text-purple-800 border border-purple-200' 
+                    ${assignment.mode === 'Supply'
+                      ? 'bg-purple-100 text-purple-800 border border-purple-200'
                       : 'bg-blue-100 text-blue-800 border border-blue-200'}
                   `}>
                     {assignment.mode || 'Regular'}
@@ -139,7 +138,7 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, pageSize = 
                   <div className="flex items-center gap-2">
                     {new Date(assignment.deadline).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     {onEditDeadline && assignment.status === 'Pending' && (
-                      <button 
+                      <button
                         onClick={() => onEditDeadline(assignment)}
                         className="text-slate-400 hover:text-teal-600 transition-colors cursor-pointer p-1"
                         title="Edit Deadline"
@@ -154,7 +153,7 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, pageSize = 
                 <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
                   <div className="flex flex-col gap-1 items-start">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
-                      ${assignment.status === 'Evaluated' ? 'bg-green-100 text-green-800' : 
+                      ${assignment.status === 'Evaluated' ? 'bg-green-100 text-green-800' :
                         assignment.status === 'Submitted' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}
                     `}>
                       {assignment.status}
@@ -200,9 +199,24 @@ const Assignments = () => {
   const [activeTab, setActiveTab] = useState('generate');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(''), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(''), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
   const [pagesRequired, setPagesRequired] = useState(10);
   const [deadline, setDeadline] = useState('');
+  const [suggestedMarksDeadline, setSuggestedMarksDeadline] = useState('');
 
   const [mode, setMode] = useState('Regular');
   const [showActivity, setShowActivity] = useState(false);
@@ -311,12 +325,12 @@ const Assignments = () => {
         const res = await axios.get(`${API_BASE_URL}/api/admin/assignment-data?${params.toString()}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
-        
+
         const rawSubs = res.data.subjects || [];
         const sortedSubs = [...rawSubs].sort((a, b) => {
           const aIsGroup = !!a.isGroupSubject;
           const bIsGroup = !!b.isGroupSubject;
-          
+
           if (aIsGroup && !bIsGroup) return 1;
           if (!aIsGroup && bIsGroup) return -1;
           if (!aIsGroup && !bIsGroup) {
@@ -327,7 +341,7 @@ const Assignments = () => {
 
         setStudents(res.data.students || []);
         setSubjects(sortedSubs);
-        
+
         // Reset selections when filters change
         setSelectedStudents([]);
         setSelectedSubjects([]);
@@ -339,7 +353,7 @@ const Assignments = () => {
   }, [selectedCollege, selectedCourse, selectedSemester, selectedGroup, mode]);
 
   const toggleStudent = (id) => {
-    setSelectedStudents(prev => 
+    setSelectedStudents(prev =>
       prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
     );
   };
@@ -359,10 +373,10 @@ const Assignments = () => {
         const aStudentId = a.studentId?._id || a.studentId;
         const aSubjectId = a.subjectId?._id || a.subjectId;
         const aMode = a.mode || 'Regular';
-        return aStudentId && aSubjectId && 
-               selectedStudents.includes(aStudentId.toString()) && 
-               aSubjectId.toString() === subject._id.toString() &&
-               aMode === targetMode;
+        return aStudentId && aSubjectId &&
+          selectedStudents.includes(aStudentId.toString()) &&
+          aSubjectId.toString() === subject._id.toString() &&
+          aMode === targetMode;
       });
       return !isAssigned;
     });
@@ -386,10 +400,10 @@ const Assignments = () => {
     if (selectedStudents.length === 0 || selectedSubjects.length === 0) {
       return setError('Please select at least one student and one subject.');
     }
-    if (!deadline || !pagesRequired) {
-      return setError('Please fill in Deadline and Required Pages.');
+    if (!deadline || !suggestedMarksDeadline || !pagesRequired) {
+      return setError('Please fill in Submission Deadline, Suggested Marks Deadline and Required Pages.');
     }
-    
+
     setMessage('');
     setError('');
 
@@ -399,15 +413,17 @@ const Assignments = () => {
         subjectIds: selectedSubjects,
         pagesRequired,
         deadline,
+        suggestedMarksDeadline: suggestedMarksDeadline || undefined,
         mode: mode === 'Backlog' ? 'Supply' : 'Regular'
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      
+
       setMessage(`Successfully assigned ${selectedSubjects.length} subject(s) to ${selectedStudents.length} student(s).`);
       setTimeout(() => setMessage(''), 4000);
       setSelectedStudents([]);
       setSelectedSubjects([]);
+      setSuggestedMarksDeadline('');
       setRefreshTrigger(prev => prev + 1);
       setSelectedCollege('');
       setSelectedCourse('');
@@ -454,7 +470,7 @@ const Assignments = () => {
       if (listCourse && a.studentId?.courseId?._id !== listCourse) return;
       if (a.subjectId?.semester) sems.add(a.subjectId.semester);
     });
-    return Array.from(sems).sort((a,b)=>a-b);
+    return Array.from(sems).sort((a, b) => a - b);
   }, [assignments, listCollege, listCourse]);
 
   // Reset dependent filters
@@ -492,7 +508,7 @@ const Assignments = () => {
     const currentDeadline = new Date(assignment.deadline).toISOString().split('T')[0];
     const newDeadline = window.prompt("Enter new deadline (YYYY-MM-DD):", currentDeadline);
     if (!newDeadline || newDeadline === currentDeadline) return;
-    
+
     // Simple validation for YYYY-MM-DD
     if (!/^\d{4}-\d{2}-\d{2}$/.test(newDeadline)) {
       alert("Invalid date format. Please use YYYY-MM-DD.");
@@ -501,7 +517,7 @@ const Assignments = () => {
 
     try {
       setMessage('Updating deadline...');
-      const res = await axios.put(`${API_BASE_URL}/api/admin/record/assignments/${assignment._id}`, 
+      const res = await axios.put(`${API_BASE_URL}/api/admin/record/assignments/${assignment._id}`,
         { deadline: newDeadline },
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
@@ -517,7 +533,7 @@ const Assignments = () => {
   return (
     <div className="px-4 py-6 w-full">
       {showActivity && (
-        <ActivityFeed 
+        <ActivityFeed
           actionTypes={['EXTEND_DEADLINE', 'CREATE_ASSIGNMENT', 'UPDATE_ASSIGNMENT', 'REALLOCATE_EVALUATOR', 'ALLOCATE_EVALUATOR']}
           onClose={() => setShowActivity(false)}
           refreshTrigger={refreshTrigger}
@@ -540,22 +556,20 @@ const Assignments = () => {
       <div className="flex overflow-x-auto elegant-scrollbar border-b border-slate-200 mb-6 whitespace-nowrap">
         <button
           onClick={() => { setActiveTab('generate'); setCurrentPage(1); setError(''); setMessage(''); }}
-          className={`px-5 py-2.5 font-medium text-sm transition-all border-b-2 cursor-pointer rounded-t-md ${
-            activeTab === 'generate'
-              ? 'border-teal-600 text-teal-700 font-semibold bg-teal-50/30'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-          }`}
+          className={`px-5 py-2.5 font-medium text-sm transition-all border-b-2 cursor-pointer rounded-t-md ${activeTab === 'generate'
+            ? 'border-teal-600 text-teal-700 font-semibold bg-teal-50/30'
+            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
         >
           Generate Assignments
         </button>
 
         <button
           onClick={() => { setActiveTab('list'); setCurrentPage(1); setError(''); setMessage(''); }}
-          className={`px-5 py-2.5 font-medium text-sm transition-all border-b-2 cursor-pointer rounded-t-md ${
-            activeTab === 'list'
-              ? 'border-teal-600 text-teal-700 font-semibold bg-teal-50/30'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-          }`}
+          className={`px-5 py-2.5 font-medium text-sm transition-all border-b-2 cursor-pointer rounded-t-md ${activeTab === 'list'
+            ? 'border-teal-600 text-teal-700 font-semibold bg-teal-50/30'
+            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
         >
           Generated Assignments ({assignments.length})
         </button>
@@ -592,7 +606,7 @@ const Assignments = () => {
                 <option value="Backlog">Backlog / Supply</option>
               </select>
             </div>
-            
+
             {mode === 'Backlog' && (
               <button
                 onClick={() => setShowUploadModal(true)}
@@ -603,7 +617,7 @@ const Assignments = () => {
               </button>
             )}
           </div>
-              {/* Filters Card */}
+          {/* Filters Card */}
           <div className="bg-white p-5 rounded-md shadow-sm border border-slate-200 mb-8 flex flex-wrap gap-4 items-end animate-fadeIn">
             <div className="flex-1 min-w-[200px]">
               <SearchableDropdown
@@ -665,7 +679,7 @@ const Assignments = () => {
                   Select Students
                 </h2>
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     onClick={handleSelectAllStudents}
                     className="text-xs font-semibold text-teal-600 hover:text-teal-800 hover:underline cursor-pointer"
                   >
@@ -682,8 +696,8 @@ const Assignments = () => {
                 ) : (
                   students.map(student => (
                     <label key={student._id} className={`flex items-center p-3 border rounded-md cursor-pointer transition-colors ${selectedStudents.includes(student._id) ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:bg-slate-50'}`}>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500"
                         checked={selectedStudents.includes(student._id)}
                         onChange={() => toggleStudent(student._id)}
@@ -691,7 +705,7 @@ const Assignments = () => {
                       <div className="ml-3">
                         <p className="text-sm font-medium text-slate-900">{student.fullName}</p>
                         <p className="text-xs text-slate-500">
-                          {student.regdNo} • Grp: {student.groupId?.groupCode || 'N/A'} 
+                          {student.regdNo} • Grp: {student.groupId?.groupCode || 'N/A'}
                         </p>
                       </div>
                     </label>
@@ -724,24 +738,33 @@ const Assignments = () => {
                   </span>
                 </div>
               </div>
-              
-              <div className="p-4 border-b border-slate-200 bg-slate-50 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fadeIn">
+
+              <div className="p-4 border-b border-slate-200 bg-slate-50 grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fadeIn">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Deadline <span className="text-red-500">*</span></label>
-                  <input 
-                    type="date" 
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Submission Deadline <span className="text-red-500">*</span></label>
+                  <input
+                    type="date"
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
-                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white" 
+                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5 whitespace-nowrap">Suggested Marks Deadline <span className="text-red-500">*</span></label>
+                  <input
+                    type="date"
+                    value={suggestedMarksDeadline}
+                    onChange={(e) => setSuggestedMarksDeadline(e.target.value)}
+                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
+                  />
+                </div>
+                <div className=''>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Req. Pages <span className="text-red-500">*</span></label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     value={pagesRequired}
                     onChange={(e) => setPagesRequired(Number(e.target.value))}
-                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white" 
+                    className="sm:w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
                     min="1"
                   />
                 </div>
@@ -757,10 +780,10 @@ const Assignments = () => {
                       const aStudentId = a.studentId?._id || a.studentId;
                       const aSubjectId = a.subjectId?._id || a.subjectId;
                       const aMode = a.mode || 'Regular';
-                      return aStudentId && aSubjectId && 
-                             selectedStudents.includes(aStudentId.toString()) && 
-                             aSubjectId.toString() === subject._id.toString() &&
-                             aMode === targetMode;
+                      return aStudentId && aSubjectId &&
+                        selectedStudents.includes(aStudentId.toString()) &&
+                        aSubjectId.toString() === subject._id.toString() &&
+                        aMode === targetMode;
                     });
 
                     return (
@@ -802,12 +825,12 @@ const Assignments = () => {
                   Generate Assignments
                 </button>
               </div>
-              </div>
             </div>
+          </div>
         </>
-    )}
+      )}
 
-    {/* --- LIST TAB --- */}
+      {/* --- LIST TAB --- */}
       {activeTab === 'list' && (
         <div>
           {/* Filters Panel */}
@@ -817,7 +840,7 @@ const Assignments = () => {
                 <Filter className="h-5 w-5 text-teal-600" />
                 Filter Generated Assignments
               </div>
-              
+
               <button
                 onClick={() => {
                   setListCollege(''); setListCourse(''); setListSemester(''); setListStatus(''); setListSearch(''); setShowSearch(false);
@@ -831,9 +854,9 @@ const Assignments = () => {
 
             <div className="p-5">
               <div className="flex flex-col md:flex-row items-end gap-3">
-                
+
                 {/* Search Toggle Button */}
-                <button 
+                <button
                   onClick={() => setShowSearch(!showSearch)}
                   className={`cursor-pointer text-white w-[38px] h-[38px] rounded-md transition-colors shadow-sm focus:outline-none flex items-center justify-center flex-shrink-0 ${showSearch ? 'bg-slate-700 hover:bg-slate-800' : 'bg-teal-600 hover:bg-teal-700'}`}
                   title="Toggle Search"
@@ -936,20 +959,20 @@ const Assignments = () => {
             </div>
           </div>
 
-          <AssignmentTable 
-            title="Regular Assignments" 
-            data={regularAssignments} 
-            currentPage={regularPage} 
-            setCurrentPage={setRegularPage} 
+          <AssignmentTable
+            title="Regular Assignments"
+            data={regularAssignments}
+            currentPage={regularPage}
+            setCurrentPage={setRegularPage}
             handleExportAssignments={handleExportAssignments}
             onEditDeadline={handleEditDeadline}
           />
-          
-          <AssignmentTable 
-            title="Supply (Backlog) Assignments" 
-            data={supplyAssignments} 
-            currentPage={supplyPage} 
-            setCurrentPage={setSupplyPage} 
+
+          <AssignmentTable
+            title="Supply (Backlog) Assignments"
+            data={supplyAssignments}
+            currentPage={supplyPage}
+            setCurrentPage={setSupplyPage}
             handleExportAssignments={handleExportAssignments}
             onEditDeadline={handleEditDeadline}
           />
@@ -967,7 +990,7 @@ const Assignments = () => {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleFeeUpload} className="p-6">
               <div className="mb-5">
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Semester</label>
@@ -986,15 +1009,15 @@ const Assignments = () => {
 
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Excel File</label>
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   id="backlogFile"
-                  accept=".xlsx,.xls" 
+                  accept=".xlsx,.xls"
                   required
                   className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 transition-colors"
                 />
               </div>
-              
+
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"

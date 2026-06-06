@@ -171,7 +171,15 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
           if (!isNaN(lonVal)) updateData.longitude = lonVal;
         }
 
-        const radiusKey = Object.keys(row).find(k => k === 'radius meter' || k === 'radiusmeter' || k === 'radius' || k === 'radius_meter');
+        const radiusKey = Object.keys(row).find(k => 
+          k === 'radius meter' || 
+          k === 'radiusmeter' || 
+          k === 'radius' || 
+          k === 'radius_meter' ||
+          k === 'geofence radius (m)' ||
+          k === 'geofence radius' ||
+          k.includes('radius')
+        );
         if (radiusKey && row[radiusKey] !== undefined) {
           const radVal = Number(row[radiusKey]);
           if (!isNaN(radVal)) updateData.radiusMeter = radVal;
@@ -564,6 +572,24 @@ exports.createRecord = async (type, body) => {
     }
   }
 
+  if (type === 'colleges') {
+    if (body.latitude !== undefined && body.latitude !== null && body.latitude !== '') {
+      body.latitude = Number(body.latitude);
+    } else {
+      body.latitude = null;
+    }
+    if (body.longitude !== undefined && body.longitude !== null && body.longitude !== '') {
+      body.longitude = Number(body.longitude);
+    } else {
+      body.longitude = null;
+    }
+    if (body.radiusMeter !== undefined && body.radiusMeter !== null && body.radiusMeter !== '') {
+      body.radiusMeter = Number(body.radiusMeter);
+    } else {
+      body.radiusMeter = 200;
+    }
+  }
+
   try {
     const newRecord = new Model(body);
     await newRecord.save();
@@ -675,6 +701,24 @@ exports.updateRecord = async (type, id, body) => {
     if (body.courseCode) {
       const course = await Course.findOne({ courseCode: body.courseCode });
       if (course) body.courseId = course._id;
+    }
+  }
+
+  if (type === 'colleges') {
+    if (body.latitude !== undefined) {
+      body.latitude = (body.latitude === null || body.latitude === '') ? null : Number(body.latitude);
+    }
+    if (body.longitude !== undefined) {
+      body.longitude = (body.longitude === null || body.longitude === '') ? null : Number(body.longitude);
+    }
+    if (body.radiusMeter !== undefined) {
+      body.radiusMeter = (body.radiusMeter === null || body.radiusMeter === '') ? 200 : Number(body.radiusMeter);
+    }
+  }
+
+  if (type === 'assignments') {
+    if (body.suggestedMarksDeadline !== undefined && (body.suggestedMarksDeadline === null || body.suggestedMarksDeadline === '')) {
+      throw new AppError('Suggested Marks Deadline is required.', 400);
     }
   }
 

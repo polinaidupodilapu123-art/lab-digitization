@@ -31,7 +31,7 @@ const getCoordinates = () => {
         }
         reject(new Error(msg));
       },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 10000 }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 10000 }
     );
   });
 };
@@ -47,6 +47,7 @@ const Login = () => {
   // Face Auth States
   const [showFaceAuth, setShowFaceAuth] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [userRole, setUserRole] = useState(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -72,6 +73,9 @@ const Login = () => {
     if (e) e.preventDefault();
     setError('');
     setLoading(true);
+    if (!faceDescriptor) {
+      setUserRole(null);
+    }
     
     try {
       const payload = { regdNo: identifier, password };
@@ -79,14 +83,16 @@ const Login = () => {
         payload.faceDescriptor = faceDescriptor;
         
         // Fetch GPS coordinates for geofence check (primarily for Principals)
-        try {
-          const coords = await getCoordinates();
-          payload.latitude = coords.latitude;
-          payload.longitude = coords.longitude;
-        } catch (locErr) {
-          setError(locErr.message || 'GPS Location access is required to log in.');
-          setLoading(false);
-          return;
+        if (userRole === 'PRINCIPAL') {
+          try {
+            const coords = await getCoordinates();
+            payload.latitude = coords.latitude;
+            payload.longitude = coords.longitude;
+          } catch (locErr) {
+            setError(locErr.message || 'GPS Location access is required to log in.');
+            setLoading(false);
+            return;
+          }
         }
       }
       
@@ -96,6 +102,7 @@ const Login = () => {
         // Stop loading and show face scanner modal
         setLoading(false);
         setShowFaceAuth(true);
+        setUserRole(res.data.role);
         return;
       }
       
@@ -299,6 +306,7 @@ const Login = () => {
               <button
                 onClick={() => {
                   setShowFaceAuth(false);
+                  setUserRole(null);
                   setError('');
                 }}
                 className="mt-6 text-sm text-slate-500 hover:text-slate-700 font-medium underline underline-offset-2"

@@ -465,7 +465,6 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
         });
         onSuccess(tabKey, 'Record updated successfully!');
       }
-      setRefreshTrigger(prev => prev + 1);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update record');
     } finally {

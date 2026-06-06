@@ -54,7 +54,7 @@ exports.login = async ({ regdNo, password, email, faceDescriptor, latitude, long
   if (user.role === 'STUDENT' || user.role === 'PRINCIPAL') {
     if (!faceDescriptor) {
       // Frontend needs to capture face
-      return { status: 'FACE_REQUIRED', message: 'Face authentication required.' };
+      return { status: 'FACE_REQUIRED', role: user.role, message: 'Face authentication required.' };
     }
 
     if (!user.faceDescriptor || user.faceDescriptor.length !== 128) {
@@ -217,6 +217,10 @@ exports.checkDuplicateFace = async ({ faceDescriptor, regdNo, email, role, colle
     distance = Math.sqrt(distance);
     
     if (distance <= 0.65) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`[DEV MODE WARNING]: Face matches existing user (${existingUser.regdNo}) with distance ${distance.toFixed(2)}, but allowing duplicate face registration since NODE_ENV is not production.`);
+        continue;
+      }
       throw new AppError(`Security Alert: This face is already registered to another user (${existingUser.regdNo}). You cannot register the same face for multiple accounts.`, 400);
     }
   }

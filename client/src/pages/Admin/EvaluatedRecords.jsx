@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ClipboardCheck, Search, Download, BookOpen, RefreshCw, Activity } from 'lucide-react';
+import { ClipboardCheck, Search, Download, BookOpen, RefreshCw, Activity, Calendar } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../utils/config';
 import ReallocateModal from '../../components/ReallocateModal';
@@ -11,7 +11,7 @@ const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
   if (totalPages <= 1) return null;
 
   const start = (page - 1) * pageSize + 1;
-  const end   = Math.min(page * pageSize, total);
+  const end = Math.min(page * pageSize, total);
 
   return (
     <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50 flex-wrap gap-3">
@@ -48,11 +48,10 @@ const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
               <button
                 key={p}
                 onClick={() => onPage(p)}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
-                  p === page
-                    ? 'bg-teal-700 text-white border border-teal-700'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                }`}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${p === page
+                  ? 'bg-teal-700 text-white border border-teal-700'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                  }`}
               >
                 {p}
               </button>
@@ -90,6 +89,14 @@ const EvaluatedRecords = () => {
   const [paperPage, setPaperPage] = useState(1);
   const [reallocateTarget, setReallocateTarget] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
+  
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(''), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
   const [showActivity, setShowActivity] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -112,6 +119,38 @@ const EvaluatedRecords = () => {
     setToastMessage(msg);
     setReallocateTarget(null);
     fetchAssignments();
+    setTimeout(() => setToastMessage(''), 3000);
+  };
+
+  const handleEditSuggestedDeadline = async (record) => {
+    const currentDeadline = record.suggestedMarksDeadline
+      ? new Date(record.suggestedMarksDeadline).toISOString().split('T')[0]
+      : '';
+    const newDeadline = window.prompt("Enter new Suggested Marks Deadline (YYYY-MM-DD):", currentDeadline);
+    if (newDeadline === null) return;
+
+    if (!newDeadline.trim()) {
+      alert("Suggested Marks Deadline is required.");
+      return;
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDeadline.trim())) {
+      alert("Invalid date format. Please use YYYY-MM-DD.");
+      return;
+    }
+
+    try {
+      setToastMessage('Updating suggested marks deadline...');
+      await axios.put(`${API_BASE_URL}/api/admin/record/assignments/${record._id}`,
+        { suggestedMarksDeadline: newDeadline.trim() },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      setToastMessage('Suggested marks deadline updated successfully!');
+      fetchAssignments();
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update suggested marks deadline');
+    }
     setTimeout(() => setToastMessage(''), 3000);
   };
 
@@ -170,11 +209,11 @@ const EvaluatedRecords = () => {
 
   const studentsList = Object.values(studentsMap).map(student => {
     const studentAssignments = student.assignments;
-    
+
     // Group assignments by mode
     const regularAssignments = studentAssignments.filter(a => !a.mode || a.mode === 'Regular');
     const supplyAssignments = studentAssignments.filter(a => a.mode === 'Supply');
-    
+
     const regularMap = new Map(regularAssignments.map(a => [a.subjectId?._id?.toString() || a.subjectId?.toString() || '', a]));
     const supplyMap = new Map(supplyAssignments.map(a => [a.subjectId?._id?.toString() || a.subjectId?.toString() || '', a]));
 
@@ -190,7 +229,7 @@ const EvaluatedRecords = () => {
       (paper.subjectIds || []).forEach(sub => {
         const subId = sub._id || sub;
         let assignment = assignmentMap.get(subId.toString());
-        
+
         if (!assignment && fallbackMap) {
           const fallbackAssignment = fallbackMap.get(subId.toString());
           if (fallbackAssignment && fallbackAssignment.status === 'Evaluated') {
@@ -203,7 +242,7 @@ const EvaluatedRecords = () => {
         if (assignment) {
           obtainedScore += assignment.score || 0;
           evaluatedCount++;
-          
+
           const passMark = sub.subPassMarks != null ? sub.subPassMarks : (sub.maxMarks ? sub.maxMarks * 0.4 : 0);
           if (assignment.score < passMark) {
             hasFailedSubject = true;
@@ -234,7 +273,7 @@ const EvaluatedRecords = () => {
     filteredPapers.forEach(paper => {
       const hasRegular = paper.subjectIds?.some(sub => regularMap.has(sub._id ? sub._id.toString() : sub.toString()));
       if (hasRegular) regularPaperRows.push(buildPaperScore(paper, regularMap, 'Regular'));
-      
+
       const hasSupply = paper.subjectIds?.some(sub => supplyMap.has(sub._id ? sub._id.toString() : sub.toString()));
       if (hasSupply) supplyPaperRows.push(buildPaperScore(paper, supplyMap, 'Supply', regularMap));
     });
@@ -277,11 +316,11 @@ const EvaluatedRecords = () => {
 
       XLSX.writeFile(workbook, `Subject_Evaluations_${new Date().toISOString().split('T')[0]}.xlsx`);
 
-      await axios.post(`${API_BASE_URL}/api/admin/activities`, {
+      await axios.post(`${API_BASE_URL}/api/activities`, {
         actionType: 'EXPORT_EXCEL',
         entityType: 'Assignment',
         details: { description: 'Exported Evaluated Records to Excel' }
-      }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }});
+      }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
     } catch (err) {
       console.error('Export failed:', err);
       alert('Failed to export to Excel.');
@@ -302,8 +341,8 @@ const EvaluatedRecords = () => {
         'Student Name': row.fullName,
         'Paper Name': row.paperName,
         'Paper Code': row.paperCode,
-        'Total Score': row.obtainedScore !== null ? row.obtainedScore : 'Pending',
-        'Max Marks': row.maxMarks,
+        'Total Marks': row.obtainedScore !== null ? row.obtainedScore : 'Pending',
+
         'Result': row.obtainedScore !== null ? (row.isPassed ? 'PASS' : 'FAIL') : 'Pending'
       }));
 
@@ -323,11 +362,11 @@ const EvaluatedRecords = () => {
 
       XLSX.writeFile(workbook, `Paper_Grades_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
 
-      await axios.post(`${API_BASE_URL}/api/admin/activities`, {
+      await axios.post(`${API_BASE_URL}/api/activities`, {
         actionType: 'EXPORT_EXCEL',
         entityType: 'Assignment',
         details: { description: 'Exported Paper Grades Report to Excel' }
-      }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }});
+      }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
     } catch (err) {
       console.error('Export failed:', err);
       alert('Failed to export to Excel.');
@@ -337,7 +376,7 @@ const EvaluatedRecords = () => {
 
   const pagedRegularRecords = regularRecords.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const pagedSupplyRecords = supplyRecords.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  
+
   const pagedRegularPapers = regularPaperRows.slice((paperPage - 1) * PAGE_SIZE, paperPage * PAGE_SIZE);
   const pagedSupplyPapers = supplyPaperRows.slice((paperPage - 1) * PAGE_SIZE, paperPage * PAGE_SIZE);
 
@@ -361,23 +400,21 @@ const EvaluatedRecords = () => {
       <div className="flex border-b border-slate-200">
         <button
           onClick={() => { setActiveTab('submissions'); setCurrentPage(1); }}
-          className={`px-5 py-2.5 font-medium text-sm transition-colors border-b-2 cursor-pointer rounded-t-md ${
-            activeTab === 'submissions'
-              ? 'border-teal-600 text-teal-700 font-semibold'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-          }`}
+          className={`px-5 py-2.5 font-medium text-sm transition-colors border-b-2 cursor-pointer rounded-t-md ${activeTab === 'submissions'
+            ? 'border-teal-600 text-teal-700 font-semibold'
+            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
         >
           Submissions List
         </button>
         <button
           onClick={() => { setActiveTab('papers'); setPaperPage(1); }}
-          className={`px-5 py-2.5 font-medium text-sm transition-colors border-b-2 cursor-pointer rounded-t-md ${
-            activeTab === 'papers'
-              ? 'border-teal-600 text-teal-700 font-semibold'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-          }`}
+          className={`px-5 py-2.5 font-medium text-sm transition-colors border-b-2 cursor-pointer rounded-t-md ${activeTab === 'papers'
+            ? 'border-teal-600 text-teal-700 font-semibold'
+            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
         >
-          Paper Grades Report
+          Paper Wise Final Makes Report
         </button>
       </div>
 
@@ -402,7 +439,7 @@ const EvaluatedRecords = () => {
                 <option key={sem} value={sem}>Semester {sem}</option>
               ))}
             </select>
-            
+
             {activeTab === 'submissions' && (
               <select
                 value={selectedStatus}
@@ -466,7 +503,7 @@ const EvaluatedRecords = () => {
                     <th className="px-4 py-3 text-center whitespace-nowrap">Max Marks</th>
                     <th className="px-4 py-3 text-center whitespace-nowrap">Pass Marks</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
-                    <th className="px-4 py-3 text-right whitespace-nowrap">Score</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">Final Marks</th>
                     <th className="px-4 py-3 text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
@@ -478,6 +515,14 @@ const EvaluatedRecords = () => {
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
                         <p className="font-medium text-slate-900">{record.groupSubjectName || record.subjectId?.subName}</p>
                         <p className="text-xs text-slate-500">{record.subjectId?.subCode}</p>
+                        {record.suggestedMarksDeadline ? (
+                          <p className="text-[11px] text-teal-600 font-semibold mt-1 flex items-center gap-1">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+                            Suggested Deadline: {new Date(record.suggestedMarksDeadline).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-slate-400 italic mt-1">No suggested deadline</p>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center font-semibold text-slate-800">
                         {record.maxMarks ?? record.subjectId?.maxMarks ?? '—'}
@@ -486,9 +531,8 @@ const EvaluatedRecords = () => {
                         {record.subjectId?.subPassMarks ?? '—'}
                       </td>
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          record.status === 'Evaluated' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.status === 'Evaluated' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
                           {record.status === 'Evaluated' ? 'Evaluated' : 'Pending Evaluation'}
                         </span>
                       </td>
@@ -497,15 +541,25 @@ const EvaluatedRecords = () => {
                         <span className="text-slate-400 text-xs ml-1">/ {record.maxMarks}</span>
                       </td>
                       <td className="px-4 py-2.5 whitespace-nowrap text-right">
-                        {record.status !== 'Evaluated' && (
+                        <div className="flex items-center justify-end gap-2">
+                          {record.status !== 'Evaluated' && (
+                            <button
+                              onClick={() => setReallocateTarget(record)}
+                              className="inline-flex items-center px-2 py-1 bg-white border border-teal-200 hover:bg-teal-50 text-teal-700 rounded text-xs font-semibold cursor-pointer shadow-sm transition-colors"
+                            >
+                              <RefreshCw className="w-3 h-3 mr-1" />
+                              Re-allocate
+                            </button>
+                          )}
                           <button
-                            onClick={() => setReallocateTarget(record)}
-                            className="inline-flex items-center px-2 py-1 bg-white border border-teal-200 hover:bg-teal-50 text-teal-700 rounded text-xs font-semibold cursor-pointer shadow-sm transition-colors"
+                            onClick={() => handleEditSuggestedDeadline(record)}
+                            className="inline-flex items-center px-2 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded text-xs font-semibold cursor-pointer shadow-sm transition-colors"
+                            title="Set Suggested Marks Deadline"
                           >
-                            <RefreshCw className="w-3 h-3 mr-1" />
-                            Re-allocate
+                            <Calendar className="w-3 h-3 mr-1 text-slate-500" />
+                            Deadline
                           </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -535,7 +589,7 @@ const EvaluatedRecords = () => {
                     <th className="px-4 py-3 text-center whitespace-nowrap">Max Marks</th>
                     <th className="px-4 py-3 text-center whitespace-nowrap">Pass Marks</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
-                    <th className="px-4 py-3 text-right whitespace-nowrap">Score</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap">Final Marks</th>
                     <th className="px-4 py-3 text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
@@ -547,6 +601,14 @@ const EvaluatedRecords = () => {
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
                         <p className="font-medium text-slate-900">{record.groupSubjectName || record.subjectId?.subName}</p>
                         <p className="text-xs text-slate-500">{record.subjectId?.subCode}</p>
+                        {record.suggestedMarksDeadline ? (
+                          <p className="text-[11px] text-teal-600 font-semibold mt-1 flex items-center gap-1">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+                            Suggested Deadline: {new Date(record.suggestedMarksDeadline).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-slate-400 italic mt-1">No suggested deadline</p>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center font-semibold text-slate-800">
                         {record.maxMarks ?? record.subjectId?.maxMarks ?? '—'}
@@ -555,9 +617,8 @@ const EvaluatedRecords = () => {
                         {record.subjectId?.subPassMarks ?? '—'}
                       </td>
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          record.status === 'Evaluated' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.status === 'Evaluated' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
                           {record.status === 'Evaluated' ? 'Evaluated' : 'Pending Evaluation'}
                         </span>
                       </td>
@@ -566,15 +627,25 @@ const EvaluatedRecords = () => {
                         <span className="text-slate-400 text-xs ml-1">/ {record.maxMarks}</span>
                       </td>
                       <td className="px-4 py-2.5 whitespace-nowrap text-right">
-                        {record.status !== 'Evaluated' && (
+                        <div className="flex items-center justify-end gap-2">
+                          {record.status !== 'Evaluated' && (
+                            <button
+                              onClick={() => setReallocateTarget(record)}
+                              className="inline-flex items-center px-2 py-1 bg-white border border-teal-200 hover:bg-teal-50 text-teal-700 rounded text-xs font-semibold cursor-pointer shadow-sm transition-colors"
+                            >
+                              <RefreshCw className="w-3 h-3 mr-1" />
+                              Re-allocate
+                            </button>
+                          )}
                           <button
-                            onClick={() => setReallocateTarget(record)}
-                            className="inline-flex items-center px-2 py-1 bg-white border border-teal-200 hover:bg-teal-50 text-teal-700 rounded text-xs font-semibold cursor-pointer shadow-sm transition-colors"
+                            onClick={() => handleEditSuggestedDeadline(record)}
+                            className="inline-flex items-center px-2 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded text-xs font-semibold cursor-pointer shadow-sm transition-colors"
+                            title="Set Suggested Marks Deadline"
                           >
-                            <RefreshCw className="w-3 h-3 mr-1" />
-                            Re-allocate
+                            <Calendar className="w-3 h-3 mr-1 text-slate-500" />
+                            Deadline
                           </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -606,7 +677,7 @@ const EvaluatedRecords = () => {
                     <th className="px-4 py-3 text-left whitespace-nowrap">Roll No.</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Semester</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Paper Name</th>
-                    <th className="px-4 py-3 text-left whitespace-nowrap text-center min-w-[8rem]">Aggregated Score</th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap text-center min-w-[8rem]">Final Marks</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -621,9 +692,8 @@ const EvaluatedRecords = () => {
                       </td>
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center">
                         {row.obtainedScore !== null ? (
-                          <span className={`inline-flex flex-col items-center px-3 py-1.5 rounded-md text-xs font-bold ${
-                            row.isPassed ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
-                          }`}>
+                          <span className={`inline-flex flex-col items-center px-3 py-1.5 rounded-md text-xs font-bold ${row.isPassed ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+                            }`}>
                             <span className="text-sm">{row.obtainedScore} / {row.maxMarks}</span>
                             <span className="text-[9px] opacity-75 font-semibold mt-0.5">{row.isPassed ? 'PASS' : 'FAIL'}</span>
                           </span>
@@ -673,9 +743,8 @@ const EvaluatedRecords = () => {
                       </td>
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center">
                         {row.obtainedScore !== null ? (
-                          <span className={`inline-flex flex-col items-center px-3 py-1.5 rounded-md text-xs font-bold ${
-                            row.isPassed ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
-                          }`}>
+                          <span className={`inline-flex flex-col items-center px-3 py-1.5 rounded-md text-xs font-bold ${row.isPassed ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+                            }`}>
                             <span className="text-sm">{row.obtainedScore} / {row.maxMarks}</span>
                             <span className="text-[9px] opacity-75 font-semibold mt-0.5">{row.isPassed ? 'PASS' : 'FAIL'}</span>
                           </span>
@@ -704,6 +773,11 @@ const EvaluatedRecords = () => {
           onClose={() => setReallocateTarget(null)}
           onSuccess={handleReallocateSuccess}
         />
+      )}
+      {toastMessage && (
+        <div className="fixed bottom-4 right-4 z-50 bg-teal-800 text-white px-4 py-3 rounded-md shadow-lg flex items-center gap-2 border border-teal-600 animate-slide-in">
+          <span className="font-semibold text-sm">{toastMessage}</span>
+        </div>
       )}
     </div>
   );

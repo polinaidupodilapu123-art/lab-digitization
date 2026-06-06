@@ -241,6 +241,15 @@ exports.suggestMarks = async (collegeId, assignmentId, suggestedMarks) => {
     throw new AppError('Not authorized to modify this assignment', 403);
   }
 
+  if (assignment.suggestedMarksDeadline) {
+    const deadlineDate = new Date(assignment.suggestedMarksDeadline);
+    // Extend deadline to the very end of the selected day (23:59:59.999)
+    deadlineDate.setHours(23, 59, 59, 999);
+    if (new Date() > deadlineDate) {
+      throw new AppError('The deadline to suggest marks has passed.', 400);
+    }
+  }
+
   assignment.suggestedMarks = suggestedMarks;
   await assignment.save();
 

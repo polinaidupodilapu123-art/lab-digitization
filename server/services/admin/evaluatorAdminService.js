@@ -20,7 +20,10 @@ exports.createEvaluator = async ({ fullName, email, password }) => {
   return { message: 'Evaluator created successfully', evaluator };
 };
 
-exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academicYear, deadline, mode, createdBy }) => {
+exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academicYear, deadline, suggestedMarksDeadline, mode, createdBy }) => {
+  if (!suggestedMarksDeadline) {
+    throw new AppError('Suggested Marks Deadline is required.', 400);
+  }
   const students = await User.find({ _id: { $in: studentIds } }).populate('groupId');
   const subjects = await Subject.find({ _id: { $in: subjectIds } });
 
@@ -83,7 +86,8 @@ exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academi
               groupSubjectName: assignedGroupName,
               maxMarks: subject.maxMarks || 0,
               evaluatorId,
-              mode: mode || 'Regular'
+              mode: mode || 'Regular',
+              suggestedMarksDeadline: suggestedMarksDeadline ? new Date(suggestedMarksDeadline) : null
             },
             $unset: {
               filePath: 1,

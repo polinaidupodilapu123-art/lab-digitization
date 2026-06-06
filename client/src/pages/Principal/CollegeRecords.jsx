@@ -157,6 +157,19 @@ const CollegeRecords = () => {
                         const val = suggestedMarks[record._id] !== undefined ? suggestedMarks[record._id] : '';
                         const hasError = val !== '' && Number(val) > maxMarks;
                         
+                        let isDeadlinePassed = false;
+                        let deadlineFormatted = '';
+                        if (record.suggestedMarksDeadline) {
+                          const deadlineDate = new Date(record.suggestedMarksDeadline);
+                          deadlineDate.setHours(23, 59, 59, 999);
+                          isDeadlinePassed = new Date() > deadlineDate;
+                          deadlineFormatted = new Date(record.suggestedMarksDeadline).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          });
+                        }
+                        
                         return (
                           <div className="flex flex-col items-center gap-1">
                             <div className="flex items-center justify-center gap-2">
@@ -171,11 +184,11 @@ const CollegeRecords = () => {
                                     ? 'border-red-300 focus:ring-red-500 bg-red-50 text-red-700' 
                                     : 'border-slate-300 focus:ring-teal-500'
                                 }`}
-                                disabled={record.status === 'Evaluated'}
+                                disabled={record.status === 'Evaluated' || isDeadlinePassed}
                               />
                               <button
                                 onClick={() => handleSaveMarks(record._id)}
-                                disabled={savingId === record._id || record.status === 'Evaluated' || hasError}
+                                disabled={savingId === record._id || record.status === 'Evaluated' || hasError || isDeadlinePassed}
                                 className="p-1.5 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50 transition-colors disabled:cursor-not-allowed"
                                 title="Save Suggested Marks"
                               >
@@ -189,6 +202,13 @@ const CollegeRecords = () => {
                             {hasError && (
                               <span className="text-[10px] text-red-500 font-medium whitespace-nowrap">
                                 Max marks: {maxMarks}
+                              </span>
+                            )}
+                            {record.suggestedMarksDeadline && (
+                              <span className={`text-[10px] font-semibold mt-1 whitespace-nowrap ${
+                                isDeadlinePassed ? 'text-red-500' : 'text-teal-600'
+                              }`}>
+                                {isDeadlinePassed ? `Deadline passed (${deadlineFormatted})` : `Deadline: ${deadlineFormatted}`}
                               </span>
                             )}
                           </div>
