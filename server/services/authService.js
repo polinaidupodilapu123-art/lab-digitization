@@ -217,10 +217,6 @@ exports.checkDuplicateFace = async ({ faceDescriptor, regdNo, email, role, colle
     distance = Math.sqrt(distance);
     
     if (distance <= 0.65) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(`[DEV MODE WARNING]: Face matches existing user (${existingUser.regdNo}) with distance ${distance.toFixed(2)}, but allowing duplicate face registration since NODE_ENV is not production.`);
-        continue;
-      }
       throw new AppError(`Security Alert: This face is already registered to another user (${existingUser.regdNo}). You cannot register the same face for multiple accounts.`, 400);
     }
   }

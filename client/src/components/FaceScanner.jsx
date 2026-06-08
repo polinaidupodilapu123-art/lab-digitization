@@ -8,6 +8,7 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+  const isScanningRef = useRef(false);
   
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
@@ -79,6 +80,10 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
   };
 
   const processSuccessfulCapture = async (detection) => {
+    isScanningRef.current = false;
+    setScanning(false);
+    if (scanLoopRef.current) clearTimeout(scanLoopRef.current);
+
     if (mode === 'enroll') {
       setStatus('Checking for duplicates...');
       try {
@@ -96,9 +101,9 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
         }, 1000);
       } catch (serverErr) {
         // If duplicate, turn red instantly and block
-        setScanning(false);
         setError(serverErr.response?.data?.message || 'Face validation failed.');
         setStatus('Face Rejected.');
+        stopCamera();
       }
     } else {
       // verify mode
@@ -109,9 +114,9 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
         setStatus('Face Verified!');
         stopCamera();
       } catch (serverErr) {
-        setScanning(false);
         setError(serverErr.message || 'Face Verification Failed');
         setStatus('Verification failed. Try again.');
+        stopCamera();
       }
     }
   };
@@ -120,6 +125,7 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
     if (!isModelLoaded || !cameraActive || !videoRef.current) return;
     
     setScanning(true);
+    isScanningRef.current = true;
     setError('');
     setStatus('Looking for face...');
     
@@ -135,6 +141,7 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
 
     const scanFrame = async () => {
       try {
+        if (!isScanningRef.current) return;
         if (!videoRef.current || !videoRef.current.srcObject) return;
 
         const elapsedMs = Date.now() - startTime;
@@ -143,8 +150,10 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
 
         if (elapsedSec > 30) {
           setScanning(false);
+          isScanningRef.current = false;
           setError('Scanning timed out. Please try again.');
           setStatus('Verification failed due to timeout.');
+          stopCamera();
           return;
         }
 
@@ -184,11 +193,7 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
               }
             }
           } else if (livenessState === 'WAIT_BLINK') {
-            if (continuousFaceDetectedFrames >= 40) {
-              setStatus('Blink naturally, or hold still to capture...');
-            } else {
-              setStatus('Blink naturally to verify.');
-            }
+            setStatus('Blink naturally to capture.');
             
             // Check for closed eyes: 25% reduction from open eye baseline (highly sensitive for fast natural blinks)
             if (avgEAR < baselineEAR * 0.75) {
@@ -202,13 +207,6 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
               processSuccessfulCapture(detection);
               return;
             }
-          }
-
-          // Fallback capture: if face is continuously detected for ~6 seconds
-          if (continuousFaceDetectedFrames >= 75) {
-            setStatus('Analyzing face...');
-            processSuccessfulCapture(detection);
-            return;
           }
         }
         
@@ -228,6 +226,7 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
     setError('');
     setSuccess(false);
     setScanning(false);
+    isScanningRef.current = false;
     if (scanLoopRef.current) clearTimeout(scanLoopRef.current);
     setStatus('Ready. Please look at the camera.');
     if (!cameraActive) startCamera();
@@ -235,6 +234,7 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
 
   useEffect(() => {
     return () => {
+      isScanningRef.current = false;
       if (scanLoopRef.current) clearTimeout(scanLoopRef.current);
     };
   }, []);

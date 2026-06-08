@@ -13,7 +13,7 @@ const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
   if (totalPages <= 1) return null;
 
   const start = (page - 1) * pageSize + 1;
-  const end   = Math.min(page * pageSize, total);
+  const end = Math.min(page * pageSize, total);
 
   return (
     <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50 flex-wrap gap-3">
@@ -50,11 +50,10 @@ const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
               <button
                 key={p}
                 onClick={() => onPage(p)}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
-                  p === page
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${p === page
                     ? 'bg-teal-700 text-white border border-teal-700'
                     : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                }`}
+                  }`}
               >
                 {p}
               </button>
@@ -158,7 +157,7 @@ const Dashboard = () => {
         // Sort newly submitted/created records on top
         const sorted = res.data.sort((a, b) => new Date(b.submittedAt || b.createdAt || 0) - new Date(a.submittedAt || a.createdAt || 0));
         setSubmissions(sorted);
-        
+
         const initMarks = {};
         sorted.forEach(sub => {
           if (sub.status !== 'Evaluated' && sub.suggestedMarks !== undefined && sub.suggestedMarks !== null) {
@@ -184,23 +183,23 @@ const Dashboard = () => {
   };
 
   const handleMarkChange = (id, field, value) => {
-    setMarks(prev => ({ 
-      ...prev, 
-      [id]: { ...prev[id], [field]: value } 
+    setMarks(prev => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: value }
     }));
   };
 
   const handleSubmitMarks = async (id) => {
     const data = marks[id];
     if (!data || !data.score) return;
-    
+
     const submission = submissions.find(s => s._id === id);
     const maxMarks = submission ? (submission.maxMarks ?? submission.subjectId?.maxMarks ?? 100) : 100;
 
     if (Number(data.score) > maxMarks || Number(data.score) < 0) {
       return;
     }
-    
+
     try {
       await axios.post(`${API_BASE_URL}/api/evaluator/records/${id}/grade`, {
         score: Number(data.score),
@@ -208,8 +207,8 @@ const Dashboard = () => {
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      
-      setSubmissions(prev => prev.map(sub => 
+
+      setSubmissions(prev => prev.map(sub =>
         sub._id === id ? { ...sub, status: 'Evaluated', score: Number(data.score), feedback: data.remarks } : sub
       ));
       setRefreshTrigger(prev => prev + 1);
@@ -359,7 +358,7 @@ const Dashboard = () => {
                 >
                   <UserIcon className="h-4 w-4" />
                 </button>
-                
+
                 {showProfile && profileData && (
                   <div className="absolute right-0 mt-2 w-72 bg-white rounded-md shadow-lg border border-slate-200 p-4 z-50 animate-fade-in">
                     <div className="flex justify-between items-start mb-3">
@@ -399,7 +398,7 @@ const Dashboard = () => {
             <h2 className="text-2xl font-bold text-slate-900">Assigned Records</h2>
             <p className="text-slate-500 mt-1">Review student lab records and submit marks for your assigned core or group subjects.</p>
           </div>
-          
+
           {subjects.length > 0 && (
             <div className="flex space-x-4 text-sm font-medium">
               <div className="bg-white px-4 py-2 rounded-md shadow-sm border border-slate-200">
@@ -431,7 +430,7 @@ const Dashboard = () => {
           <div className="bg-white rounded-md shadow-sm border border-slate-200 p-4 mb-6">
             <div className="flex items-center gap-3">
               {/* Search Toggle Button */}
-              <button 
+              <button
                 onClick={() => setShowSearch(!showSearch)}
                 className="bg-teal-600 cursor-pointer hover:bg-teal-700 text-white p-2 rounded-md transition-colors shadow-sm focus:outline-none flex-shrink-0"
                 title="Toggle Search"
@@ -509,7 +508,7 @@ const Dashboard = () => {
                 Showing <span className="text-teal-700 font-bold">{filteredSubmissions.length}</span> matching student record{filteredSubmissions.length === 1 ? '' : 's'}
               </span>
               {(selectedCollege || selectedCourse || selectedSubject || selectedStatus || searchTerm) && (
-                <button 
+                <button
                   onClick={() => {
                     setSelectedCollege('');
                     setSelectedCourse('');
@@ -547,7 +546,7 @@ const Dashboard = () => {
                     <th className="px-4 py-3 text-left whitespace-nowrap">Valuation Deadline</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
                     <th className="px-4 py-3 text-center whitespace-nowrap">Suggested Marks</th>
-                    <th className="w-[4.5rem] px-4 py-3 text-left whitespace-nowrap tabular-nums">Score</th>
+                    <th className="w-[4.5rem] px-4 py-3 text-left whitespace-nowrap tabular-nums">Final Marks</th>
                     <th className="min-w-[6rem] px-4 py-3 text-left whitespace-nowrap">Remarks</th>
                     <th className="w-[1%] pr-4 text-right px-4 py-3 whitespace-nowrap">Action</th>
                   </tr>
@@ -570,7 +569,7 @@ const Dashboard = () => {
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-semibold" title={sub.studentId?.courseId?.courseName}>
                           {sub.studentId?.courseId?.courseCode || '—'}
                         </td>
-                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-medium">
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-medium">
                           {sub.groupSubjectName || sub.subjectId?.subName}
                         </td>
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
@@ -584,10 +583,10 @@ const Dashboard = () => {
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center">
                           {sub.filePath ? (
                             <div className="flex flex-col items-center gap-1">
-                              <a 
-                                href={`${API_BASE_URL}${sub.filePath}`} 
-                                target="_blank" 
-                                rel="noreferrer" 
+                              <a
+                                href={`${API_BASE_URL}${sub.filePath}`}
+                                target="_blank"
+                                rel="noreferrer"
                                 onClick={() => logDownload(sub._id, `${API_BASE_URL}${sub.filePath}`)}
                                 className="inline-flex items-center justify-center p-2 text-teal-600 hover:text-white hover:bg-teal-700 rounded-md transition-colors border border-teal-200 hover:border-teal-700 cursor-pointer"
                                 title="View Submission PDF"
@@ -595,7 +594,7 @@ const Dashboard = () => {
                                 <FileText className="h-5 w-5" />
                               </a>
                               {sub.studentNote && (
-                                <span 
+                                <span
                                   className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded max-w-[80px] truncate border border-slate-200"
                                   title={sub.studentNote}
                                 >
@@ -613,7 +612,7 @@ const Dashboard = () => {
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center font-semibold">
                           {sub.subjectId?.subPassMarks ?? '—'}
                         </td>
-                      
+
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
                           {sub.valuationDeadline ? (
                             (() => {
@@ -621,11 +620,11 @@ const Dashboard = () => {
                               const today = new Date();
                               const diffTime = deadlineDate - today;
                               const diffHours = diffTime / (1000 * 60 * 60);
-                              
+
                               let textColorClass = 'text-slate-600 font-medium';
                               let bgClass = 'bg-slate-50 border-slate-200';
                               let tagText = '';
-                              
+
                               if (diffHours < 0) {
                                 textColorClass = 'text-red-700 font-bold animate-pulse';
                                 bgClass = 'bg-red-50 border-red-200';
@@ -635,7 +634,7 @@ const Dashboard = () => {
                                 bgClass = 'bg-amber-50 border-amber-200';
                                 tagText = 'URGENT';
                               }
-                              
+
                               return (
                                 <div className={`inline-flex flex-col px-2 py-0.5 rounded-md border text-[11px] ${bgClass}`}>
                                   <span className={textColorClass}>
@@ -654,9 +653,8 @@ const Dashboard = () => {
                           )}
                         </td>
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            sub.status === 'Evaluated' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                          }`}>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${sub.status === 'Evaluated' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
                             {sub.status === 'Evaluated' ? 'Evaluated' : 'Pending Evaluation'}
                           </span>
                         </td>
@@ -673,20 +671,19 @@ const Dashboard = () => {
                               const isExceeded = enteredScore !== undefined && enteredScore !== '' && Number(enteredScore) > maxLimit;
                               const isNegative = enteredScore !== undefined && enteredScore !== '' && Number(enteredScore) < 0;
                               const hasError = isExceeded || isNegative;
-                              
+
                               return (
                                 <div className="flex flex-col items-center">
-                                  <input 
-                                    type="number" 
-                                    min="0" 
+                                  <input
+                                    type="number"
+                                    min="0"
                                     max={maxLimit}
                                     value={enteredScore || ''}
                                     onChange={(e) => handleMarkChange(sub._id, 'score', e.target.value)}
-                                    className={`w-16 border rounded p-1 text-center font-semibold transition-all duration-200 ${
-                                      hasError 
-                                        ? 'border-red-500 bg-red-50 text-red-900 focus:ring-red-500 focus:border-red-500 focus:outline-none' 
+                                    className={`w-16 border rounded p-1 text-center font-semibold transition-all duration-200 ${hasError
+                                        ? 'border-red-500 bg-red-50 text-red-900 focus:ring-red-500 focus:border-red-500 focus:outline-none'
                                         : 'border-slate-300 focus:ring-teal-500 focus:border-teal-500 text-slate-800'
-                                    }`}
+                                      }`}
                                     placeholder="0"
                                   />
                                   {isExceeded && (
@@ -708,8 +705,8 @@ const Dashboard = () => {
                           {sub.status === 'Evaluated' ? (
                             <span className="text-slate-600 text-sm">{sub.feedback || '—'}</span>
                           ) : (
-                            <input 
-                              type="text" 
+                            <input
+                              type="text"
                               value={marks[sub._id]?.remarks || ''}
                               onChange={(e) => handleMarkChange(sub._id, 'remarks', e.target.value)}
                               className="w-full border border-slate-300 rounded p-1 text-sm"
@@ -725,9 +722,9 @@ const Dashboard = () => {
                               const isExceeded = enteredScore !== undefined && enteredScore !== '' && Number(enteredScore) > maxLimit;
                               const isNegative = enteredScore !== undefined && enteredScore !== '' && Number(enteredScore) < 0;
                               const hasError = isExceeded || isNegative;
-                              
+
                               return (
-                                <button 
+                                <button
                                   onClick={() => handleSubmitMarks(sub._id)}
                                   disabled={!enteredScore || hasError}
                                   className="px-4 py-1.5 bg-teal-700 hover:bg-teal-800 disabled:bg-teal-300 text-white rounded-md font-medium transition-colors cursor-pointer"

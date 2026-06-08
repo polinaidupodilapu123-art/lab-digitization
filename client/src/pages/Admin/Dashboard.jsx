@@ -37,7 +37,7 @@ const Dashboard = () => {
 
   const navItems = [
     { name: 'Master Data', path: '/admin', icon: Database },
-    { name: 'Assignments', path: '/admin/assignments', icon: CheckSquare },
+    { name: 'Assign Records', path: '/admin/assignments', icon: CheckSquare },
     { name: 'Evaluators', path: '/admin/evaluators', icon: ClipboardList },
     { name: 'Evaluated Records', path: '/admin/evaluated-records', icon: BookOpen },
     { name: 'Notifications', path: '/admin/notifications', icon: Bell },
@@ -55,7 +55,7 @@ const Dashboard = () => {
           <h2 className="text-xl font-bold text-teal-600 truncate">Admin Panel</h2>
           <p className="text-[10px] text-slate-500 mt-0.5 truncate">Lab Digitization System</p>
         </div>
-        <button 
+        <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 bg-slate-100 rounded-md text-slate-600 hover:bg-slate-200 transition-colors focus:outline-none"
         >
@@ -64,19 +64,17 @@ const Dashboard = () => {
       </div>
 
       {/* Sidebar */}
-      <div 
-        className={`${
-          isMobileMenuOpen ? 'flex absolute left-0 right-0 top-[73px] z-50 overflow-y-auto shadow-lg max-h-[calc(100vh-73px)] border-b pb-2 h-auto' : 'hidden md:flex'
-        } ${
-          isSidebarExpanded ? 'md:w-64' : 'md:w-20'
-        } bg-white md:border-b-0 md:border-r border-slate-200 flex-col flex-shrink-0 transition-all duration-300 ease-in-out md:h-full md:relative md:pb-0 md:shadow-none`}
+      <div
+        className={`${isMobileMenuOpen ? 'flex absolute left-0 right-0 top-[73px] z-50 overflow-y-auto shadow-lg max-h-[calc(100vh-73px)] border-b pb-2 h-auto' : 'hidden md:flex'
+          } ${isSidebarExpanded ? 'md:w-64' : 'md:w-20'
+          } bg-white md:border-b-0 md:border-r border-slate-200 flex-col flex-shrink-0 transition-all duration-300 ease-in-out md:h-full md:relative md:pb-0 md:shadow-none`}
       >
         <div className={`hidden md:flex p-4 items-center ${isSidebarExpanded ? 'justify-between' : 'justify-center'} border-b border-slate-100`}>
           <div className={`${!isSidebarExpanded ? 'hidden' : 'block'}`}>
             <h2 className="text-xl font-bold text-teal-600 truncate">Admin Panel</h2>
             <p className="text-[10px] text-slate-500 mt-0.5 truncate">Lab Digitization System</p>
           </div>
-          <button 
+          <button
             onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
             className="hidden md:block p-2 rounded-md hover:bg-slate-100 text-slate-600 transition-colors focus:outline-none"
             title={isSidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
@@ -94,15 +92,14 @@ const Dashboard = () => {
                 key={item.name}
                 to={item.path}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className={`flex items-center px-3 py-3 rounded-md transition-all group relative ${
-                  isActive
+                className={`flex items-center px-3 py-3 rounded-md transition-all group relative ${isActive
                     ? 'bg-teal-50 text-teal-700 font-medium'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                } ${isSidebarExpanded || isMobileMenuOpen ? 'space-x-3' : 'justify-center'}`}
+                  } ${isSidebarExpanded || isMobileMenuOpen ? 'space-x-3' : 'justify-center'}`}
               >
                 <Icon className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-teal-600' : 'text-slate-400 group-hover:text-teal-500 transition-colors'}`} />
                 <span className={`${!isSidebarExpanded ? 'inline md:hidden' : 'inline'} truncate ml-3 md:ml-0 ${isSidebarExpanded ? 'md:ml-3' : ''}`}>{item.name}</span>
-                
+
                 {/* Tooltip for collapsed state */}
                 {!isSidebarExpanded && (
                   <div className="absolute left-full ml-3 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 pointer-events-none">
@@ -122,7 +119,7 @@ const Dashboard = () => {
           >
             <LogOut className="h-5 w-5 flex-shrink-0" />
             <span className={`${!isSidebarExpanded ? 'inline md:hidden' : 'inline'} ml-3 md:ml-0 ${isSidebarExpanded ? 'md:ml-3' : ''}`}>Logout</span>
-            
+
             {/* Tooltip for collapsed state */}
             {!isSidebarExpanded && (
               <div className="absolute left-full ml-3 px-2 py-1 bg-red-600 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 pointer-events-none">
