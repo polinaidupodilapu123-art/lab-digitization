@@ -316,7 +316,15 @@ exports.getSubjectAllocationStats = async ({ subjectId, groupSubjectName, subjec
   if (mode === 'Supply') {
     submittedQuery.mode = 'Supply';
   } else {
-    submittedQuery.$or = [{ mode: 'Regular' }, { mode: { $exists: false } }, { mode: null }];
+    if (query.$or) {
+      submittedQuery.$and = [
+        { $or: query.$or },
+        { $or: [{ mode: 'Regular' }, { mode: { $exists: false } }, { mode: null }] }
+      ];
+      delete submittedQuery.$or;
+    } else {
+      submittedQuery.$or = [{ mode: 'Regular' }, { mode: { $exists: false } }, { mode: null }];
+    }
   }
   
   const total = await Assignment.countDocuments(submittedQuery);

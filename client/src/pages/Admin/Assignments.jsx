@@ -561,7 +561,7 @@ const Assignments = () => {
             : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
             }`}
         >
-          Generate Assignments
+          Generate Records
         </button>
 
         <button
@@ -571,7 +571,7 @@ const Assignments = () => {
             : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
             }`}
         >
-          Generated Assignments ({assignments.length})
+          Generated Records ({assignments.length})
         </button>
       </div>
 
@@ -758,7 +758,7 @@ const Assignments = () => {
                     className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
                   />
                 </div>
-                <div className=''>
+                <div className='ml-2'>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Req. Pages <span className="text-red-500">*</span></label>
                   <input
                     type="number"

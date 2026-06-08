@@ -51,8 +51,8 @@ const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
                 key={p}
                 onClick={() => onPage(p)}
                 className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${p === page
-                    ? 'bg-teal-700 text-white border border-teal-700'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                  ? 'bg-teal-700 text-white border border-teal-700'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                   }`}
               >
                 {p}
@@ -543,7 +543,7 @@ const Dashboard = () => {
                     <th className="px-4 py-3 text-center whitespace-nowrap">Document</th>
                     <th className="px-4 py-3 text-center whitespace-nowrap">Max Marks</th>
                     <th className="px-4 py-3 text-center whitespace-nowrap">Pass Marks</th>
-                    <th className="px-4 py-3 text-left whitespace-nowrap">Valuation Deadline</th>
+                    <th className="px-4 py-3 text-left whitespace-nowrap">Evaluation Deadline</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
                     <th className="px-4 py-3 text-center whitespace-nowrap">Suggested Marks</th>
                     <th className="w-[4.5rem] px-4 py-3 text-left whitespace-nowrap tabular-nums">Final Marks</th>
@@ -681,8 +681,8 @@ const Dashboard = () => {
                                     value={enteredScore || ''}
                                     onChange={(e) => handleMarkChange(sub._id, 'score', e.target.value)}
                                     className={`w-16 border rounded p-1 text-center font-semibold transition-all duration-200 ${hasError
-                                        ? 'border-red-500 bg-red-50 text-red-900 focus:ring-red-500 focus:border-red-500 focus:outline-none'
-                                        : 'border-slate-300 focus:ring-teal-500 focus:border-teal-500 text-slate-800'
+                                      ? 'border-red-500 bg-red-50 text-red-900 focus:ring-red-500 focus:border-red-500 focus:outline-none'
+                                      : 'border-slate-300 focus:ring-teal-500 focus:border-teal-500 text-slate-800'
                                       }`}
                                     placeholder="0"
                                   />
