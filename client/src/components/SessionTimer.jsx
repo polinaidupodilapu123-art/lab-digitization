@@ -1,28 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axiosInstance from '../api/axios';
 
 const SessionTimer = () => {
   const [timeLeft, setTimeLeft] = useState(120 * 60); // 120 minutes in seconds
   const navigate = useNavigate();
 
   useEffect(() => {
-    const loginTimeStr = localStorage.getItem('loginTime');
-    if (!loginTimeStr) {
-      localStorage.setItem('loginTime', new Date().toISOString());
-    } else {
-      const loginTime = new Date(loginTimeStr);
-      const now = new Date();
-      const diffSeconds = Math.floor((now - loginTime) / 1000);
-      const remaining = (120 * 60) - diffSeconds;
-      if (remaining <= 0) {
-        handleLogout();
-      } else {
-        setTimeLeft(remaining);
+    // Validate session with server (checks httpOnly cookie)
+    const validateSession = async () => {
+      try {
+        const response = await axiosInstance.get('/api/auth/me');
+        if (response.data && response.data._id) {
+          // Session is valid; start timer from now
+          setTimeLeft(120 * 60); // Reset to full 120 minutes
+        }
+      } catch (error) {
+        console.error('Session validation error:', error);
+        // If session is invalid, auth interceptor will handle redirect
       }
-    }
+    };
 
+    validateSession();
+
+    // Timer interval: decrement every second
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -39,19 +41,16 @@ const SessionTimer = () => {
 
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        await axios.post(`${API_BASE_URL}/api/auth/logout`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      }
+      // httpOnly cookie will be automatically sent with this request
+      await axiosInstance.post('/api/auth/logout');
     } catch (e) {
       console.error('Logout error:', e);
     }
-    localStorage.removeItem('token');
+    
+    // Clear any remaining session data from localStorage (for backwards compatibility)
+    // Note: httpOnly cookie is cleared by server automatically
     localStorage.removeItem('user');
-    localStorage.removeItem('loginTime');
+    
     navigate('/login');
   };
 
