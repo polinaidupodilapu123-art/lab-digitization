@@ -29,6 +29,7 @@ const evaluatorRoutes = require('./routes/evaluatorRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const principalRoutes = require('./routes/principalRoutes');
+const activityRoutes = require('./routes/activityRoutes');
 
 const PORT = process.env.PORT || 5000;
 
@@ -38,6 +39,7 @@ app.use('/api/evaluator', evaluatorRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/principal', principalRoutes);
+app.use('/api/activities', activityRoutes);
 
 app.get('/', (req, res) => {
   res.send('API Running');

@@ -2,6 +2,7 @@ const { College, Subject, Group, Course } = require('../../models/MasterData');
 const User = require('../../models/User');
 const Assignment = require('../../models/Assignment');
 const Paper = require('../../models/Paper');
+const BacklogFee = require('../../models/BacklogFee');
 const xlsx = require('xlsx');
 const emailService = require('../emailService');
 const AppError = require('../../utils/AppError');
@@ -13,7 +14,7 @@ const normalizeCode = (code) => {
   return /^\d+$/.test(str) ? parseInt(str, 10).toString() : str;
 };
 
-exports.uploadMasterData = async ({ type, semester, file }) => {
+exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
   if (!file) throw new AppError('No file uploaded.', 400);
 
   const workbook = xlsx.read(file.buffer, { type: 'buffer' });
@@ -47,6 +48,7 @@ exports.uploadMasterData = async ({ type, semester, file }) => {
     subjects: [], 
     evaluators: ['full name'],
     principals: ['full name', 'college code'],
+    backlogfees: ['registration number']
   };
 
   if (type !== 'subjects' && REQUIRED_COLS[type]) {
@@ -140,6 +142,7 @@ exports.uploadMasterData = async ({ type, semester, file }) => {
                 groupId,
                 courseId,
                 currentSemester: semester || '',
+                academicYear: academicYear || '',
                 mobileNumber,
                 email: emailCol,
                 role: 'STUDENT' 
@@ -153,16 +156,39 @@ exports.uploadMasterData = async ({ type, semester, file }) => {
         const collegeCode = row['college code']?.toString()?.trim();
         if (!collegeCode) { rowErrors.push({ row: rowNum, message: 'College Code is empty.' }); continue; }
         
+        const updateData = {
+          collegeName: row['college name']?.trim(), 
+          location: row['location']?.trim(), 
+          district: row['district']?.trim()
+        };
+
+        if (row['latitude'] !== undefined) {
+          const latVal = Number(row['latitude']);
+          if (!isNaN(latVal)) updateData.latitude = latVal;
+        }
+        if (row['longitude'] !== undefined) {
+          const lonVal = Number(row['longitude']);
+          if (!isNaN(lonVal)) updateData.longitude = lonVal;
+        }
+
+        const radiusKey = Object.keys(row).find(k => 
+          k === 'radius meter' || 
+          k === 'radiusmeter' || 
+          k === 'radius' || 
+          k === 'radius_meter' ||
+          k === 'geofence radius (m)' ||
+          k === 'geofence radius' ||
+          k.includes('radius')
+        );
+        if (radiusKey && row[radiusKey] !== undefined) {
+          const radVal = Number(row[radiusKey]);
+          if (!isNaN(radVal)) updateData.radiusMeter = radVal;
+        }
+
         operations.push({
           updateOne: {
             filter: { collegeCode },
-            update: { 
-              $set: {
-                collegeName: row['college name']?.trim(), 
-                location: row['location']?.trim(), 
-                district: row['district']?.trim() 
-              }
-            },
+            update: { $set: updateData },
             upsert: true
           }
         });
@@ -192,6 +218,13 @@ exports.uploadMasterData = async ({ type, semester, file }) => {
           continue;
         }
 
+        const subjects = [];
+        for (const [key, value] of Object.entries(row)) {
+          if (key.toLowerCase().startsWith('pedagogy') && key.toLowerCase().endsWith('name') && value?.toString().trim()) {
+            subjects.push(value.toString().trim());
+          }
+        }
+
         operations.push({
           updateOne: {
             filter: { groupCode },
@@ -199,8 +232,7 @@ exports.uploadMasterData = async ({ type, semester, file }) => {
               $set: {
                 courseId,
                 groupName: row['group name']?.trim(), 
-                pedagogy1Name: row['pedagogy1 name']?.trim(), 
-                pedagogy2Name: row['pedagogy2 name']?.trim() 
+                subjects
               }
             },
             upsert: true
@@ -358,6 +390,25 @@ exports.uploadMasterData = async ({ type, semester, file }) => {
           principalName: fullName,
           collegeName: collegeData?.name || collegeCode
         });
+      } else if (type === 'backlogfees') {
+        const regdNo = row['registration number']?.toString()?.trim();
+        if (!regdNo) { rowErrors.push({ row: rowNum, message: 'Registration Number is empty.' }); continue; }
+        const feeSemester = row['semester']?.toString()?.trim() || semester;
+        if (!feeSemester) { rowErrors.push({ row: rowNum, message: 'Semester is empty.' }); continue; }
+        
+        operations.push({
+          updateOne: {
+            filter: { regdNo, semester: feeSemester },
+            update: { 
+              $set: {
+                name: row['student name']?.trim(),
+                collegeCode: row['college code']?.trim(),
+                courseCode: row['course code']?.trim()
+              }
+            },
+            upsert: true
+          }
+        });
       }
     } catch (rowErr) {
       rowErrors.push({ row: rowNum, message: rowErr.message });
@@ -372,6 +423,7 @@ exports.uploadMasterData = async ({ type, semester, file }) => {
     else if (type === 'groups') Model = Group;
     else if (type === 'subjects' || type === 'subjectmaps') Model = Subject;
     else if (type === 'papers') Model = Paper;
+    else if (type === 'backlogfees') Model = BacklogFee;
 
     if (Model) {
       const BATCH_SIZE = 1000;
@@ -425,6 +477,7 @@ const getModelForType = (type) => {
     case 'subjects': return Subject;
     case 'subjectmaps': return Subject;
     case 'papers':   return Paper;
+    case 'assignments': return Assignment;
     default: return null;
   }
 };
@@ -434,6 +487,10 @@ exports.createRecord = async (type, body) => {
   if (!Model) throw new AppError('Invalid record type', 400);
 
   if (type === 'evaluators') {
+    if (!body.fullName) throw new AppError('Full Name is required.', 400);
+    if (!body.regdNo) throw new AppError('Email is required.', 400);
+    if (!body.password) throw new AppError('Password is required.', 400);
+
     const existing = await User.findOne({ regdNo: body.regdNo });
     if (existing) throw new AppError('An evaluator with this email already exists.', 400);
     
@@ -515,6 +572,24 @@ exports.createRecord = async (type, body) => {
     }
   }
 
+  if (type === 'colleges') {
+    if (body.latitude !== undefined && body.latitude !== null && body.latitude !== '') {
+      body.latitude = Number(body.latitude);
+    } else {
+      body.latitude = null;
+    }
+    if (body.longitude !== undefined && body.longitude !== null && body.longitude !== '') {
+      body.longitude = Number(body.longitude);
+    } else {
+      body.longitude = null;
+    }
+    if (body.radiusMeter !== undefined && body.radiusMeter !== null && body.radiusMeter !== '') {
+      body.radiusMeter = Number(body.radiusMeter);
+    } else {
+      body.radiusMeter = 200;
+    }
+  }
+
   try {
     const newRecord = new Model(body);
     await newRecord.save();
@@ -532,9 +607,22 @@ exports.updateRecord = async (type, id, body) => {
   if (!Model) throw new AppError('Invalid record type', 400);
 
   if (type === 'evaluators') {
+    if (body.fullName !== undefined && !body.fullName.trim()) throw new AppError('Full Name is required.', 400);
+    if (body.regdNo !== undefined && !body.regdNo.trim()) throw new AppError('Email is required.', 400);
+
     const evaluator = await User.findById(id);
     if (!evaluator) throw new AppError('Evaluator not found', 404);
     
+    if (body.regdNo && body.regdNo !== evaluator.regdNo) {
+      const existing = await User.findOne({ regdNo: body.regdNo });
+      if (existing) throw new AppError('An evaluator with this email already exists.', 400);
+    }
+    
+    let diffMessages = [];
+    if (body.fullName && body.fullName !== evaluator.fullName) diffMessages.push(`fullName changed from '${evaluator.fullName}' to '${body.fullName}'`);
+    if (body.regdNo && body.regdNo !== evaluator.regdNo) diffMessages.push(`email changed from '${evaluator.regdNo}' to '${body.regdNo}'`);
+    const diffString = diffMessages.length > 0 ? diffMessages.join(', ') : 'No visible fields changed';
+
     evaluator.fullName = body.fullName || evaluator.fullName;
     evaluator.regdNo = body.regdNo || evaluator.regdNo;
     
@@ -549,13 +637,18 @@ exports.updateRecord = async (type, id, body) => {
     
     await evaluator.save();
     const updated = await User.findById(id).populate('subjects').select('-password');
-    return { message: 'Evaluator updated successfully', record: updated };
+    return { message: 'Evaluator updated successfully', record: updated, diffString };
   }
 
   if (type === 'principals') {
     const principal = await User.findById(id);
     if (!principal) throw new AppError('Principal not found', 404);
     
+    let diffMessages = [];
+    if (body.fullName && body.fullName !== principal.fullName) diffMessages.push(`fullName changed from '${principal.fullName}' to '${body.fullName}'`);
+    if (body.regdNo && body.regdNo !== principal.regdNo) diffMessages.push(`email changed from '${principal.regdNo}' to '${body.regdNo}'`);
+    const diffString = diffMessages.length > 0 ? diffMessages.join(', ') : 'No visible fields changed';
+
     principal.fullName = body.fullName || principal.fullName;
     principal.regdNo = body.regdNo || principal.regdNo;
     
@@ -573,7 +666,7 @@ exports.updateRecord = async (type, id, body) => {
     
     const mapped = updated.toObject();
     mapped.collegeCode = updated.collegeId?.collegeCode || '';
-    return { message: 'Principal updated successfully', record: mapped };
+    return { message: 'Principal updated successfully', record: mapped, diffString };
   }
 
   if (type === 'papers' && body.subjectIds && Array.isArray(body.subjectIds)) {
@@ -611,9 +704,42 @@ exports.updateRecord = async (type, id, body) => {
     }
   }
 
+  if (type === 'colleges') {
+    if (body.latitude !== undefined) {
+      body.latitude = (body.latitude === null || body.latitude === '') ? null : Number(body.latitude);
+    }
+    if (body.longitude !== undefined) {
+      body.longitude = (body.longitude === null || body.longitude === '') ? null : Number(body.longitude);
+    }
+    if (body.radiusMeter !== undefined) {
+      body.radiusMeter = (body.radiusMeter === null || body.radiusMeter === '') ? 200 : Number(body.radiusMeter);
+    }
+  }
+
+  if (type === 'assignments') {
+    if (body.suggestedMarksDeadline !== undefined && (body.suggestedMarksDeadline === null || body.suggestedMarksDeadline === '')) {
+      throw new AppError('Suggested Marks Deadline is required.', 400);
+    }
+  }
+
+  const oldRecord = await Model.findById(id).lean();
+  if (!oldRecord) throw new AppError('Record not found', 404);
+
+  let diffMessages = [];
+  for (const key of Object.keys(body)) {
+    if (['password', 'plainPassword', '_id', '__v', 'createdAt', 'updatedAt'].includes(key)) continue;
+    
+    const oldVal = oldRecord[key] !== undefined ? String(oldRecord[key]) : '';
+    const newVal = body[key] !== undefined ? String(body[key]) : '';
+    
+    if (oldVal !== newVal) {
+      diffMessages.push(`${key} changed from '${oldVal}' to '${newVal}'`);
+    }
+  }
+  const diffString = diffMessages.length > 0 ? diffMessages.join(', ') : 'No visible fields changed';
+
   const updated = await Model.findByIdAndUpdate(id, body, { new: true, runValidators: true });
-  if (!updated) throw new AppError('Record not found', 404);
-  return { message: 'Record updated successfully', record: updated };
+  return { message: 'Record updated successfully', record: updated, diffString };
 };
 
 exports.deleteRecord = async (type, id) => {
@@ -670,7 +796,7 @@ exports.getPrincipals = async () => {
 };
 
 exports.getColleges = async () => {
-  return await College.find();
+  return await College.find().sort({ collegeCode: 1 });
 };
 
 exports.getGroups = async () => {
@@ -693,16 +819,37 @@ exports.getPapers = async () => {
 };
 
 exports.getSemesters = async () => {
-  const semesters = await User.distinct('currentSemester', { role: 'STUDENT' });
-  return semesters.filter(Boolean).sort((a, b) => a.localeCompare(b));
+  const standardSemesters = ['1-1', '1-2', '2-1', '2-2', '3-1', '3-2', '4-1', '4-2'];
+  const dbSemesters = await User.distinct('currentSemester', { role: 'STUDENT' });
+  const allSemesters = [...new Set([...standardSemesters, ...dbSemesters.filter(Boolean)])];
+  return allSemesters.sort((a, b) => a.localeCompare(b));
 };
 
 exports.getUniqueGroupSubjects = async () => {
   const groups = await Group.find().lean();
   const subSet = new Set();
   groups.forEach(g => {
-    if (g.pedagogy1Name && g.pedagogy1Name.trim() !== '') subSet.add(g.pedagogy1Name.trim());
-    if (g.pedagogy2Name && g.pedagogy2Name.trim() !== '') subSet.add(g.pedagogy2Name.trim());
+    if (g.subjects && Array.isArray(g.subjects)) {
+      g.subjects.forEach(sub => {
+        if (sub && sub.trim() !== '') subSet.add(sub.trim());
+      });
+    }
   });
   return [...subSet].sort();
+};
+
+exports.promoteStudents = async ({ studentIds, toSemester }) => {
+  if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+    throw new AppError('No students selected.', 400);
+  }
+  if (!toSemester) {
+    throw new AppError('Target semester is required.', 400);
+  }
+
+  const result = await User.updateMany(
+    { _id: { $in: studentIds }, role: 'STUDENT' },
+    { $set: { currentSemester: toSemester } }
+  );
+
+  return { message: `${result.modifiedCount} student(s) promoted to ${toSemester} successfully.` };
 };

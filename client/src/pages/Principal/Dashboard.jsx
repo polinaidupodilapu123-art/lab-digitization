@@ -4,7 +4,9 @@ import axios from 'axios';
 import { Users, FileText, CheckCircle, Clock, Filter, RefreshCw, LogOut, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import Notifications from './Notifications';
 import PendingStudents from './PendingStudents';
+import CollegeRecords from './CollegeRecords';
 import { API_BASE_URL } from '../../utils/config';
+import SessionTimer from '../../components/SessionTimer';
 
 /* ─── Pure SVG Donut Chart ─── */
 const DonutChart = ({ pct, label, color = '#0d9488', size = 144, stroke = 14 }) => {
@@ -447,27 +449,26 @@ const PrincipalDashboard = () => {
   const navItems = [
     { name: 'Dashboard', path: '/principal', icon: Users },
     { name: 'Pending Students', path: '/principal/pending-students', icon: Clock },
+    { name: 'College Records', path: '/principal/records', icon: FileText },
     { name: 'Notifications', path: '/principal/circulars', icon: Bell },
   ];
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex flex-col md:flex-row h-full bg-slate-50">
       {/* Sidebar */}
       <div 
         className={`${
-          isSidebarExpanded ? 'w-64' : 'w-20'
-        } bg-white border-r border-slate-200 flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out relative z-50`}
+          isSidebarExpanded ? 'w-full md:w-64' : 'w-full md:w-20'
+        } bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out md:h-full z-50`}
       >
-        <div className={`p-4 flex items-center ${isSidebarExpanded ? 'justify-between' : 'justify-center'} border-b border-slate-100`}>
-          {isSidebarExpanded && (
-            <div>
-              <h2 className="text-xl font-bold text-teal-600 truncate">Principal Portal</h2>
-              <p className="text-[10px] text-slate-500 mt-0.5 truncate">AKNU Digitization Hub</p>
-            </div>
-          )}
+        <div className={`p-4 flex items-center ${isSidebarExpanded ? 'justify-between' : 'justify-between md:justify-center'} border-b border-slate-100`}>
+          <div className={`${!isSidebarExpanded ? 'block md:hidden' : 'block'}`}>
+            <h2 className="text-xl font-bold text-teal-600 truncate">Principal Panel</h2>
+            <p className="text-[10px] text-slate-500 mt-0.5 truncate">Lab Digitization System</p>
+          </div>
           <button 
             onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
-            className="p-2 rounded-md hover:bg-slate-100 text-slate-600 transition-colors focus:outline-none"
+            className="hidden md:block p-2 rounded-md hover:bg-slate-100 text-slate-600 transition-colors focus:outline-none"
             title={isSidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
           >
             {isSidebarExpanded ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
@@ -490,7 +491,7 @@ const PrincipalDashboard = () => {
                 } ${isSidebarExpanded ? 'space-x-3' : 'justify-center'}`}
               >
                 <Icon className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-teal-600' : 'text-slate-400 group-hover:text-teal-500 transition-colors'}`} />
-                {isSidebarExpanded && <span className="truncate">{item.name}</span>}
+                <span className={`${!isSidebarExpanded ? 'inline md:hidden' : 'inline'} truncate ml-3 md:ml-0 ${isSidebarExpanded ? 'md:ml-3' : ''}`}>{item.name}</span>
                 
                 {/* Tooltip for collapsed state */}
                 {!isSidebarExpanded && (
@@ -507,10 +508,10 @@ const PrincipalDashboard = () => {
           <button
             onClick={handleLogout}
             title={!isSidebarExpanded ? "Logout" : ""}
-            className={`flex items-center text-slate-600 hover:text-red-600 transition-colors w-full px-3 py-2 rounded-md hover:bg-red-50 group relative ${isSidebarExpanded ? 'space-x-3' : 'justify-center'}`}
+            className={`flex items-center text-slate-600 hover:text-red-600 transition-colors w-full px-3 py-2 rounded-md hover:bg-red-50 group relative ${isSidebarExpanded ? 'space-x-3' : 'justify-center md:justify-center'} ${!isSidebarExpanded ? 'md:justify-center justify-start' : ''}`}
           >
             <LogOut className="h-5 w-5 flex-shrink-0" />
-            {isSidebarExpanded && <span>Logout</span>}
+            <span className={`${!isSidebarExpanded ? 'inline md:hidden' : 'inline'} ml-3 md:ml-0 ${isSidebarExpanded ? 'md:ml-3' : ''}`}>Logout</span>
             
             {/* Tooltip for collapsed state */}
             {!isSidebarExpanded && (
@@ -523,10 +524,14 @@ const PrincipalDashboard = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 relative overflow-y-auto md:overflow-y-auto">
+        <div className="absolute top-8 right-8 z-40">
+          <SessionTimer />
+        </div>
         <Routes>
           <Route path="/" element={<PrincipalDashboardStats />} />
           <Route path="/pending-students" element={<PendingStudents />} />
+          <Route path="/records" element={<CollegeRecords />} />
           <Route path="/circulars" element={<Notifications />} />
         </Routes>
       </div>

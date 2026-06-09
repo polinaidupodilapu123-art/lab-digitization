@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage,
-  limits: { fileSize: 500 * 1024 } // 500KB limit
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
 // Middleware for student routes
@@ -27,6 +27,7 @@ router.use(protect);
 
 router.get('/assignments', studentController.getMyAssignments);
 router.post('/assignments/:assignmentId/submit', upload.single('file'), studentController.submitAssignment);
+router.post('/assignments/:assignmentId/log-download', studentController.logDownload);
 router.get('/paper-grades', adminController.getPaperGrades);
 
 module.exports = router;

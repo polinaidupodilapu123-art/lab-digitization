@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['ADMIN', 'STUDENT', 'EVALUATOR', 'PRINCIPAL'],
+    enum: ['ADMIN', 'STUDENT', 'EVALUATOR', 'PRINCIPAL', 'SYSTEM_ADMIN'],
     default: 'STUDENT'
   },
   fullName: {
@@ -48,6 +48,9 @@ const userSchema = new mongoose.Schema({
   currentSemester: {
     type: String
   },
+  academicYear: {
+    type: String
+  },
   subjects: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Subject'
@@ -59,6 +62,14 @@ const userSchema = new mongoose.Schema({
   isSetupComplete: {
     type: Boolean,
     default: false
+  },
+  currentSessionId: {
+    type: String,
+    default: null
+  },
+  faceDescriptor: {
+    type: [Number],
+    default: []
   }
 }, { timestamps: true });
 
@@ -72,6 +83,7 @@ userSchema.pre('save', async function () {
 
 // Method to compare password
 userSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!this.password) return false;
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

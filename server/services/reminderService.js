@@ -121,7 +121,7 @@ const runDailyReminderCheck = async () => {
         const daysLeft = isToday ? 0 : 1;
 
         if (!evaluatorsMap[evaluator._id]) {
-          evaluatorsMap[evaluator._id] = { evaluator, daysLeft, pendingCount: 0 };
+          evaluatorsMap[evaluator._id] = { evaluator, daysLeft, pendingCount: 0, valuationDeadline: assignment.valuationDeadline };
         } else {
           if (daysLeft === 0) evaluatorsMap[evaluator._id].daysLeft = 0;
         }
@@ -134,7 +134,8 @@ const runDailyReminderCheck = async () => {
             to: data.evaluator.email,
             evaluatorName: data.evaluator.fullName || data.evaluator.regdNo,
             daysLeft: data.daysLeft,
-            pendingCount: data.pendingCount
+            pendingCount: data.pendingCount,
+            valuationDeadline: data.valuationDeadline
           });
         }
       }

@@ -8,13 +8,17 @@ const AppError = require('../../utils/AppError');
 exports.getAssignmentFilters = async () => {
   const colleges = await College.find().select('collegeCode collegeName');
   const courses = await Course.find().select('courseCode courseName');
-  const semesters = await Subject.distinct('semester');
+  
+  const subjectSems = await Subject.distinct('semester');
+  const userSems = await User.distinct('currentSemester', { role: 'STUDENT' });
+  const semesters = [...new Set([...subjectSems, ...userSems])].filter(Boolean).sort();
+  
   const groups = await Group.find().select('groupCode groupName');
   
-  return { colleges, courses, semesters: semesters.filter(Boolean), groups };
+  return { colleges, courses, semesters, groups };
 };
 
-exports.getAssignmentData = async ({ collegeCode, courseCode, semester, groupCode }) => {
+exports.getAssignmentData = async ({ collegeCode, courseCode, semester, groupCode, mode }) => {
   let students = [];
   let subjects = [];
 
@@ -49,11 +53,63 @@ exports.getAssignmentData = async ({ collegeCode, courseCode, semester, groupCod
   }
 
   if (shouldFetchStudents) {
-    students = await User.find(studentQuery).select('fullName regdNo _id groupId currentSemester').populate('groupId');
+    if (mode === 'Backlog') {
+      const BacklogFee = require('../../models/BacklogFee');
+      const feeQuery = {};
+      if (semester) feeQuery.semester = semester;
+      
+      const fees = await BacklogFee.find(feeQuery).lean();
+      const backlogRegdNos = [...new Set(fees.map(f => f.regdNo))];
+      
+      studentQuery.regdNo = { $in: backlogRegdNos };
+      // Override currentSemester filter since backlogs belong to past semesters
+      delete studentQuery.currentSemester;
+      
+      students = await User.find(studentQuery).select('fullName regdNo _id groupId currentSemester').populate('groupId');
+    } else {
+      students = await User.find(studentQuery).select('fullName regdNo _id groupId currentSemester').populate('groupId');
+    }
   }
 
   if (semester) {
     subjects = await Subject.find({ semester }).sort({ createdAt: -1 }).lean();
+    
+    if (mode === 'Backlog' && students.length > 0) {
+      const backlogSubjectIds = new Set();
+      const studentIds = students.map(s => s._id);
+      const subjectIds = subjects.map(s => s._id);
+      
+      const pastAssignments = await Assignment.find({
+        studentId: { $in: studentIds },
+        subjectId: { $in: subjectIds }
+      }).lean();
+
+      const latestAssignments = {};
+      pastAssignments.forEach(a => {
+        const key = `${a.studentId.toString()}_${a.subjectId.toString()}`;
+        if (!latestAssignments[key] || new Date(a.createdAt) > new Date(latestAssignments[key].createdAt)) {
+          latestAssignments[key] = a;
+        }
+      });
+
+      for (const student of students) {
+        for (const sub of subjects) {
+          const key = `${student._id.toString()}_${sub._id.toString()}`;
+          const assignment = latestAssignments[key];
+          
+          if (!assignment) {
+            backlogSubjectIds.add(sub._id.toString());
+          } else if (assignment.status === 'Evaluated') {
+            const passMark = sub.subPassMarks != null ? sub.subPassMarks : (sub.maxMarks ? sub.maxMarks * 0.4 : 0);
+            if (assignment.score < passMark) {
+              backlogSubjectIds.add(sub._id.toString());
+            }
+          }
+        }
+      }
+      
+      subjects = subjects.filter(sub => backlogSubjectIds.has(sub._id.toString()));
+    }
   } else {
     subjects = [];
   }
@@ -77,18 +133,21 @@ exports.getAssignmentData = async ({ collegeCode, courseCode, semester, groupCod
   
   for (let i = 0; i < choiceSubjects.length; i++) {
     const sub = choiceSubjects[i];
-    const pedField = i === 0 ? 'pedagogy1Name' : 'pedagogy2Name';
-    
     if (groupCode && uniqueGroups.size > 0) {
       let pedagogyNames = [];
       for (const [id, group] of uniqueGroups) {
-        if (group[pedField]) pedagogyNames.push(group[pedField]);
+        if (group.subjects && group.subjects.length > 0) {
+          const pedIndex = i % group.subjects.length;
+          if (group.subjects[pedIndex]) {
+            pedagogyNames.push(group.subjects[pedIndex]);
+          }
+        }
       }
       pedagogyNames = [...new Set(pedagogyNames)];
       
       displaySubjects.push({
         ...sub,
-        subName: pedagogyNames.length > 0 ? pedagogyNames.join(' / ') : sub.subName,
+        subName: pedagogyNames.length > 0 ? `${pedagogyNames.join(' / ')} - ${sub.subName}` : sub.subName,
         isGroupSubject: true
       });
     } else {
@@ -106,7 +165,7 @@ exports.getAssignments = async () => {
   return await Assignment.find()
     .populate({
       path: 'studentId',
-      select: 'fullName regdNo currentSemester collegeId courseId',
+      select: 'fullName regdNo currentSemester collegeId courseId academicYear',
       populate: [
         { path: 'collegeId', select: 'collegeName' },
         { path: 'courseId', select: 'courseName' }
@@ -123,7 +182,7 @@ exports.getPaperGrades = async (studentId) => {
   }
 
   const papers = await Paper.find().populate('subjectIds').lean();
-  const assignments = await Assignment.find({ studentId }).lean();
+  const assignments = await Assignment.find({ studentId }).sort({ createdAt: 1 }).lean();
 
   const assignmentMap = new Map(
     assignments.map(a => [a.subjectId.toString(), a])
@@ -134,6 +193,7 @@ exports.getPaperGrades = async (studentId) => {
     let paperMaxMarks = 0;
     let evaluatedCount = 0;
     let totalSubjectsCount = paper.subjectIds?.length || 0;
+    let hasFailedSubject = false;
     const subjectsList = [];
 
     (paper.subjectIds || []).forEach(sub => {
@@ -143,6 +203,12 @@ exports.getPaperGrades = async (studentId) => {
       if (assignment && assignment.status === 'Evaluated') {
         obtainedScore += assignment.score || 0;
         evaluatedCount++;
+        
+        const passMark = sub.subPassMarks != null ? sub.subPassMarks : (sub.maxMarks ? sub.maxMarks * 0.4 : 0);
+        if (assignment.score < passMark) {
+          hasFailedSubject = true;
+        }
+
         subjectsList.push({
           subCode: sub.subCode,
           subName: sub.subName,
@@ -174,6 +240,7 @@ exports.getPaperGrades = async (studentId) => {
       passMarks: paper.passMarks || 0,
       maxMarks: paperMaxMarks,
       obtainedScore: evaluatedCount > 0 ? obtainedScore : null,
+      isPassed: evaluatedCount > 0 ? (!hasFailedSubject && obtainedScore >= (paper.passMarks || 0)) : false,
       status: paperStatus,
       subjects: subjectsList
     };
@@ -183,22 +250,26 @@ exports.getPaperGrades = async (studentId) => {
 };
 
 exports.getBacklogCandidates = async () => {
-  const students = await User.find({ role: 'STUDENT' }).lean();
+  const BacklogFee = require('../../models/BacklogFee');
+  const fees = await BacklogFee.find().lean();
+  
+  if (fees.length === 0) return [];
+
+  const regdNos = [...new Set(fees.map(f => f.regdNo))];
+  const students = await User.find({ role: 'STUDENT', regdNo: { $in: regdNos } }).lean();
   const subjects = await Subject.find().lean();
   const candidates = [];
 
-  for (const student of students) {
-    const currentSem = student.currentSemester;
-    if (!currentSem) continue;
-    const semMatch = currentSem.match(/(\d+)/);
-    if (!semMatch) continue;
-    const currentNum = parseInt(semMatch[1], 10);
-    const priorSemesters = [];
-    for (let i = 1; i < currentNum; i++) priorSemesters.push(`Semester ${i}`);
-    
-    const priorSubjects = subjects.filter(s => priorSemesters.includes(s.semester));
+  for (const fee of fees) {
+    const student = students.find(s => s.regdNo === fee.regdNo);
+    if (!student) continue;
+
+    const priorSubjects = subjects.filter(s => s.semester === fee.semester);
     for (const sub of priorSubjects) {
-      const assignment = await Assignment.findOne({ studentId: student._id, subjectId: sub._id }).lean();
+      const assignment = await Assignment.findOne({ studentId: student._id, subjectId: sub._id })
+        .sort({ createdAt: -1 })
+        .lean();
+        
       if (!assignment) {
         candidates.push({ studentId: student, subjectId: sub, reason: 'Missed', score: null });
       } else if (assignment.status === 'Evaluated') {
@@ -233,21 +304,16 @@ exports.bulkAssignBacklogs = async ({ candidates, pagesRequired, academicYear, d
 
   for (const c of candidates) {
     const { studentId, subjectId } = c;
-    await Assignment.findOneAndUpdate(
-      { studentId, subjectId },
-      {
-        pagesRequired,
-        academicYear: academicYear || '',
-        deadline,
-        createdBy,
-        status: 'Pending',
-        mode: 'Supply',
-        evaluatorId: null,
-        score: null,
-        feedback: null
-      },
-      { upsert: true, new: true }
-    );
+    await Assignment.create({
+      studentId,
+      subjectId,
+      pagesRequired,
+      academicYear: academicYear || '',
+      deadline,
+      createdBy,
+      status: 'Pending',
+      mode: 'Supply'
+    });
 
     const sIdStr = studentId.toString();
     const subIdStr = subjectId.toString();

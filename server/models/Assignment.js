@@ -60,6 +60,18 @@ const assignmentSchema = new mongoose.Schema({
   },
   valuationDeadline: {
     type: Date
+  },
+  suggestedMarks: {
+    type: Number
+  },
+  suggestedMarksDeadline: {
+    type: Date
+  },
+  studentNote: {
+    type: String
+  },
+  extractedText: {
+    type: String
   }
 }, { timestamps: true });
 

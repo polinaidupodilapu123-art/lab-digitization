@@ -42,7 +42,7 @@ exports.getAssignedRecords = async (evaluatorId) => {
   })
     .populate({
       path: 'studentId',
-      select: 'fullName regdNo collegeId courseId',
+      select: 'fullName regdNo collegeId courseId academicYear currentSemester',
       populate: [
         { path: 'collegeId', select: 'collegeName collegeCode' },
         { path: 'courseId', select: 'courseName courseCode' }
@@ -51,7 +51,13 @@ exports.getAssignedRecords = async (evaluatorId) => {
     .populate('subjectId')
     .lean();
 
-  return records;
+  const filteredRecords = records.filter(record => {
+    if (record.mode === 'Supply') return true;
+    if (!record.studentId || !record.subjectId) return false;
+    return String(record.subjectId.semester) === String(record.studentId.currentSemester);
+  });
+
+  return filteredRecords;
 };
 
 exports.gradeRecord = async ({ assignmentId, score, feedback, evaluatorId }) => {
@@ -84,11 +90,24 @@ exports.gradeRecord = async ({ assignmentId, score, feedback, evaluatorId }) => 
     throw new AppError('Score cannot be negative.', 400);
   }
 
+  let diffMessages = [];
+  if (assignment.status === 'Evaluated' && assignment.score !== score) {
+    diffMessages.push(`score changed from '${assignment.score}' to '${score}'`);
+  } else if (assignment.status !== 'Evaluated') {
+    diffMessages.push(`Evaluated assignment with score '${score}'`);
+  }
+  
+  if (assignment.feedback !== feedback) {
+    diffMessages.push(`feedback changed`);
+  }
+
+  const diffString = diffMessages.length > 0 ? diffMessages.join(', ') : 'No visible fields changed';
+
   assignment.score = score;
   assignment.feedback = feedback;
   assignment.status = 'Evaluated';
   assignment.evaluatorId = evaluatorId;
   await assignment.save();
 
-  return { message: 'Record graded successfully', assignment };
+  return { message: 'Record graded successfully', assignment, diffString };
 };

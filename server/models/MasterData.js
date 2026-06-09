@@ -5,7 +5,10 @@ const collegeSchema = new mongoose.Schema({
   collegeName: { type: String, required: true },
   location:    { type: String },
   district:    { type: String },
-  courses:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }]
+  courses:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
+  latitude:    { type: Number },
+  longitude:   { type: Number },
+  radiusMeter: { type: Number, default: 200 } // Geofence radius limit in meters
 }, { timestamps: true });
 
 const subjectSchema = new mongoose.Schema({
@@ -25,8 +28,7 @@ const groupSchema = new mongoose.Schema({
   groupCode:     { type: String, required: true, unique: true },
   courseId:      { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
   groupName:     { type: String },
-  pedagogy1Name: { type: String },
-  pedagogy2Name: { type: String }
+  subjects:      [{ type: String }]
 }, { timestamps: true });
 
 // New: Courses master

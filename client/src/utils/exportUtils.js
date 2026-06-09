@@ -25,7 +25,7 @@ export async function downloadAssignmentScoresXlsx(rows, fileNameBase, options) 
     "Academic Year",
     "Semester",
     "Mode",
-    "Registered Number",
+    "Registration Number",
     "Name",
     "Name of the title / subject",
     "Max Marks",

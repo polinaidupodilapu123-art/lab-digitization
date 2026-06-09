@@ -3,7 +3,7 @@ import nannayaLogo from "../assets/nannaya_logo.png";
 
 const Header = () => {
   return (
-    <header className="bg-teal-900 text-white flex flex-col md:flex-row items-center justify-evenly p-4 md:p-6">
+    <header className="bg-teal-900 text-white flex flex-col md:flex-row items-center justify-evenly p-2">
       <div>
         <img
           src={aknuLogo}

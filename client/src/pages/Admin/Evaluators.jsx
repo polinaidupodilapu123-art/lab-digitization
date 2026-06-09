@@ -1,786 +1,625 @@
-import { useState, useEffect } from 'react';
-import { Shield, BookOpen, CheckCircle, RefreshCw, X, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import SearchableDropdown from '../../components/SearchableDropdown';
-
+import { Users, BookOpen, CheckCircle, Search, ChevronDown, Check, AlertCircle, Filter, Edit, Clock, X, Square, CheckSquare, Activity } from 'lucide-react';
 import { API_BASE_URL } from '../../utils/config';
+import SearchableDropdown from '../../components/SearchableDropdown';
+import ActivityFeed from '../../components/ActivityFeed';
 
 const API = `${API_BASE_URL}/api/admin`;
-const PAGE_SIZE = 10;
 
-/* ── Pagination component ── */
-const Pagination = ({ total, page, onPage }) => {
-  const totalPages = Math.ceil(total / PAGE_SIZE);
-  if (totalPages <= 1) return null;
-
-  const start = (page - 1) * PAGE_SIZE + 1;
-  const end   = Math.min(page * PAGE_SIZE, total);
-
-  return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50">
-      <span className="text-xs text-slate-500">
-        Showing <span className="font-semibold text-slate-700">{start}–{end}</span> of <span className="font-semibold text-slate-700">{total}</span> records
-      </span>
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onPage(1)}
-          disabled={page === 1}
-          className="px-2 py-1 rounded-md text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-        >
-          «
-        </button>
-        <button
-          onClick={() => onPage(page - 1)}
-          disabled={page === 1}
-          className="px-2 py-1 rounded-md text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors flex items-center gap-1"
-        >
-          <ChevronLeft className="h-3 w-3" /> Prev
-        </button>
-
-        {Array.from({ length: totalPages }, (_, i) => i + 1)
-          .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-          .reduce((acc, p, idx, arr) => {
-            if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…');
-            acc.push(p);
-            return acc;
-          }, [])
-          .map((p, i) =>
-            p === '…' ? (
-              <span key={`ellipsis-${i}`} className="px-1 text-slate-400 text-xs">…</span>
-            ) : (
-              <button
-                key={p}
-                onClick={() => onPage(p)}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
-                  p === page
-                    ? 'bg-teal-700 text-white border border-teal-700'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                {p}
-              </button>
-            )
-          )
-        }
-
-        <button
-          onClick={() => onPage(page + 1)}
-          disabled={page === totalPages}
-          className="px-2 py-1 rounded-md text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors flex items-center gap-1"
-        >
-          Next <ChevronRight className="h-3 w-3" />
-        </button>
-        <button
-          onClick={() => onPage(totalPages)}
-          disabled={page === totalPages}
-          className="px-2 py-1 rounded-md text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-        >
-          »
-        </button>
-      </div>
-    </div>
-  );
-};
-
-/* ── Subject Allocation Configuration Panel ── */
-const SubjectAllocationPanel = ({ allocation, colleges, assignments, subjectId, groupSubjectName, onChange }) => {
-  const [colSearch, setColSearch] = useState('');
-  
-  const handleFieldChange = (field, value) => {
-    onChange(field, value);
-  };
-  
-  const filteredColleges = colleges.filter(c => 
-    (c.collegeName || '').toLowerCase().includes(colSearch.toLowerCase()) ||
-    (c.collegeCode || '').toLowerCase().includes(colSearch.toLowerCase())
-  );
-
-  const getPendingCountForCollege = (colId) => {
-    if (!assignments || !Array.isArray(assignments)) return 0;
-    return assignments.filter(a => {
-      if (a.evaluatorId) return false;
-      
-      if (subjectId) {
-        const aSubId = a.subjectId?._id || a.subjectId;
-        if (!aSubId || aSubId.toString() !== subjectId.toString()) return false;
-      } else if (groupSubjectName) {
-        if (!a.groupSubjectName || a.groupSubjectName.trim().toLowerCase() !== groupSubjectName.trim().toLowerCase()) return false;
-      } else {
-        return false;
-      }
-      
-      const aColId = a.studentId?.collegeId?._id || a.studentId?.collegeId;
-      if (!aColId || aColId.toString() !== colId.toString()) return false;
-      
-      return true;
-    }).length;
-  };
-  
-  return (
-    <div className="mt-2.5 p-3.5 bg-slate-100/90 border border-slate-200/80 rounded-md space-y-3.5 transition-all duration-300 shadow-inner animate-fade-in">
-      {/* Valuation Deadline & Split Method */}
-      <div className="grid grid-cols-2 gap-3.5">
-        <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-            Valuation Deadline <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="date"
-            required
-            value={allocation.valuationDeadline || ''}
-            onChange={(e) => handleFieldChange('valuationDeadline', e.target.value)}
-            className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-            Record Split Mode
-          </label>
-          <select
-            value={allocation.splitMethod || 'ALL'}
-            onChange={(e) => handleFieldChange('splitMethod', e.target.value)}
-            className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white cursor-pointer"
-          >
-            <option value="ALL">Assign All Records</option>
-            <option value="COLLEGE">Filter by College</option>
-            <option value="RANGE">Filter by Roll Number Range</option>
-          </select>
-        </div>
-      </div>
-      
-      {/* College-wise Split Option */}
-      {allocation.splitMethod === 'COLLEGE' && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-sm font-semibold text-slate-700">
-              Select College(s)
-            </label>
-            <input
-              type="text"
-              placeholder="Search college..."
-              value={colSearch}
-              onChange={(e) => setColSearch(e.target.value)}
-              className="px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 w-48 text-slate-800 transition-all"
-            />
-          </div>
-          <div className="border border-slate-200 rounded-md p-2 bg-white max-h-32 overflow-y-auto sleek-scrollbar space-y-1 shadow-sm">
-            {filteredColleges.map(col => {
-              const isChecked = allocation.collegeIds?.includes(col._id);
-              const pending = getPendingCountForCollege(col._id);
-              return (
-                <label key={col._id} className={`flex items-center gap-2 p-1.5 hover:bg-slate-50 rounded cursor-pointer text-xs transition-colors ${isChecked ? 'bg-teal-50/40' : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={isChecked || false}
-                    onChange={() => {
-                      const nextColIds = isChecked
-                        ? allocation.collegeIds.filter(id => id !== col._id)
-                        : [...(allocation.collegeIds || []), col._id];
-                      handleFieldChange('collegeIds', nextColIds);
-                    }}
-                    className="w-3.5 h-3.5 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer"
-                  />
-                  <span className="font-medium text-slate-700 flex items-center gap-1.5 truncate">
-                    <span className="font-semibold text-slate-900">{col.collegeCode}</span> - {col.collegeName}
-                    {pending > 0 ? (
-                      <span className="inline-flex px-1.5 py-0.5 text-[9px] font-bold text-orange-700 bg-orange-100 rounded-full leading-none">
-                        {pending} pending
-                      </span>
-                    ) : (
-                      <span className="inline-flex px-1.5 py-0.5 text-[9px] font-medium text-slate-400 bg-slate-100 rounded-full leading-none">
-                        0 pending
-                      </span>
-                    )}
-                  </span>
-                </label>
-              );
-            })}
-            {filteredColleges.length === 0 && (
-              <p className="text-[11px] text-slate-400 italic text-center py-2">No colleges match search.</p>
-            )}
-          </div>
-        </div>
-      )}
-      
-      {/* Roll Range-wise Split Option */}
-      {allocation.splitMethod === 'RANGE' && (
-        <div className="space-y-2">
-          <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-            Student Registration Number Range
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <input
-                type="text"
-                placeholder="Start Roll No"
-                value={allocation.rollStart || ''}
-                onChange={(e) => handleFieldChange('rollStart', e.target.value)}
-                className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
-              />
-            </div>
-            <div>
-              <input
-                type="text"
-                placeholder="End Roll No"
-                value={allocation.rollEnd || ''}
-                onChange={(e) => handleFieldChange('rollEnd', e.target.value)}
-                className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
-              />
-            </div>
-          </div>
-          <p className="text-[10px] text-slate-400 italic">
-            Assigns only students whose registration numbers lie alphanumerically within this range (inclusive).
-          </p>
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* ── Subject Assignment Modal ── */
-const AssignSubjectsModal = ({ evaluator, onClose, onSuccess }) => {
+export default function Evaluators() {
   const token = localStorage.getItem('token');
   const [subjects, setSubjects] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [evaluators, setEvaluators] = useState([]);
   const [colleges, setColleges] = useState([]);
-  const [assignments, setAssignments] = useState([]);
-  const [selectedGroupCode, setSelectedGroupCode] = useState('');
-  
+  const [submittedSubjects, setSubmittedSubjects] = useState({ subjectIds: [], groupSubjectNames: [], fullyAllocatedSubjectIds: [], fullyAllocatedGroupNames: [] });
+
   const [loading, setLoading] = useState(true);
-  const [allocations, setAllocations] = useState({});
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [showActivity, setShowActivity] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Selection state
+  const [allocationMode, setAllocationMode] = useState('Regular');
+  const [selectedSubjects, setSelectedSubjects] = useState([]); // Array of { id, name, type, groupCode }
+  const [selectedGroupCode, setSelectedGroupCode] = useState('');
+  const [selectedSemester, setSelectedSemester] = useState('');
+  const [subjectSearch, setSubjectSearch] = useState('');
+
+  // Stats state
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  // Allocation form state
+  const [allocationEvaluatorId, setAllocationEvaluatorId] = useState('');
+  const [splitMethod, setSplitMethod] = useState('ALL');
+  const [allocationCount, setAllocationCount] = useState('');
+  const [allocationColleges, setAllocationColleges] = useState([]);
+  const [rollStart, setRollStart] = useState('');
+  const [rollEnd, setRollEnd] = useState('');
+  const [valuationDeadline, setValuationDeadline] = useState('');
+  const [allocating, setAllocating] = useState(false);
 
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    
-    const loadData = async () => {
+    const fetchData = async () => {
       try {
-        const [subRes, groupsRes, assignRes, collegeRes] = await Promise.all([
+        setLoading(true);
+        const [subRes, groupRes, evRes, colRes] = await Promise.all([
           axios.get(`${API}/subjects`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API}/groups`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API}/assignments`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API}/evaluators`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API}/colleges`, { headers: { Authorization: `Bearer ${token}` } })
         ]);
-        
-        const sortedSubs = (subRes.data || []).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-        setSubjects(sortedSubs);
-        setGroups(groupsRes.data || []);
-        setAssignments(assignRes.data || []);
-        setColleges(collegeRes.data || []);
-        
-        setAllocations({});
-        setSelectedGroupCode('');
+
+        setSubjects(subRes.data || []);
+        setGroups(groupRes.data || []);
+        setEvaluators(evRes.data || []);
+        setColleges(colRes.data || []);
       } catch (err) {
-        setError('Failed to load subject options.');
+        setError('Failed to load basic data.');
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
-    
-    loadData();
+    fetchData();
+  }, [token]);
 
-    return () => { document.body.style.overflow = 'unset'; };
-  }, [evaluator, token]);
+  const fetchSubmitted = useCallback(async () => {
+    try {
+      const submRes = await axios.get(`${API}/subjects-with-submissions?mode=${allocationMode}`, { headers: { Authorization: `Bearer ${token}` } });
+      setSubmittedSubjects(submRes.data || { subjectIds: [], groupSubjectNames: [], fullyAllocatedSubjectIds: [], fullyAllocatedGroupNames: [] });
+    } catch (err) {
+      console.error('Failed to load submitted subjects', err);
+    }
+  }, [allocationMode, token]);
 
-  const handleToggleRegular = (id) => {
-    const idStr = id.toString();
-    setAllocations(prev => {
-      const next = { ...prev };
-      if (next[idStr]) {
-        delete next[idStr];
-      } else {
-        next[idStr] = {
-          subjectId: idStr,
-          valuationDeadline: '',
-          splitMethod: 'ALL',
-          collegeIds: [],
-          rollStart: '',
-          rollEnd: ''
-        };
-      }
-      return next;
+  useEffect(() => {
+    fetchSubmitted();
+    setSelectedSubjects([]);
+    setStats(null);
+  }, [allocationMode, token]);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(''), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(''), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
+  const uniqueSemesters = useMemo(() => [...new Set(subjects.map(s => s.semester).filter(Boolean))].sort(), [subjects]);
+  const regularSubjects = useMemo(() => {
+    if (!selectedSemester) return [];
+
+    return subjects.filter(s =>
+      s.studentChoice !== 'C' &&
+      s.studentChoice !== 'c' &&
+      s.semester === selectedSemester
+    );
+  }, [subjects, selectedSemester]);
+  const activeGroup = useMemo(() => groups.find(g => g.groupCode === selectedGroupCode), [groups, selectedGroupCode]);
+  const activeGroupSubjects = activeGroup?.subjects || [];
+
+  const combinedSubjectList = useMemo(() => {
+    let list = regularSubjects.map(s => ({
+      id: s._id,
+      name: `${s.subCode ? s.subCode + ' - ' : ''}${s.subName}`,
+      type: 'CORE',
+      isFullyAllocated: submittedSubjects.fullyAllocatedSubjectIds?.includes(s._id)
+    }));
+
+    if (activeGroupSubjects.length > 0) {
+      const groupSubjList = activeGroupSubjects.map(name => ({
+        id: name,
+        name: name,
+        type: 'GROUP',
+        groupCode: activeGroup.groupCode,
+        isFullyAllocated: submittedSubjects.fullyAllocatedGroupNames?.includes(name)
+      }));
+      list = [...list, ...groupSubjList];
+    }
+
+    if (subjectSearch) {
+      list = list.filter(s => s.name.toLowerCase().includes(subjectSearch.toLowerCase()));
+    }
+
+    // Filter out subjects that have no submitted records
+    list = list.filter(s => {
+      if (s.type === 'CORE') return submittedSubjects.subjectIds.includes(s.id);
+      return submittedSubjects.groupSubjectNames.includes(s.name);
+    });
+
+    return list;
+  }, [regularSubjects, activeGroupSubjects, subjectSearch, activeGroup, submittedSubjects]);
+
+  const isSubjectSelected = (sub) => {
+    return selectedSubjects.some(s => s.id === sub.id && s.type === sub.type);
+  };
+
+  const toggleSubject = (sub) => {
+    if (sub.isFullyAllocated) return;
+    setSelectedSubjects(prev => {
+      if (isSubjectSelected(sub)) return prev.filter(s => !(s.id === sub.id && s.type === sub.type));
+      return [...prev, sub];
     });
   };
 
-  const handleToggleGroupSubject = (name) => {
-    const trimmedName = name.trim();
-    setAllocations(prev => {
-      const next = { ...prev };
-      if (next[trimmedName]) {
-        delete next[trimmedName];
-      } else {
-        next[trimmedName] = {
-          groupSubjectName: trimmedName,
-          valuationDeadline: '',
-          splitMethod: 'ALL',
-          collegeIds: [],
-          rollStart: '',
-          rollEnd: ''
-        };
-      }
-      return next;
-    });
-  };
+  const fetchStats = async (clearSuccess = true) => {
+    if (selectedSubjects.length === 0) {
+      setStats(null);
+      return;
+    }
 
-  const updateAllocation = (key, field, value) => {
-    setAllocations(prev => {
-      if (!prev[key]) return prev;
-      return {
-        ...prev,
-        [key]: {
-          ...prev[key],
-          [field]: value
-        }
-      };
-    });
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
+    setStatsLoading(true);
     setError('');
-    
-    const allocationList = Object.values(allocations);
-    if (allocationList.length === 0) {
-      setError('Please select at least one subject to assign.');
-      setSaving(false);
-      return;
+    if (clearSuccess) {
+      setSuccess('');
     }
-    
-    if (allocationList.some(a => !a.valuationDeadline)) {
-      setError('Valuation Deadline is required for all assigned subjects.');
-      setSaving(false);
-      return;
-    }
-    
     try {
-      await axios.post(`${API}/evaluators/${evaluator._id}/subjects`, {
-        allocations: allocationList
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
+      const parsedSubjects = selectedSubjects.map(s => s.type === 'CORE' ? { subjectId: s.id } : { groupSubjectName: s.name });
+      const res = await axios.get(`${API}/subject-allocation-stats`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { subjects: JSON.stringify(parsedSubjects), mode: allocationMode }
       });
-      onSuccess('Subjects and student sheets assigned successfully with custom splits & deadlines!');
+      setStats(res.data);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save subject assignments.');
+      setError(err.response?.data?.message || 'Failed to load stats');
     } finally {
-      setSaving(false);
-    }
-  };
-
-  const activeGroup = groups.find(g => g.groupCode === selectedGroupCode);
-  const activeGroupSubjects = activeGroup ? [activeGroup.pedagogy1Name, activeGroup.pedagogy2Name].filter(Boolean) : [];
-
-  const filteredRegular = subjects
-    .filter(sub => sub.studentChoice !== 'C' && sub.studentChoice !== 'c');
-
-  const selectedIds = Object.values(allocations)
-    .filter(a => a.subjectId)
-    .map(a => a.subjectId);
-
-  const selectedGroupSubs = Object.values(allocations)
-    .filter(a => a.groupSubjectName)
-    .map(a => a.groupSubjectName);
-
-  const getSubjectTotalPending = (subId, groupName) => {
-    if (!assignments || !Array.isArray(assignments)) return 0;
-    return assignments.filter(a => {
-      if (a.evaluatorId) return false;
-      if (subId) {
-        const aSubId = a.subjectId?._id || a.subjectId;
-        return aSubId && aSubId.toString() === subId.toString();
-      } else if (groupName) {
-        return a.groupSubjectName && a.groupSubjectName.trim().toLowerCase() === groupName.trim().toLowerCase();
-      }
-      return false;
-    }).length;
-  };
-
-  const submittedCount = assignments.filter(a => {
-    if (a.status === 'Pending') return false;
-    
-    const isRegularMatch = a.subjectId && selectedIds.includes((a.subjectId._id || a.subjectId).toString());
-    const isGroupMatch = a.groupSubjectName && selectedGroupSubs.includes(a.groupSubjectName);
-    
-    return isRegularMatch || isGroupMatch;
-  }).length;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-md shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-teal-700 flex-shrink-0 text-white animate-fade-in">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 animate-pulse-subtle" />
-            <h3 className="text-lg font-semibold">Assign Subjects</h3>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="bg-teal-900/60 text-teal-200 border border-teal-500/30 px-3 py-1 rounded-full text-xs font-bold shadow-sm transition-all duration-300">
-              Submitted Records: <span className="text-white">{submittedCount}</span>
-            </div>
-            <button onClick={onClose} className="text-white/70 hover:text-white transition-colors cursor-pointer rounded-md p-0.5">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="p-6 overflow-y-auto flex-1 flex flex-col min-h-0">
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md text-sm font-medium border border-red-200 animate-slide-in">
-              ✕ {error}
-            </div>
-          )}
-
-          {/* Group dropdown selection */}
-          <div className="mb-4 flex-shrink-0 relative z-30">
-            <SearchableDropdown
-              label="Select Group for Pedagogy Option"
-              placeholder="-- Select a Group --"
-              options={groups.map(g => ({ value: g.groupCode, label: `${g.groupCode} - ${g.groupName}` }))}
-              value={selectedGroupCode}
-              onChange={setSelectedGroupCode}
-            />
-          </div>
-
-          {/* Subjects Checklist */}
-          <div className="flex-1 overflow-y-auto border border-slate-200 rounded-md divide-y divide-slate-100 p-2.5 bg-slate-50/50 max-h-[45vh] sleek-scrollbar">
-            {loading ? (
-              <div className="flex items-center justify-center py-12 text-slate-400">
-                <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading options…
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Regular Subjects Section */}
-                {filteredRegular.length > 0 && (
-                  <div>
-                    <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">Core Theory Papers</h4>
-                    <div className="space-y-2">
-                      {filteredRegular.map(sub => {
-                        const isChecked = !!allocations[sub._id.toString()];
-                        const pendingTotal = getSubjectTotalPending(sub._id, null);
-                        const isDisabled = pendingTotal === 0 && !isChecked;
-                        return (
-                          <div key={sub._id} className={`p-3 border rounded-md transition-all duration-300 bg-white ${isChecked ? 'border-teal-500 shadow-sm' : isDisabled ? 'border-slate-100 opacity-60 bg-slate-50/50' : 'border-slate-200 hover:border-slate-300'}`}>
-                            <label className={`flex items-start ${isDisabled ? 'cursor-not-allowed text-slate-400' : 'cursor-pointer text-slate-800'}`}>
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                disabled={isDisabled}
-                                onChange={() => handleToggleRegular(sub._id)}
-                                className={`w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 mt-0.5 mr-3 ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                              />
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between">
-                                  <p className={`text-sm font-semibold ${isDisabled ? 'text-slate-400' : 'text-slate-800'}`}>{sub.subCode}</p>
-                                  {pendingTotal > 0 ? (
-                                    <span className="inline-flex px-1.5 py-0.5 text-[9px] font-bold text-orange-700 bg-orange-50 border border-orange-200 rounded-md leading-none">
-                                      {pendingTotal} pending
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex px-1.5 py-0.5 text-[9px] font-bold text-red-700 bg-red-50 border border-red-200 rounded-md leading-none">
-                                      Subjects Assigned
-                                    </span>
-                                  )}
-                                </div>
-                                <p className={`text-xs mt-0.5 ${isDisabled ? 'text-slate-400/80' : 'text-slate-500'}`}>{sub.subName}</p>
-                              </div>
-                            </label>
-                            
-                            {/* Collapsible Panel for Allocation Settings */}
-                            {isChecked && (
-                              <SubjectAllocationPanel
-                                allocation={allocations[sub._id.toString()]}
-                                colleges={colleges}
-                                assignments={assignments}
-                                subjectId={sub._id}
-                                onChange={(field, val) => updateAllocation(sub._id.toString(), field, val)}
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Dynamic Group Pedagogy Subjects */}
-                {selectedGroupCode && activeGroupSubjects.length > 0 && (
-                  <div>
-                    <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mt-4 mb-2">Group Pedagogy Subjects</h4>
-                    <div className="space-y-2">
-                      {activeGroupSubjects.map(name => {
-                        const key = name.trim();
-                        const isChecked = !!allocations[key];
-                        const pendingTotal = getSubjectTotalPending(null, name);
-                        const isDisabled = pendingTotal === 0 && !isChecked;
-                        return (
-                          <div key={name} className={`p-3 border rounded-md transition-all duration-300 bg-white ${isChecked ? 'border-indigo-500 shadow-sm' : isDisabled ? 'border-slate-100 opacity-60 bg-slate-50/50' : 'border-slate-200 hover:border-slate-300'}`}>
-                            <label className={`flex items-start ${isDisabled ? 'cursor-not-allowed text-slate-400' : 'cursor-pointer text-slate-800'}`}>
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                disabled={isDisabled}
-                                onChange={() => handleToggleGroupSubject(name)}
-                                className={`w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 mt-0.5 mr-3 ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                              />
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between">
-                                  <p className={`text-sm font-semibold ${isDisabled ? 'text-slate-400' : 'text-slate-800'}`}>{name}</p>
-                                  {pendingTotal > 0 ? (
-                                    <span className="inline-flex px-1.5 py-0.5 text-[9px] font-bold text-orange-700 bg-orange-50 border border-orange-200 rounded-md leading-none">
-                                      {pendingTotal} pending
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex px-1.5 py-0.5 text-[9px] font-bold text-red-700 bg-red-50 border border-red-200 rounded-md leading-none">
-                                      Subjects Assigned
-                                    </span>
-                                  )}
-                                </div>
-                                <p className={`text-xs mt-0.5 ${isDisabled ? 'text-slate-400/80' : 'text-slate-500'}`}>Pedagogy subject in B.Ed Group {selectedGroupCode}</p>
-                              </div>
-                            </label>
-                            
-                            {/* Collapsible Panel for Allocation Settings */}
-                            {isChecked && (
-                              <SubjectAllocationPanel
-                                allocation={allocations[key]}
-                                colleges={colleges}
-                                assignments={assignments}
-                                groupSubjectName={name}
-                                onChange={(field, val) => updateAllocation(key, field, val)}
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {filteredRegular.length === 0 && (!selectedGroupCode || activeGroupSubjects.length === 0) && (
-                  <div className="text-center py-12 text-slate-400 text-sm">
-                    No matching subjects found.
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 flex-shrink-0 bg-slate-50">
-          <button onClick={onClose} className="px-4 py-2 rounded-md text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer">
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || loading}
-            className="flex items-center gap-2 px-5 py-2 rounded-md text-sm font-semibold text-white bg-teal-700 hover:bg-teal-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-            Save Changes
-          </button>
-        </div>
-
-      </div>
-    </div>
-  );
-};
-
-const Evaluators = () => {
-  const [evaluators, setEvaluators] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [assignTarget, setAssignTarget] = useState(null);
-  const [message, setMessage] = useState('');
-
-  const token = localStorage.getItem('token');
-
-  const fetchEvaluators = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get(`${API}/evaluators`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      // Sort newly created evaluators on top
-      const sorted = (res.data || []).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-      setEvaluators(sorted);
-    } catch (err) {
-      console.error('Failed to load evaluators', err);
-    } finally {
-      setLoading(false);
+      setStatsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchEvaluators();
-  }, []);
+    fetchStats();
+  }, [selectedSubjects]);
 
-  const handleAssignSuccess = (successMsg) => {
-    setAssignTarget(null);
-    setMessage(successMsg);
-    setTimeout(() => setMessage(''), 4000);
-    fetchEvaluators();
+  const handleAllocate = async (e) => {
+    e.preventDefault();
+    if (selectedSubjects.length === 0) return setError('Please select a subject.');
+    if (!allocationEvaluatorId) return setError('Please select an evaluator.');
+    if (!valuationDeadline) return setError('Please select a valuation date.');
+    if (splitMethod === 'COUNT' && (!allocationCount || allocationCount <= 0)) return setError('Please enter a valid count.');
+    if (splitMethod === 'COLLEGE' && allocationColleges.length === 0) return setError('Please select at least one college.');
+
+    setAllocating(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const payload = {
+        subjectId: selectedSubjects[0].type === 'CORE' ? selectedSubjects[0].id : undefined,
+        groupSubjectName: selectedSubjects[0].type === 'GROUP' ? selectedSubjects[0].name : undefined,
+        splitMethod,
+        count: splitMethod === 'COUNT' ? Number(allocationCount) : undefined,
+        collegeIds: splitMethod === 'COLLEGE' ? allocationColleges : undefined,
+        rollStart: splitMethod === 'RANGE' ? rollStart : undefined,
+        rollEnd: splitMethod === 'RANGE' ? rollEnd : undefined,
+        valuationDeadline: valuationDeadline || undefined,
+        evaluatorId: allocationEvaluatorId,
+        mode: allocationMode
+      };
+
+      const res = await axios.post(`${API}/allocate-subject-bulk`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const allocatedSubjectName = selectedSubjects[0].name;
+      const evaluator = evaluators.find(ev => ev._id === allocationEvaluatorId);
+      const evaluatorName = evaluator ? evaluator.fullName : 'Evaluator';
+      setSuccess(`"${allocatedSubjectName}" assigned to ${evaluatorName}`);
+
+      // Reset form fields and selection
+      setSplitMethod('ALL');
+      setAllocationCount('');
+      setAllocationColleges([]);
+      setRollStart('');
+      setRollEnd('');
+      setSelectedSubjects([]);
+
+      setRefreshTrigger(prev => prev + 1);
+
+      // Refresh submitted records
+      fetchSubmitted();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to allocate assignments.');
+    } finally {
+      setAllocating(false);
+    }
   };
 
-  // Search Filter
-  const filteredEvaluators = evaluators.filter(ev => 
-    ev.fullName.toLowerCase().includes(search.toLowerCase()) ||
-    ev.regdNo.toLowerCase().includes(search.toLowerCase())
-  );
+  const toggleCollege = (id) => {
+    setAllocationColleges(prev =>
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+    );
+  };
 
-  const totalRows = filteredEvaluators.length;
-  const pagedRows = filteredEvaluators.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  if (loading) return <div className="p-8 text-center text-slate-500">Loading allocation data...</div>;
 
   return (
-    <div className="px-4 py-6 w-full">
-      
+    <div className="px-4 py-4 w-full space-y-4">
+      {showActivity && (
+        <ActivityFeed
+          actionTypes={['CREATE_EVALUATOR', 'ALLOCATE_EVALUATOR']}
+          onClose={() => setShowActivity(false)}
+          refreshTrigger={refreshTrigger}
+        />
+      )}
       {/* Header */}
-      <div className="mb-8 flex justify-between items-start flex-wrap gap-4">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Manage Evaluators</h1>
-          <p className="text-slate-500 mt-2">View active evaluator accounts and allocate specific core theory or group pedagogy subjects for evaluation.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Subject Allocation</h1>
+          <p className="text-slate-500 text-sm mt-0.5 max-w-2xl">
+            Select a subject to view its total generated assignments. Allocate unassigned records to evaluators by specific counts, colleges, or roll number ranges to prevent duplicate assignments and balance workloads.
+          </p>
         </div>
+        <button
+          onClick={() => setShowActivity(true)}
+          className="flex items-center cursor-pointer gap-2 px-4 py-2 mt-1 bg-white border border-slate-200 shadow-sm rounded-md text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium sm:mr-[130px]"
+        >
+          <Activity className="h-4 w-4 text-teal-600" />
+          Activity History
+        </button>
       </div>
 
-      {message && (
-        <div className="mb-6 p-4 bg-green-50 rounded-md flex items-center space-x-3 text-green-700 border border-green-200">
-          <CheckCircle className="h-5 w-5" />
-          <span className="font-medium">{message}</span>
-          <button onClick={() => setMessage('')} className="ml-auto text-green-400 hover:text-green-600">
-            <X className="h-4 w-4" />
-          </button>
+      {error && (
+        <div className="fixed bottom-6 right-6 z-[100] animate-slide-up">
+          <div className="bg-rose-500 text-white px-6 py-2 rounded-lg shadow-2xl flex items-center gap-3">
+            <AlertCircle className="h-6 w-6 text-rose-100" />
+            <span className="font-semibold text-sm">{error}</span>
+          </div>
         </div>
       )}
 
-      {/* Main Card */}
-      <div className="bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden flex flex-col">
-        
-        {/* Toolbar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 gap-3">
-          <div className="flex items-center gap-2 text-slate-600 font-semibold text-sm">
-            <Shield className="h-5 w-5 text-teal-600" />
-            <span>Active Evaluators</span>
-            {!loading && <span className="text-xs text-slate-400 font-normal">({totalRows} total)</span>}
+      {success && (
+        <div className="fixed bottom-6 right-6 z-[100] animate-slide-up">
+          <div className="bg-emerald-500 text-white px-6 py-2 rounded-lg shadow-2xl flex items-center gap-3">
+            <CheckCircle className="h-6 w-6 text-emerald-100" />
+            <span className="font-semibold text-sm">{success}</span>
           </div>
-          
-          <div className="flex items-center gap-3">
-            <div className="relative w-64">
+        </div>
+      )}
+
+      {/* Main Selection Area */}
+      <div className="bg-white rounded-md shadow-sm border border-slate-200 p-6">
+        <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+          <Filter className="h-5 w-5 text-teal-600" />
+          1. Select Subject(s) to Allocate
+        </h2>
+
+        <div className="flex flex-col md:flex-row gap-6 items-start mb-6">
+          <div className="w-full md:w-1/4">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Allocation Mode</label>
+            <select
+              className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+              value={allocationMode}
+              onChange={(e) => setAllocationMode(e.target.value)}
+            >
+              <option value="Regular">Regular Subjects</option>
+              <option value="Supply">Backlog / Supply</option>
+            </select>
+          </div>
+          <div className="w-full md:w-1/4 z-50">
+            <SearchableDropdown
+              label="Filter by Semester"
+              placeholder="-- All Semesters --"
+              value={selectedSemester}
+              onChange={(val) => setSelectedSemester(val || '')}
+              options={uniqueSemesters.map(sem => ({
+                value: sem,
+                label: `Semester ${sem}`
+              }))}
+            />
+          </div>
+          <div className="w-full md:w-1/4 z-50">
+            <SearchableDropdown
+              label="Filter by Group"
+              placeholder="-- Search Group --"
+              value={selectedGroupCode}
+              onChange={(val) => setSelectedGroupCode(val || '')}
+              options={groups.map(g => ({
+                value: g.groupCode,
+                label: `${g.groupCode} - ${g.groupName}`
+              }))}
+            />
+          </div>
+          <div className="w-full md:w-1/4 relative">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Search Subject</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search evaluators..."
-                value={search}
-                onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-9 pr-8 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-slate-800 bg-white transition-all"
+                placeholder="e.g. DATA STRUCTURES"
+                value={subjectSearch}
+                onChange={e => setSubjectSearch(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-md pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
               />
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              {search && (
-                <button onClick={() => { setSearch(''); setCurrentPage(1); }} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
-                  <X className="h-4 w-4" />
-                </button>
-              )}
             </div>
-
-            <button
-              onClick={fetchEvaluators}
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-teal-700 transition-colors px-2 py-1.5 rounded-md hover:bg-slate-200 cursor-pointer"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
           </div>
         </div>
 
-        {/* Table list */}
-        <div className="overflow-x-auto">
-          {loading ? (
-            <div className="flex items-center justify-center py-16 text-slate-400">
-              <RefreshCw className="h-6 w-6 animate-spin mr-3" /> Loading evaluator data…
-            </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-teal-700 text-white text-sm font-semibold">
-                  <th className="px-4 py-3 text-left whitespace-nowrap">#</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">Name</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">Email</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">Allocated Subjects</th>
-                  <th className="px-4 py-3 text-right whitespace-nowrap">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagedRows.map((evaluator, index) => {
-                  const globalIdx = (currentPage - 1) * PAGE_SIZE + index;
-                  return (
-                    <tr key={evaluator._id} className={`border-b border-slate-100 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-teal-50`}>
-                      <td className="px-4 py-2.5 text-slate-400 font-mono text-xs">{globalIdx + 1}</td>
-                      <td className="px-4 py-2.5 font-semibold text-slate-900">{evaluator.fullName}</td>
-                      <td className="px-4 py-2.5 text-slate-600">{evaluator.regdNo}</td>
-                      <td className="px-4 py-2.5">
-                        {(evaluator.subjects?.length > 0 || evaluator.groupSubjects?.length > 0) ? (
-                          <div className="flex flex-wrap gap-1.5 max-w-[400px]">
-                            {/* Core theory papers */}
-                            {(evaluator.subjects || []).map(sub => (
-                              <span key={sub._id} className="inline-flex px-2 py-0.5 text-[10px] font-bold text-teal-800 bg-teal-100 border border-teal-200 rounded-md" title={sub.subName}>
-                                {sub.aliasName || sub.subCode}
-                              </span>
-                            ))}
-                            {/* Group pedagogy subjects */}
-                            {(evaluator.groupSubjects || []).map(name => (
-                              <span key={name} className="inline-flex px-2 py-0.5 text-[10px] font-bold text-indigo-800 bg-indigo-100 border border-indigo-200 rounded-md">
-                                {name}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-slate-300 italic text-xs">No subjects assigned</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        <button
-                          onClick={() => setAssignTarget(evaluator)}
-                          className="px-4 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-md text-xs font-semibold transition-colors cursor-pointer shadow-sm animate-pulse-subtle"
-                        >
-                          Assign Subjects
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {filteredEvaluators.length === 0 && (
-                  <tr>
-                    <td colSpan="5" className="px-6 py-16 text-center text-slate-400">
-                      <Shield className="h-8 w-8 mx-auto text-slate-300 mb-2" />
-                      No active evaluators found. Create evaluators under the <strong>Master Data</strong> page.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
+        <div className="border border-slate-200 rounded-lg overflow-hidden">
+          <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+            <span className="text-sm font-semibold text-slate-700">{combinedSubjectList.length} Subjects Found</span>
+            <span className="text-sm text-teal-600 font-medium">{selectedSubjects.length} Selected</span>
+          </div>
+          <div className="max-h-64 overflow-y-auto p-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            {combinedSubjectList.length === 0 ? (
+              <div className="col-span-full p-4 text-center text-slate-500 text-sm">No subjects match your search.</div>
+            ) : (
+              combinedSubjectList.map(sub => (
+                <div
+                  key={sub.type + '-' + sub.id}
+                  onClick={() => toggleSubject(sub)}
+                  className={`flex items-center gap-3 p-3 rounded-md border transition-colors ${sub.isFullyAllocated
+                    ? 'bg-slate-50 border-slate-200 cursor-not-allowed opacity-60'
+                    : isSubjectSelected(sub)
+                      ? 'bg-teal-50 border-teal-200 cursor-pointer'
+                      : 'bg-white border-slate-200 hover:border-teal-300 cursor-pointer'
+                    }`}
+                >
+                  <div className={`flex-shrink-0 ${sub.isFullyAllocated || isSubjectSelected(sub) ? 'text-teal-600' : 'text-slate-300'}`}>
+                    {(sub.isFullyAllocated || isSubjectSelected(sub)) ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-slate-800 line-clamp-1">{sub.name}</p>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <p className="text-xs text-slate-500">{sub.type === 'CORE' ? 'Core Theory' : `Pedagogy (${sub.groupCode})`}</p>
+                      {sub.isFullyAllocated && <span className="text-[10px] uppercase font-bold text-teal-600 tracking-wider">Completed</span>}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
-
-        {/* Pagination */}
-        {!loading && evaluators.length > PAGE_SIZE && (
-          <Pagination total={totalRows} page={currentPage} onPage={setCurrentPage} />
-        )}
-
       </div>
 
-      {/* Modal */}
-      {assignTarget && (
-        <AssignSubjectsModal
-          evaluator={assignTarget}
-          onClose={() => setAssignTarget(null)}
-          onSuccess={handleAssignSuccess}
-        />
+      {/* Stats and Allocation Split View */}
+      {stats && (
+        <div className="relative">
+          {statsLoading && (
+            <div className="absolute inset-0 z-50 bg-white/50 backdrop-blur-[1px] flex items-center justify-center rounded-xl">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+            </div>
+          )}
+          <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn ${statsLoading ? 'pointer-events-none' : ''}`}>
+
+            {/* Left Column: Stats & Current Evaluators */}
+            <div className="lg:col-span-1 space-y-6">
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="bg-slate-50 border-b border-slate-100 px-5 py-4">
+                  <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-teal-600" />
+                    Subject Status
+                  </h3>
+                </div>
+                <div className="p-5 flex flex-col gap-4">
+                  <div className="bg-slate-50 rounded-lg p-4 flex items-center justify-between border border-slate-100">
+                    <div className="text-sm font-medium text-slate-600">Total Records</div>
+                    <div className="text-xl font-bold text-slate-800">{stats.total}</div>
+                  </div>
+
+                  <div className="bg-teal-50 rounded-lg p-4 flex items-center justify-between border border-teal-100">
+                    <div className="text-sm font-medium text-teal-700">Allocated</div>
+                    <div className="text-xl font-bold text-teal-800">{stats.allocated}</div>
+                  </div>
+
+                  <div className="bg-orange-50 rounded-lg p-4 flex items-center justify-between border border-orange-100">
+                    <div className="text-sm font-medium text-orange-700 flex items-center gap-1.5">
+                      <Clock className="h-4 w-4" /> Unallocated (Pending)
+                    </div>
+                    <div className="text-xl font-bold text-orange-800">{stats.unallocated}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="bg-slate-50 border-b border-slate-100 px-5 py-4">
+                  <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                    <Users className="h-4 w-4 text-teal-600" />
+                    Current Evaluators
+                  </h3>
+                </div>
+                <div className="p-0">
+                  {stats.evaluators.length === 0 ? (
+                    <div className="p-6 text-center text-sm text-slate-500">
+                      No evaluators assigned to this subject yet.
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-slate-100">
+                      {stats.evaluators.map(ev => (
+                        <li key={ev._id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                          <div>
+                            <p className="text-sm font-medium text-slate-800">{ev.fullName}</p>
+                            <p className="text-xs text-slate-500">{ev.regdNo}</p>
+                          </div>
+                          <div className="bg-teal-100 text-teal-800 text-xs font-bold px-2.5 py-1 rounded-full">
+                            {ev.count}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Allocation Form */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="bg-teal-50/50 border-b border-slate-100 px-6 py-4 flex items-center gap-2">
+                  <Edit className="h-5 w-5 text-teal-600" />
+                  <h3 className="font-semibold text-slate-800 text-lg">Allocate Pending Records</h3>
+                </div>
+
+                {stats.unallocated === 0 ? (
+                  <div className="p-12 text-center">
+                    <CheckCircle className="h-12 w-12 text-teal-500 mx-auto mb-3" />
+                    <h4 className="text-lg font-semibold text-slate-800">All Done!</h4>
+                    <p className="text-slate-500 mt-1">Every assignment for this subject has been allocated to an evaluator.</p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleAllocate} className="p-6 space-y-6">
+                    <div className="flex flex-col md:flex-row gap-6 items-end">
+                      <div className="flex-1 z-40">
+                        <SearchableDropdown
+                          label={
+                            <span>
+                              Select Evaluator <span className="text-red-500">*</span>
+                            </span>
+                          }
+                          placeholder="-- Choose an Evaluator --"
+                          value={allocationEvaluatorId}
+                          onChange={val => setAllocationEvaluatorId(val || '')}
+                          options={evaluators.map(ev => ({
+                            value: ev._id,
+                            label: `${ev.fullName} (${ev.regdNo})`
+                          }))}
+                        />
+                      </div>
+                      <div className="w-full md:w-1/3">
+                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Evaluation Deadline <span className="text-red-500">*</span></label>
+                        <input
+                          type="date"
+                          required
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                          value={valuationDeadline}
+                          onChange={e => setValuationDeadline(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-3">Allocation Strategy <span className="text-red-500">*</span></label>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {['ALL', 'COUNT', 'COLLEGE', 'RANGE'].map(method => (
+                          <label
+                            key={method}
+                            className={`
+                            border rounded-lg p-3 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center
+                            ${splitMethod === method ? 'border-teal-500 bg-teal-50 text-teal-800 shadow-sm ring-1 ring-teal-500' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-600'}
+                          `}
+                          >
+                            <input
+                              type="radio"
+                              name="splitMethod"
+                              value={method}
+                              checked={splitMethod === method}
+                              onChange={(e) => setSplitMethod(e.target.value)}
+                              className="sr-only"
+                            />
+                            <span className="text-sm font-bold">{method === 'ALL' ? 'All Remaining' : method === 'COUNT' ? 'By Count' : method === 'COLLEGE' ? 'By College' : 'By Roll Range'}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Dynamic Fields based on Split Method */}
+                    <div className="bg-slate-50 rounded-lg p-5 border border-slate-100">
+                      {splitMethod === 'ALL' && (
+                        <p className="text-sm text-slate-600 text-center">
+                          This will allocate all <strong className="text-slate-800">{stats.unallocated}</strong> remaining assignments to the selected evaluator.
+                        </p>
+                      )}
+
+                      {splitMethod === 'COUNT' && (
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Number of Records to Assign</label>
+                          <input
+                            type="number"
+                            className="w-full max-w-xs bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                            value={allocationCount}
+                            onChange={e => setAllocationCount(e.target.value)}
+                            placeholder={`Max: ${stats.unallocated}`}
+                            max={stats.unallocated}
+                            min="1"
+                          />
+                          <p className="text-xs text-slate-500 mt-2">
+                            The system will randomly select exactly {allocationCount || 'X'} unassigned records.
+                          </p>
+                        </div>
+                      )}
+
+                      {splitMethod === 'COLLEGE' && (
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Select Colleges</label>
+                          <div className="max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-lg p-3 space-y-2">
+                            {colleges.map(c => (
+                              <label key={c._id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded cursor-pointer transition-colors">
+                                <input
+                                  type="checkbox"
+                                  checked={allocationColleges.includes(c._id)}
+                                  onChange={() => toggleCollege(c._id)}
+                                  className="h-4 w-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500"
+                                />
+                                <span className="text-sm text-slate-700 font-medium">
+                                  {c.collegeCode} - {c.collegeName}
+                                  {stats?.collegeCounts && stats.collegeCounts[c._id] > 0 && (
+                                    <span className="ml-2 bg-orange-100 text-orange-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                                      {stats.collegeCounts[c._id]} pending
+                                    </span>
+                                  )}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {splitMethod === 'RANGE' && (
+                        <div className="flex gap-4">
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-slate-700 mb-2">From Roll No</label>
+                            <input
+                              type="text"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                              value={rollStart}
+                              onChange={e => setRollStart(e.target.value)}
+                              placeholder="e.g. 255001"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-slate-700 mb-2">To Roll No</label>
+                            <input
+                              type="text"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                              value={rollEnd}
+                              onChange={e => setRollEnd(e.target.value)}
+                              placeholder="e.g. 255099"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Valuation Date moved up */}
+
+                    <div className="pt-4 border-t border-slate-100 flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={allocating || !allocationEvaluatorId}
+                        className="bg-teal-600 cursor-pointer hover:bg-teal-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-sm transition-all disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {allocating ? 'Allocating...' : 'Allocate Records'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
   );
-};
-
-export default Evaluators;
+}

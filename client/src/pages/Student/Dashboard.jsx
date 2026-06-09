@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Book, FileText, Download, Upload, X, RefreshCw, CheckCircle, User as UserIcon } from 'lucide-react';
+import { LogOut, Book, FileText, Download, Upload, X, RefreshCw, CheckCircle, User as UserIcon, ChevronRight, Activity } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../utils/config';
 import JsBarcode from 'jsbarcode';
 import { pdf } from '@react-pdf/renderer';
 import BarcodePDF from '../../components/BarcodePDF';
+import CertificatePDF from '../../components/CertificatePDF';
+import SessionTimer from '../../components/SessionTimer';
+import ActivityFeed from '../../components/ActivityFeed';
+import * as pdfjsLib from 'pdfjs-dist/build/pdf';
+import Tesseract from 'tesseract.js';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.mjs`;
 
 /* ── Pagination component ── */
 const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
@@ -70,12 +77,170 @@ const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
           Next
         </button>
         <button
-          onClick={() => onPage(totalPages)}
+          onClick={() => onPage(Math.min(totalPages, page + 1))}
           disabled={page === totalPages}
-          className="px-2 py-1 rounded-md text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+          className="p-1 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-50"
         >
-          »
+          <ChevronRight className="h-4 w-4" />
         </button>
+      </div>
+    </div>
+  );
+};
+
+const AssignmentTable = ({ title, data, currentPage, setCurrentPage, handleGenerateBarcodePDF, setUploadTarget }) => {
+  const pageSize = 10;
+  const pagedData = data.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  return (
+    <div className="mb-10">
+      <h3 className="text-lg font-bold text-slate-800 flex items-center mb-4">
+        <CheckCircle className="h-5 w-5 mr-2 text-teal-600" />
+        {title} ({data.length})
+      </h3>
+      <div className="bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-teal-700 text-white text-sm font-semibold">
+                <th className="min-w-[10rem] px-4 py-3 text-left whitespace-nowrap">Subject</th>
+                <th className="hidden sm:table-cell px-4 py-3 text-left whitespace-nowrap">Mode</th>
+                <th className="hidden sm:table-cell px-4 py-3 text-left whitespace-nowrap">Status</th>
+                <th className="hidden md:table-cell px-4 py-3 text-left whitespace-nowrap">Submission Deadline</th>
+                <th className="w-[1%] px-4 py-3 text-right whitespace-nowrap">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagedData.map((assignment, idx) => (
+                <tr key={assignment._id} className={`border-b border-slate-100 transition-colors hover:bg-teal-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                  <td className="pl-4 sm:pl-6 py-4">
+                    <p className="font-semibold text-slate-900">{assignment.groupSubjectName || assignment.subjectId?.subName}</p>
+                    <p className="text-xs text-slate-500 mt-1">{assignment.subjectId?.subCode} • {assignment.subjectId?.semester}</p>
+                    <div className="mt-2 flex items-center text-xs text-slate-500">
+                      <FileText className="h-3 w-3 mr-1" />
+                      {assignment.pagesRequired} Pages Required
+                    </div>
+                  </td>
+                  <td className="hidden sm:table-cell px-6 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
+                      ${assignment.mode === 'Supply' ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-blue-100 text-blue-800 border border-blue-200'}
+                    `}>
+                      {assignment.mode || 'Regular'}
+                    </span>
+                  </td>
+                  <td className="hidden sm:table-cell px-6 py-4">
+                    {assignment.status === 'Evaluated' ? (
+                      <span className="inline-flex items-center w-max px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                        Evaluated
+                      </span>
+                    ) : assignment.status === 'Submitted' ? (
+                      <div className="flex flex-col space-y-1">
+                        <span className="inline-flex items-center w-max px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                          Submitted (Pending Evaluation)
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="inline-flex items-center w-max px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                        {assignment.status || 'Pending'}
+                      </span>
+                    )}
+                  </td>
+                  <td className="hidden md:table-cell px-6 py-4">
+                    {assignment.deadline ? (
+                      (() => {
+                        const deadlineDate = new Date(assignment.deadline);
+                        const today = new Date();
+                        const diffTime = deadlineDate - today;
+                        const diffHours = diffTime / (1000 * 60 * 60);
+
+                        let borderClass = 'border-slate-200 bg-slate-50 text-slate-700';
+                        if (assignment.status === 'Pending') {
+                          if (diffHours < 0) {
+                            borderClass = 'border-red-200 bg-red-50 text-red-700 font-bold';
+                          } else if (diffHours <= 48) {
+                            borderClass = 'border-orange-200 bg-orange-50 text-orange-700 font-bold animate-pulse';
+                          }
+                        }
+
+                        return (
+                          <span className={`inline-flex px-2.5 py-1 border rounded-md text-xs font-semibold ${borderClass}`}>
+                            {deadlineDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </span>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-slate-300 italic">—</span>
+                    )}
+                  </td>
+                  <td className="w-[1%] whitespace-nowrap pr-4 text-right sm:pr-6 py-4">
+                    {(() => {
+                      let isPastDeadline = false;
+                      if (assignment.deadline) {
+                        const deadlineDate = new Date(assignment.deadline);
+                        // Extend deadline to the very end of the selected day (23:59:59)
+                        deadlineDate.setHours(23, 59, 59, 999);
+                        isPastDeadline = new Date() > deadlineDate;
+                      }
+                      const isLocked = assignment.status === 'Evaluated' || isPastDeadline;
+                      
+                      return (
+                        <div className="flex flex-col sm:flex-row gap-2 justify-end items-center">
+                          {assignment.filePath && (
+                            <a
+                              href={`${API_BASE_URL}${assignment.filePath}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center justify-center p-2 text-teal-600 hover:text-white hover:bg-teal-700 rounded-md transition-colors border border-teal-200 hover:border-teal-700 cursor-pointer shadow-sm"
+                              title="View Uploaded Lab Record PDF"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </a>
+                          )}
+                          <button
+                            onClick={() => handleGenerateBarcodePDF(assignment)}
+                            className="flex items-center px-3 py-1.5 border border-slate-300 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                          >
+                            <Download className="h-3 w-3 mr-1.5" />
+                            Download Record
+                          </button>
+                          <button
+                            onClick={() => setUploadTarget(assignment)}
+                            className={`flex items-center px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                              isLocked 
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-70 border border-slate-200' 
+                                : assignment.status === 'Submitted'
+                                  ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 hover:border-blue-300 cursor-pointer shadow-sm'
+                                  : 'bg-teal-600 hover:bg-teal-700 text-white shadow-sm cursor-pointer'
+                            }`}
+                            disabled={isLocked}
+                            title={isPastDeadline && assignment.status !== 'Evaluated' ? "Deadline has passed" : ""}
+                          >
+                            <Upload className="h-3 w-3 mr-1.5" />
+                            {isLocked 
+                              ? 'Locked' 
+                              : assignment.status === 'Submitted' 
+                                ? 'Update' 
+                                : 'Upload PDF'}
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </td>
+                </tr>
+              ))}
+              {data.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="text-center py-12 text-slate-500 font-medium">
+                    No assignments found in this category.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className="mt-4">
+        <Pagination total={data.length} page={currentPage} onPage={setCurrentPage} />
       </div>
     </div>
   );
@@ -85,7 +250,46 @@ const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
 const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [scanProgress, setScanProgress] = useState('');
   const [error, setError] = useState('');
+  const [note, setNote] = useState('');
+
+  const extractTextFromPDF = async (fileObj) => {
+    try {
+      const arrayBuffer = await fileObj.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      
+      const numPages = Math.min(pdf.numPages, 30); // limit to 30 pages just in case
+      // Start from page 2 to skip the cover/certificate page
+      const startPage = numPages > 1 ? 2 : 1;
+      for (let i = startPage; i <= numPages; i++) {
+        setScanProgress(`Scanning page ${i} of ${numPages}...`);
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        
+        await page.render({ canvasContext: context, viewport }).promise;
+        const imgData = canvas.toDataURL('image/jpeg', 0.8);
+        
+        const { data: { text } } = await Tesseract.recognize(imgData, 'eng', {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              setScanProgress(`Scanning page ${i} of ${numPages} (${Math.round(m.progress * 100)}%)`);
+            }
+          }
+        });
+        fullText += text + ' ';
+      }
+      return fullText;
+    } catch (err) {
+      console.error('OCR Error:', err);
+      return ''; // fallback to empty if OCR fails
+    }
+  };
 
   const handleFileChange = (e) => {
     const selected = e.target.files[0];
@@ -98,9 +302,14 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
       return;
     }
     
-    // Check file size (500KB limit)
-    if (selected.size > 500 * 1024) {
-      setError('File size exceeds the 500KB limit.');
+    const isGroupSubject = !!assignment.groupSubjectName;
+    const semester = String(assignment.subjectId?.semester);
+    const isEligibleFor5MB = isGroupSubject && (semester === '3' || semester === '4');
+    
+    const MAX_SIZE = isEligibleFor5MB ? 5 * 1024 * 1024 : 1 * 1024 * 1024;
+    
+    if (selected.size > MAX_SIZE) {
+      setError(`File size exceeds the limit. ${isEligibleFor5MB ? 'Max 5MB allowed.' : 'Max 1MB allowed.'}`);
       setFile(null);
       return;
     }
@@ -118,9 +327,19 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
 
     setUploading(true);
     setError('');
+    setScanProgress('Initializing scanner...');
+
+    const extractedText = await extractTextFromPDF(file);
+    setScanProgress('');
 
     const formData = new FormData();
     formData.append('file', file);
+    if (note.trim()) {
+      formData.append('note', note.trim());
+    }
+    if (extractedText.trim()) {
+      formData.append('extractedText', extractedText);
+    }
 
     try {
       const token = localStorage.getItem('token');
@@ -186,7 +405,14 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
                   </span>
                   <p className="pl-1">or drag and drop</p>
                 </div>
-                <p className="text-xs text-slate-400">PDF up to 500KB</p>
+                {(() => {
+                  const isGroupSubject = !!assignment.groupSubjectName;
+                  const semester = String(assignment.subjectId?.semester);
+                  const isEligibleFor5MB = isGroupSubject && (semester === '3' || semester === '4');
+                  return (
+                    <p className="text-xs text-slate-400">PDF up to {isEligibleFor5MB ? '5MB' : '1MB'}</p>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -215,12 +441,27 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
             </div>
           )}
 
+          <div className="pt-2 border-t border-slate-100">
+            <label htmlFor="studentNote" className="block text-sm font-semibold text-slate-700 mb-1.5">
+              Add a Note <span className="text-slate-400 font-normal">(Optional)</span>
+            </label>
+            <textarea
+              id="studentNote"
+              rows={2}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Any additional information about this record..."
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-teal-500 text-sm resize-none"
+            />
+          </div>
+
           {/* Footer */}
           <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-md text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              disabled={uploading}
+              className="px-4 py-2 rounded-md text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
@@ -230,7 +471,7 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
               className="flex items-center gap-2 px-5 py-2 rounded-md text-sm font-semibold text-white bg-teal-700 hover:bg-teal-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-              {uploading ? 'Uploading…' : 'Submit Record'}
+              {uploading ? (scanProgress || 'Uploading…') : 'Submit Record'}
             </button>
           </div>
         </form>
@@ -244,11 +485,12 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [assignments, setAssignments] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
   const [uploadTarget, setUploadTarget] = useState(null);
   const [message, setMessage] = useState('');
   const [profileData, setProfileData] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -326,22 +568,72 @@ const Dashboard = () => {
       link.download = `Barcode_${assignment.subjectId?.subCode || 'Subject'}_${rollNumber}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
+
+      // Log download activity
+      try {
+        const token = localStorage.getItem('token');
+        await axios.post(`${API_BASE_URL}/api/student/assignments/${assignment._id}/log-download`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setRefreshTrigger(prev => prev + 1);
+      } catch (logErr) {
+        console.error('Failed to log download activity', logErr);
+      }
     } catch (err) {
       console.error('Error generating PDF', err);
       alert('Failed to generate PDF. Please try again.');
     }
   };
 
-  const PAGE_SIZE = 10;
-  const pagedAssignments = assignments.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const regularAssignments = assignments.filter(a => a.mode !== 'Supply');
+  const supplyAssignments = assignments.filter(a => a.mode === 'Supply');
+  const [regularPage, setRegularPage] = useState(1);
+  const [supplyPage, setSupplyPage] = useState(1);
+
+  const allSubmitted = assignments.length > 0 && assignments.every(a => a.status === 'Submitted' || a.status === 'Evaluated');
+  
+  let latestCompletionDate = '';
+  if (allSubmitted) {
+    const dates = assignments.map(a => {
+      const dateStr = a.updatedAt || a.submittedAt || a.createdAt;
+      return dateStr ? new Date(dateStr) : new Date(0);
+    });
+    const latestDate = new Date(Math.max(...dates));
+    const dd = String(latestDate.getDate()).padStart(2, '0');
+    const mm = String(latestDate.getMonth() + 1).padStart(2, '0');
+    const yyyy = latestDate.getFullYear();
+    latestCompletionDate = `${dd}/${mm}/${yyyy}`;
+  }
+
+  const handleGenerateCertificate = async () => {
+    try {
+      const blob = await pdf(<CertificatePDF user={profileData || user} completionDate={latestCompletionDate} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Certificate_${user.regdNo}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error generating Certificate PDF', err);
+      alert('Failed to generate Certificate. Please try again.');
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 animate-fade-in">
+    <div className="flex-1 min-h-0 flex flex-col md:h-full md:overflow-y-auto bg-slate-50 animate-fade-in w-full">
+      {showActivity && (
+        <ActivityFeed 
+          actionTypes={['UPLOAD_RECORD', 'DOWNLOAD_RECORD']} 
+          onClose={() => setShowActivity(false)} 
+          refreshTrigger={refreshTrigger} 
+        />
+      )}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center">
-              <div className="bg-teal-600 text-white p-2 rounded-md mr-3">
+          <div className="flex flex-col md:flex-row justify-between min-h-[4rem] h-auto items-center py-4 md:py-0 gap-4 md:gap-0">
+            <div className="flex items-center flex-col sm:flex-row text-center sm:text-left gap-2 sm:gap-0">
+              <div className="bg-teal-600 text-white p-2 rounded-md sm:mr-3">
                 <Book className="h-5 w-5 animate-pulse-subtle" />
               </div>
               <div>
@@ -349,7 +641,15 @@ const Dashboard = () => {
                 <p className="text-sm text-slate-500 font-medium">{user.fullName} ({user.regdNo})</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+              <button
+                onClick={() => setShowActivity(true)}
+                className="hidden sm:flex items-center text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors border border-teal-200 cursor-pointer shadow-sm"
+              >
+                <Activity className="h-4 w-4 mr-1.5" />
+                Activity History
+              </button>
+              <SessionTimer />
               <div className="relative">
                 <button
                   onClick={() => setShowProfile(!showProfile)}
@@ -380,9 +680,9 @@ const Dashboard = () => {
               
               <button
                 onClick={handleLogout}
-                className="flex items-center text-slate-500 hover:text-red-600 font-medium px-3 py-2 rounded-md hover:bg-red-50 transition-colors cursor-pointer"
+                className="flex items-center text-slate-500 hover:text-red-600 font-medium px-2 sm:px-3 py-2 rounded-md hover:bg-red-50 transition-colors cursor-pointer text-sm sm:text-base"
               >
-                <LogOut className="h-5 w-5 mr-2" />
+                <LogOut className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
                 Logout
               </button>
             </div>
@@ -390,7 +690,7 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <main className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-slide-in">
+      <main className="w-full max-w-[96%] mx-auto px-4 sm:px-6 lg:px-8 pt-8 animate-slide-in">
         {message && (
           <div className="mb-6 p-4 bg-green-50 rounded-md flex items-center space-x-3 text-green-700 border border-green-200">
             <CheckCircle className="h-5 w-5 flex-shrink-0" />
@@ -400,169 +700,46 @@ const Dashboard = () => {
             </button>
           </div>
         )}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-slate-900">
-            My Practical Records
-          </h2>
-          <p className="text-slate-500 mt-1">
-            Download barcode sheets, upload completed records, and monitor submission deadlines.
-          </p>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-teal-700 text-white text-sm font-semibold">
-                  <th className="min-w-[10rem] px-4 py-3 text-left whitespace-nowrap">Subject</th>
-                  <th className="hidden sm:table-cell px-4 py-3 text-left whitespace-nowrap">Mode</th>
-                  <th className="hidden sm:table-cell px-4 py-3 text-left whitespace-nowrap">Status</th>
-                  <th className="hidden md:table-cell px-4 py-3 text-left whitespace-nowrap">Submission Deadline</th>
-                  <th className="w-[1%] px-4 py-3 text-right whitespace-nowrap">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagedAssignments.map((assignment, idx) => (
-                  <tr key={assignment._id} className={`border-b border-slate-100 transition-colors hover:bg-teal-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                    
-                    <td className="pl-4 sm:pl-6 py-4">
-                      <p className="font-semibold text-slate-900">{assignment.groupSubjectName || assignment.subjectId?.subName}</p>
-                      <p className="text-xs text-slate-500 mt-1">{assignment.subjectId?.subCode} • {assignment.subjectId?.semester}</p>
-                      <div className="mt-2 flex items-center text-xs text-slate-500">
-                        <FileText className="h-3 w-3 mr-1" />
-                        Requires {assignment.pagesRequired} pages
-                      </div>
-                    </td>
-                    
-                    <td className="hidden sm:table-cell px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
-                        ${assignment.mode === 'Supply' ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-blue-100 text-blue-800 border border-blue-200'}
-                      `}>
-                        {assignment.mode || 'Regular'}
-                      </span>
-                    </td>
-                    
-                    <td className="hidden sm:table-cell px-6 py-4">
-                      {assignment.status === 'Evaluated' ? (
-                        <span className="inline-flex items-center w-max px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                          Evaluated
-                        </span>
-                      ) : assignment.status === 'Submitted' ? (
-                        <div className="flex flex-col space-y-1">
-                          <span className="inline-flex items-center w-max px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                            Record Submitted
-                          </span>
-                          {assignment.submittedAt && (
-                            <span className="text-xs text-slate-500 font-medium">
-                              {new Date(assignment.submittedAt).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="inline-flex items-center w-max px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
-                          Not Submitted
-                        </span>
-                      )}
-                    </td>
-                    
-                    <td className="hidden md:table-cell px-6 py-4">
-                      {assignment.deadline ? (
-                        (() => {
-                          const deadlineDate = new Date(assignment.deadline);
-                          const today = new Date();
-                          const diffTime = deadlineDate - today;
-                          const diffHours = diffTime / (1000 * 60 * 60);
-                          
-                          let borderClass = 'border-slate-200 bg-slate-50 text-slate-700';
-                          if (assignment.status === 'Pending') {
-                            if (diffHours < 0) {
-                              borderClass = 'border-red-200 bg-red-50 text-red-700 font-bold';
-                            } else if (diffHours < 24) {
-                              borderClass = 'border-orange-200 bg-orange-50 text-orange-700 font-bold animate-pulse';
-                            }
-                          }
-
-                          return (
-                            <span className={`inline-flex px-2.5 py-1 border rounded-md text-xs font-semibold ${borderClass}`}>
-                              {deadlineDate.toLocaleDateString('en-GB')}
-                            </span>
-                          );
-                        })()
-                      ) : (
-                        <span className="text-slate-300 italic">—</span>
-                      )}
-                    </td>
-                    
-                    <td className="w-[1%] whitespace-nowrap pr-4 text-right sm:pr-6 py-4">
-                      {(() => {
-                        let isPastDeadline = false;
-                        if (assignment.deadline) {
-                          const deadlineDate = new Date(assignment.deadline);
-                          deadlineDate.setHours(23, 59, 59, 999);
-                          isPastDeadline = new Date() > deadlineDate;
-                        }
-                        const isLocked = assignment.status === 'Evaluated' || isPastDeadline;
-
-                        return (
-                          <div className="flex flex-col sm:flex-row gap-2 justify-end items-center">
-                            {assignment.filePath && (
-                              <a 
-                                href={`${API_BASE_URL}${assignment.filePath}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center justify-center p-2 text-teal-600 hover:text-white hover:bg-teal-700 rounded-md transition-colors border border-teal-200 hover:border-teal-700 cursor-pointer shadow-sm"
-                                title="View Uploaded Lab Record PDF"
-                              >
-                                <FileText className="h-4 w-4" />
-                              </a>
-                            )}
-                            
-                            <button 
-                              onClick={() => handleGenerateBarcodePDF(assignment)}
-                              className="flex items-center px-3 py-1.5 border border-slate-300 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                            >
-                              <Download className="h-3 w-3 mr-1.5" />
-                              Barcode PDF
-                            </button>
-                            
-                            <button 
-                              onClick={() => setUploadTarget(assignment)}
-                              className={`flex items-center px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                                isLocked
-                                  ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' 
-                                  : assignment.status === 'Submitted'
-                                    ? 'bg-amber-600 hover:bg-amber-700 text-white cursor-pointer'
-                                    : 'bg-teal-600 hover:bg-teal-700 text-white cursor-pointer'
-                              }`}
-                              disabled={isLocked}
-                              title={isPastDeadline && assignment.status !== 'Evaluated' ? "Deadline has passed" : ""}
-                            >
-                              <Upload className="h-3 w-3 mr-1.5" />
-                              {isLocked 
-                                ? 'Locked' 
-                                : assignment.status === 'Submitted' 
-                                  ? 'Change Record' 
-                                  : 'Upload Record'}
-                            </button>
-                          </div>
-                        );
-                      })()}
-                    </td>
-                    
-                  </tr>
-                ))}
-                 {assignments.length === 0 && (
-                  <tr>
-                    <td colSpan="5" className="text-center py-12 text-slate-500 font-medium">
-                      You have no active assigned lab records at the moment.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">
+              My Practical Records
+            </h2>
+            <p className="text-slate-500 mt-1">
+              Download barcode sheets, upload completed records, and monitor submission deadlines.
+            </p>
           </div>
-          <Pagination total={assignments.length} page={currentPage} onPage={setCurrentPage} />
+          {allSubmitted && (
+            <button
+              onClick={handleGenerateCertificate}
+              className="flex items-center cursor-pointer justify-center px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white rounded-md shadow-md text-sm font-semibold transition-all transform hover:-translate-y-0.5"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download Certificate
+            </button>
+          )}
         </div>
+
+        {/* Tables */}
+        <AssignmentTable 
+          title="Regular Assignments" 
+          data={regularAssignments} 
+          currentPage={regularPage} 
+          setCurrentPage={setRegularPage} 
+          handleGenerateBarcodePDF={handleGenerateBarcodePDF}
+          setUploadTarget={setUploadTarget}
+        />
+
+        {supplyAssignments.length > 0 && (
+          <AssignmentTable 
+            title="Supply (Backlog) Assignments" 
+            data={supplyAssignments} 
+            currentPage={supplyPage} 
+            setCurrentPage={setSupplyPage} 
+            handleGenerateBarcodePDF={handleGenerateBarcodePDF}
+            setUploadTarget={setUploadTarget}
+          />
+        )}
       </main>
 
       {/* Modal */}
@@ -574,6 +751,7 @@ const Dashboard = () => {
             setUploadTarget(null);
             setMessage(successMsg);
             setTimeout(() => setMessage(''), 4000);
+            setRefreshTrigger(prev => prev + 1);
             fetchMyAssignments();
           }}
         />
