@@ -6,6 +6,11 @@ const AppError = require('../utils/AppError');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
+// Validate JWT_SECRET is set at startup
+if (!process.env.JWT_SECRET) {
+  throw new Error('CRITICAL: JWT_SECRET environment variable is not set. This is required for secure token generation and verification.');
+}
+
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371e3; // Earth's radius in meters
   const phi1 = (lat1 * Math.PI) / 180;
@@ -24,7 +29,8 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 };
 
 const generateToken = (id, role, sessionId) => {
-  return jwt.sign({ id, role, sessionId }, process.env.JWT_SECRET || 'secret123', {
+  // Use only the env var - no fallback to 'secret123'
+  return jwt.sign({ id, role, sessionId }, process.env.JWT_SECRET, {
     expiresIn: '2h'
   });
 };
@@ -115,12 +121,16 @@ exports.login = async ({ regdNo, password, email, faceDescriptor, latitude, long
     location
   });
 
+  const token = generateToken(user._id, user.role, sessionId);
+
   return {
     _id: user._id,
     regdNo: user.regdNo,
     fullName: user.fullName,
     role: user.role,
-    token: generateToken(user._id, user.role, sessionId)
+    token, // Still return token for backward compatibility (won't expose in response)
+    // Cookie will be set in the controller
+    setCookie: true
   };
 };
 
