@@ -85,6 +85,7 @@ const EvaluatedRecords = () => {
   const [selectedSemester, setSelectedSemester] = useState('');
   const [activeTab, setActiveTab] = useState('submissions');
   const [papers, setPapers] = useState([]);
+  const [paperApprovals, setPaperApprovals] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [paperPage, setPaperPage] = useState(1);
   const [reallocateTarget, setReallocateTarget] = useState(null);
@@ -112,6 +113,17 @@ const EvaluatedRecords = () => {
       setRecords(sorted);
     } catch (err) {
       console.error('Failed to load assignments');
+    }
+  };
+
+  const fetchPaperApprovals = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/admin/paper-approvals`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setPaperApprovals(res.data);
+    } catch (err) {
+      console.error('Failed to load paper approvals', err);
     }
   };
 
@@ -167,6 +179,7 @@ const EvaluatedRecords = () => {
     };
     fetchAssignments();
     fetchPapers();
+    fetchPaperApprovals();
   }, []);
 
   const uniqueSemesters = [...new Set(records.map(r => r.subjectId?.semester || r.studentId?.currentSemester).filter(Boolean))].sort();
@@ -193,6 +206,7 @@ const EvaluatedRecords = () => {
     if (!regdNo) return;
     if (!studentsMap[regdNo]) {
       studentsMap[regdNo] = {
+        _id: r.studentId?._id || r.studentId?.toString(),
         fullName: r.studentId?.fullName || "Student",
         regdNo: regdNo,
         collegeName: r.studentId?.collegeId?.collegeName || "ADIKAVI NANNAYA UNIVERSITY",
@@ -254,6 +268,8 @@ const EvaluatedRecords = () => {
       const isPassed = isEvaluated ? (!hasFailedSubject && obtainedScore >= (paper.passMarks || 0)) : false;
 
       return {
+        studentId: student._id,
+        paperId: paper._id,
         fullName: student.fullName,
         regdNo: student.regdNo,
         semester: paper.semester || student.semester,
@@ -300,16 +316,19 @@ const EvaluatedRecords = () => {
         'Remarks': r.feedback || ""
       }));
 
-      if (regularRecords.length > 0) {
-        const regularSheet = XLSX.utils.json_to_sheet(formatExportData(regularRecords));
+      const approvedRegular = regularRecords.filter(r => r.isApprovedByBOS === true);
+      const approvedSupply = supplyRecords.filter(r => r.isApprovedByBOS === true);
+
+      if (approvedRegular.length > 0) {
+        const regularSheet = XLSX.utils.json_to_sheet(formatExportData(approvedRegular));
         XLSX.utils.book_append_sheet(workbook, regularSheet, "Regular Subjects");
       }
-      if (supplyRecords.length > 0) {
-        const supplySheet = XLSX.utils.json_to_sheet(formatExportData(supplyRecords));
+      if (approvedSupply.length > 0) {
+        const supplySheet = XLSX.utils.json_to_sheet(formatExportData(approvedSupply));
         XLSX.utils.book_append_sheet(workbook, supplySheet, "Backlog Subjects");
       }
 
-      if (regularRecords.length === 0 && supplyRecords.length === 0) {
+      if (approvedRegular.length === 0 && approvedSupply.length === 0) {
         const emptySheet = XLSX.utils.json_to_sheet([{ Message: "No data available" }]);
         XLSX.utils.book_append_sheet(workbook, emptySheet, "Evaluations");
       }
@@ -342,20 +361,28 @@ const EvaluatedRecords = () => {
         'Paper Name': row.paperName,
         'Paper Code': row.paperCode,
         'Total Marks': row.obtainedScore !== null ? row.obtainedScore : 'Pending',
-
         'Result': row.obtainedScore !== null ? (row.isPassed ? 'PASS' : 'FAIL') : 'Pending'
       }));
 
-      if (regularPaperRows.length > 0) {
-        const regularSheet = XLSX.utils.json_to_sheet(formatExportData(regularPaperRows));
+      const isPaperApproved = (row) => paperApprovals.some(app => 
+        (app.studentId?.toString() === row.studentId?.toString() || app.studentId === row.studentId) && 
+        (app.paperId?.toString() === row.paperId?.toString() || app.paperId === row.paperId) && 
+        app.mode === row.mode
+      );
+
+      const approvedRegularPapers = regularPaperRows.filter(isPaperApproved);
+      const approvedSupplyPapers = supplyPaperRows.filter(isPaperApproved);
+
+      if (approvedRegularPapers.length > 0) {
+        const regularSheet = XLSX.utils.json_to_sheet(formatExportData(approvedRegularPapers));
         XLSX.utils.book_append_sheet(workbook, regularSheet, "Regular Papers");
       }
-      if (supplyPaperRows.length > 0) {
-        const supplySheet = XLSX.utils.json_to_sheet(formatExportData(supplyPaperRows));
+      if (approvedSupplyPapers.length > 0) {
+        const supplySheet = XLSX.utils.json_to_sheet(formatExportData(approvedSupplyPapers));
         XLSX.utils.book_append_sheet(workbook, supplySheet, "Backlog Papers");
       }
 
-      if (regularPaperRows.length === 0 && supplyPaperRows.length === 0) {
+      if (approvedRegularPapers.length === 0 && approvedSupplyPapers.length === 0) {
         const emptySheet = XLSX.utils.json_to_sheet([{ Message: "No data available" }]);
         XLSX.utils.book_append_sheet(workbook, emptySheet, "Grades");
       }
@@ -531,10 +558,17 @@ const EvaluatedRecords = () => {
                         {record.subjectId?.subPassMarks ?? '—'}
                       </td>
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.status === 'Evaluated' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                          }`}>
-                          {record.status === 'Evaluated' ? 'Evaluated' : 'Pending Evaluation'}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.status === 'Evaluated' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
+                            {record.status === 'Evaluated' ? 'Evaluated' : 'Pending Evaluation'}
+                          </span>
+                          {record.status === 'Evaluated' && (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${record.isApprovedByBOS ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}`}>
+                              {record.isApprovedByBOS ? 'BOS Approved' : 'Pending BOS'}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-right">
                         <span className="font-bold text-emerald-600 text-base">{record.score !== null ? record.score : '-'}</span>
@@ -617,10 +651,17 @@ const EvaluatedRecords = () => {
                         {record.subjectId?.subPassMarks ?? '—'}
                       </td>
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.status === 'Evaluated' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                          }`}>
-                          {record.status === 'Evaluated' ? 'Evaluated' : 'Pending Evaluation'}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.status === 'Evaluated' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
+                            {record.status === 'Evaluated' ? 'Evaluated' : 'Pending Evaluation'}
+                          </span>
+                          {record.status === 'Evaluated' && (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${record.isApprovedByBOS ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}`}>
+                              {record.isApprovedByBOS ? 'BOS Approved' : 'Pending BOS'}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-right">
                         <span className="font-bold text-emerald-600 text-base">{record.score !== null ? record.score : '-'}</span>
@@ -677,35 +718,48 @@ const EvaluatedRecords = () => {
                     <th className="px-4 py-3 text-left whitespace-nowrap">Roll No.</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Semester</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Paper Name</th>
-                    <th className="px-4 py-3 text-left whitespace-nowrap text-center min-w-[8rem]">Final Marks</th>
+                    <th className="px-4 py-3 text-center whitespace-nowrap min-w-[8rem]">Final Marks</th>
+                    <th className="px-4 py-3 text-center whitespace-nowrap">BOS Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pagedRegularPapers.map((row, idx) => (
-                    <tr key={`reg-${row.regdNo}-${row.paperCode || idx}`} className="border-b border-slate-100 hover:bg-teal-50 transition-colors">
-                      <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-medium text-slate-900">{row.fullName}</td>
-                      <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-mono text-xs">{row.regdNo}</td>
-                      <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">{row.semester}</td>
-                      <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
-                        <p className="font-semibold text-slate-800">{row.paperName}</p>
-                        <p className="text-xs text-slate-400">{row.paperCode}</p>
-                      </td>
-                      <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center">
-                        {row.obtainedScore !== null ? (
-                          <span className={`inline-flex flex-col items-center px-3 py-1.5 rounded-md text-xs font-bold ${row.isPassed ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
-                            }`}>
-                            <span className="text-sm">{row.obtainedScore} / {row.maxMarks}</span>
-                            <span className="text-[9px] opacity-75 font-semibold mt-0.5">{row.isPassed ? 'PASS' : 'FAIL'}</span>
+                  {pagedRegularPapers.map((row, idx) => {
+                    const isApproved = paperApprovals.some(app => 
+                      (app.studentId?.toString() === row.studentId?.toString() || app.studentId === row.studentId) && 
+                      (app.paperId?.toString() === row.paperId?.toString() || app.paperId === row.paperId) && 
+                      app.mode === row.mode
+                    );
+                    return (
+                      <tr key={`reg-${row.regdNo}-${row.paperCode || idx}`} className="border-b border-slate-100 hover:bg-teal-50 transition-colors">
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-medium text-slate-900">{row.fullName}</td>
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-mono text-xs">{row.regdNo}</td>
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">{row.semester}</td>
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
+                          <p className="font-semibold text-slate-800">{row.paperName}</p>
+                          <p className="text-xs text-slate-400">{row.paperCode}</p>
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center">
+                          {row.obtainedScore !== null ? (
+                            <span className={`inline-flex flex-col items-center px-3 py-1.5 rounded-md text-xs font-bold ${row.isPassed ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+                              }`}>
+                              <span className="text-sm">{row.obtainedScore} / {row.maxMarks}</span>
+                              <span className="text-[9px] opacity-75 font-semibold mt-0.5">{row.isPassed ? 'PASS' : 'FAIL'}</span>
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic text-xs">Pending</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${isApproved ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {isApproved ? 'BOS Approved' : 'Pending BOS'}
                           </span>
-                        ) : (
-                          <span className="text-slate-400 italic text-xs">Pending</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {regularPaperRows.length === 0 && (
                     <tr>
-                      <td colSpan="5" className="px-6 py-8 text-center text-slate-500 text-sm">No regular paper grades found.</td>
+                      <td colSpan="6" className="px-6 py-8 text-center text-slate-500 text-sm">No regular paper grades found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -728,35 +782,48 @@ const EvaluatedRecords = () => {
                     <th className="px-4 py-3 text-left whitespace-nowrap">Roll No.</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Semester</th>
                     <th className="px-4 py-3 text-left whitespace-nowrap">Paper Name</th>
-                    <th className="px-4 py-3 text-left whitespace-nowrap text-center min-w-[8rem]">Consolidated Score</th>
+                    <th className="px-4 py-3 text-center whitespace-nowrap min-w-[8rem]">Consolidated Score</th>
+                    <th className="px-4 py-3 text-center whitespace-nowrap">BOS Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pagedSupplyPapers.map((row, idx) => (
-                    <tr key={`sup-${row.regdNo}-${row.paperCode || idx}`} className="border-b border-slate-100 hover:bg-teal-50 transition-colors">
-                      <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-medium text-slate-900">{row.fullName}</td>
-                      <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-mono text-xs">{row.regdNo}</td>
-                      <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">{row.semester}</td>
-                      <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
-                        <p className="font-semibold text-slate-800">{row.paperName}</p>
-                        <p className="text-xs text-slate-400">{row.paperCode}</p>
-                      </td>
-                      <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center">
-                        {row.obtainedScore !== null ? (
-                          <span className={`inline-flex flex-col items-center px-3 py-1.5 rounded-md text-xs font-bold ${row.isPassed ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
-                            }`}>
-                            <span className="text-sm">{row.obtainedScore} / {row.maxMarks}</span>
-                            <span className="text-[9px] opacity-75 font-semibold mt-0.5">{row.isPassed ? 'PASS' : 'FAIL'}</span>
+                  {pagedSupplyPapers.map((row, idx) => {
+                    const isApproved = paperApprovals.some(app => 
+                      (app.studentId?.toString() === row.studentId?.toString() || app.studentId === row.studentId) && 
+                      (app.paperId?.toString() === row.paperId?.toString() || app.paperId === row.paperId) && 
+                      app.mode === row.mode
+                    );
+                    return (
+                      <tr key={`sup-${row.regdNo}-${row.paperCode || idx}`} className="border-b border-slate-100 hover:bg-teal-50 transition-colors">
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-medium text-slate-900">{row.fullName}</td>
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-mono text-xs">{row.regdNo}</td>
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">{row.semester}</td>
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
+                          <p className="font-semibold text-slate-800">{row.paperName}</p>
+                          <p className="text-xs text-slate-400">{row.paperCode}</p>
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center">
+                          {row.obtainedScore !== null ? (
+                            <span className={`inline-flex flex-col items-center px-3 py-1.5 rounded-md text-xs font-bold ${row.isPassed ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+                              }`}>
+                              <span className="text-sm">{row.obtainedScore} / {row.maxMarks}</span>
+                              <span className="text-[9px] opacity-75 font-semibold mt-0.5">{row.isPassed ? 'PASS' : 'FAIL'}</span>
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic text-xs">Pending</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-center">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${isApproved ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {isApproved ? 'BOS Approved' : 'Pending BOS'}
                           </span>
-                        ) : (
-                          <span className="text-slate-400 italic text-xs">Pending</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {supplyPaperRows.length === 0 && (
                     <tr>
-                      <td colSpan="5" className="px-6 py-8 text-center text-slate-500 text-sm">No supply (backlog) paper grades found.</td>
+                      <td colSpan="6" className="px-6 py-8 text-center text-slate-500 text-sm">No supply (backlog) paper grades found.</td>
                     </tr>
                   )}
                 </tbody>

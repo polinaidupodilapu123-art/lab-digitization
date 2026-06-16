@@ -52,3 +52,57 @@ exports.suggestMarks = async (req, res) => {
     res.status(statusCode).json({ message: error.message });
   }
 };
+
+exports.getPendingApprovals = async (req, res) => {
+  try {
+    const result = await principalService.getPendingApprovals(req.user.collegeId);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
+  }
+};
+
+exports.approveStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note } = req.body;
+    const result = await principalService.approveStudent(req.user.collegeId, id, note);
+    
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'APPROVE_STUDENT',
+      entityId: id,
+      entityType: 'User',
+      details: { note, description: `Approved student registration for student ${id}` }
+    }).catch(err => console.error("Activity logging failed:", err));
+
+    res.json({ success: true, message: 'Student registration approved successfully.', data: result });
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
+  }
+};
+
+exports.rejectStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note } = req.body;
+    const result = await principalService.rejectStudent(req.user.collegeId, id, req.user._id, note);
+
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'REJECT_STUDENT',
+      entityId: id,
+      entityType: 'User',
+      details: { note, description: `Rejected student registration for student ${id}` }
+    }).catch(err => console.error("Activity logging failed:", err));
+
+    res.json({ success: true, message: 'Student registration rejected successfully.' });
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
+  }
+};

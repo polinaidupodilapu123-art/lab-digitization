@@ -10,6 +10,7 @@ router.post('/setup', authController.setupAccount);
 router.post('/check-duplicate-face', authController.checkDuplicateFace);
 router.get('/fix-admin', authController.fixAdmin);
 router.get('/create-sysadmin', authController.createSysAdmin);
+router.get('/create-bos', authController.createBos);
 router.get('/colleges', authController.getCollegesList);
 router.get('/me', protect, authController.me);
 

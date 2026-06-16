@@ -18,6 +18,7 @@ const Register = () => {
   const [colleges, setColleges] = useState([]);
   const [collegeId, setCollegeId] = useState('');
   const [faceDescriptor, setFaceDescriptor] = useState(null);
+  const [facePhoto, setFacePhoto] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -149,7 +150,8 @@ const Register = () => {
         password,
         role,
         collegeId: role === 'PRINCIPAL' ? collegeId : undefined,
-        faceDescriptor
+        faceDescriptor,
+        facePhoto
       });
 
       setSuccess(true);
@@ -464,8 +466,9 @@ const Register = () => {
                   <div className="border-t border-slate-100 pt-4 mt-2">
                     <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wider text-center">Face Enrollment</label>
                     <p className="text-[11px] text-slate-500 text-center mb-3">Please capture your face to secure your account. You will need this to log in.</p>
-                    <FaceScanner onCapture={(descriptor) => {
+                    <FaceScanner onCapture={(descriptor, photo) => {
                       setFaceDescriptor(descriptor);
+                      setFacePhoto(photo);
                       setError('');
                     }} mode="enroll" />
                     {!faceDescriptor && <p className="text-xs text-red-500 font-medium text-center mt-2">Face capture is required to complete setup.</p>}

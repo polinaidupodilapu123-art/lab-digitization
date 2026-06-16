@@ -566,4 +566,145 @@ exports.sendEvaluatorDeadlineReminderEmail = async ({ to, evaluatorName, daysLef
   }
 };
 
+/**
+ * Send Student Registration Status (Approve/Reject) Email
+ */
+exports.sendStudentRegistrationStatusEmail = async ({ to, studentName, status, note }) => {
+  try {
+    const isApproved = status === 'APPROVED';
+    const titleColor = isApproved ? '#0f766e' : '#be123c';
+    const borderColor = isApproved ? '#0f766e' : '#be123c';
+    const statusText = isApproved ? 'Approved' : 'Rejected';
+    const siteUrl = process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
+
+    let messageHtml = '';
+    if (isApproved) {
+      messageHtml = `
+        <p>Congratulations! Your student registration has been <strong>APPROVED</strong> by your College Principal.</p>
+        <p>You can now log in to the portal and access your allocated subjects and upload your practical records.</p>
+      `;
+    } else {
+      messageHtml = `
+        <p>We regret to inform you that your student registration has been <strong>REJECTED</strong> by your College Principal.</p>
+        <p style="color: #be123c; font-weight: bold;">Reason: Please register with your own face.</p>
+        <p>Your registration setup has been reset. Please visit the portal and complete your registration/first-time setup again with a clear face scan.</p>
+      `;
+    }
+
+    let noteHtml = '';
+    if (note && note.trim()) {
+      noteHtml = `
+        <div style="background-color: #f8fafc; border-left: 4px solid #64748b; padding: 15px; margin: 20px 0; border-radius: 4px;">
+          <h4 style="margin: 0 0 5px 0; color: #475569;">Note from Principal:</h4>
+          <p style="margin: 0; color: #334155; font-style: italic;">"${note}"</p>
+        </div>
+      `;
+    }
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: ${titleColor}; border-bottom: 2px solid ${borderColor}; padding-bottom: 10px; margin-top: 0;">Registration Status: ${statusText}</h2>
+        <p>Dear <strong>${studentName}</strong>,</p>
+        ${messageHtml}
+        ${noteHtml}
+        
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${siteUrl}/login" style="background-color: ${isApproved ? '#0f766e' : '#be123c'}; color: white; padding: 12px 25px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">
+            ${isApproved ? 'Go to Student Login' : 'Re-Register Now'}
+          </a>
+        </div>
+
+        <p style="font-size: 12px; color: #64748b; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+          This is an automated notification. Please do not reply directly to this email.
+        </p>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      to,
+      subject: `Registration ${statusText} Notification - AKNU Digitization Portal`,
+      html: htmlContent,
+      text: convertHtmlToText(htmlContent).replace(/^\s+|\s+$/gm, '')
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Student registration status email successfully sent to ${to}. Message ID: ${info.messageId}`);
+    return info;
+  } catch (error) {
+    console.error('Failed to send student registration status email:', error);
+  }
+};
+
+/**
+ * Send Principal Registration Status (Approve/Reject) Email
+ */
+exports.sendPrincipalRegistrationStatusEmail = async ({ to, principalName, status, note }) => {
+  try {
+    const isApproved = status === 'APPROVED';
+    const titleColor = isApproved ? '#0f766e' : '#be123c';
+    const borderColor = isApproved ? '#0f766e' : '#be123c';
+    const statusText = isApproved ? 'Approved' : 'Rejected';
+    const siteUrl = process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
+
+    let messageHtml = '';
+    if (isApproved) {
+      messageHtml = `
+        <p>Congratulations! Your College Principal registration has been <strong>APPROVED</strong> by the Board of Studies (BOS).</p>
+        <p>You can now log in to the portal to verify students, check submission statuses, and suggest practical exam marks.</p>
+      `;
+    } else {
+      messageHtml = `
+        <p>We regret to inform you that your Principal registration setup has been <strong>REJECTED</strong> by the Board of Studies (BOS).</p>
+        <p style="color: #be123c; font-weight: bold;">Reason: You are not the person to register. Only the designated college principal should register.</p>
+        <p>Your registration setup has been reset. Please instruct the correct college principal to register from scratch with a proper face scan.</p>
+      `;
+    }
+
+    let noteHtml = '';
+    if (note && note.trim()) {
+      noteHtml = `
+        <div style="background-color: #f8fafc; border-left: 4px solid #64748b; padding: 15px; margin: 20px 0; border-radius: 4px;">
+          <h4 style="margin: 0 0 5px 0; color: #475569;">Note from Board of Studies:</h4>
+          <p style="margin: 0; color: #334155; font-style: italic;">"${note}"</p>
+        </div>
+      `;
+    }
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: ${titleColor}; border-bottom: 2px solid ${borderColor}; padding-bottom: 10px; margin-top: 0;">Principal Registration Status: ${statusText}</h2>
+        <p>Dear Principal <strong>${principalName}</strong>,</p>
+        ${messageHtml}
+        ${noteHtml}
+        
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${siteUrl}/login" style="background-color: ${isApproved ? '#0f766e' : '#be123c'}; color: white; padding: 12px 25px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">
+            ${isApproved ? 'Go to Principal Login' : 'Re-Register Principal'}
+          </a>
+        </div>
+
+        <p style="font-size: 12px; color: #64748b; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+          This is an automated notification. Please do not reply directly to this email.
+        </p>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      to,
+      subject: `Principal Registration ${statusText} Notification - AKNU Digitization Portal`,
+      html: htmlContent,
+      text: convertHtmlToText(htmlContent).replace(/^\s+|\s+$/gm, '')
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Principal registration status email successfully sent to ${to}. Message ID: ${info.messageId}`);
+    return info;
+  } catch (error) {
+    console.error('Failed to send principal registration status email:', error);
+  }
+};
+
+
 

@@ -85,13 +85,13 @@ const PendingStudents = () => {
           </h1>
           <p className="text-sm text-slate-500 mt-1">List of students who have not yet submitted their lab records.</p>
         </div>
-        <button 
+        {/* <button 
           onClick={fetchPendingStudents}
           className="flex items-center gap-2 px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-md text-sm font-semibold transition-colors"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh
-        </button>
+        </button> */}
       </div>
 
       <div className="bg-white p-5 rounded-md border border-slate-200 shadow-sm flex flex-wrap items-center gap-4">

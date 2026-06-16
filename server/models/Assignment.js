@@ -72,6 +72,15 @@ const assignmentSchema = new mongoose.Schema({
   },
   extractedText: {
     type: String
+  },
+  isApprovedByBOS: {
+    type: Boolean,
+    default: false
+  },
+  bosApprovalStatus: {
+    type: String,
+    enum: ['PENDING', 'APPROVED'],
+    default: 'PENDING'
   }
 }, { timestamps: true });
 

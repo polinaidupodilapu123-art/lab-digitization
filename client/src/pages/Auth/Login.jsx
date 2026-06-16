@@ -115,6 +115,7 @@ const Login = () => {
       if (res.data.role === 'ADMIN' || res.data.role === 'SYSTEM_ADMIN') navigate('/admin');
       else if (res.data.role === 'EVALUATOR') navigate('/evaluator');
       else if (res.data.role === 'PRINCIPAL') navigate('/principal');
+      else if (res.data.role === 'BOS') navigate('/bos');
       else navigate('/student');
     } catch (err) {
       const errorMsg = err.response?.data?.message || 'Login failed';

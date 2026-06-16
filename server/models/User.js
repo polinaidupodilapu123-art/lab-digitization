@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['ADMIN', 'STUDENT', 'EVALUATOR', 'PRINCIPAL', 'SYSTEM_ADMIN'],
+    enum: ['ADMIN', 'STUDENT', 'EVALUATOR', 'PRINCIPAL', 'SYSTEM_ADMIN', 'BOS'],
     default: 'STUDENT'
   },
   fullName: {
@@ -70,12 +70,25 @@ const userSchema = new mongoose.Schema({
   faceDescriptor: {
     type: [Number],
     default: []
+  },
+  profileImage: {
+    type: String,
+    default: null
+  },
+  isApproved: {
+    type: Boolean,
+    default: false
+  },
+  approvalStatus: {
+    type: String,
+    enum: ['PENDING', 'APPROVED', 'REJECTED'],
+    default: 'PENDING'
   }
 }, { timestamps: true });
 
 // Hash password before saving (Mongoose 9 style — no next() needed)
 userSchema.pre('save', async function () {
-  if (!this.isModified('password')) return;
+  if (!this.isModified('password') || !this.password) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });

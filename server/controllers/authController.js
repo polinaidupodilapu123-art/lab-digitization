@@ -89,3 +89,13 @@ exports.me = async (req, res) => {
     res.status(statusCode).json({ message: error.message });
   }
 };
+
+exports.createBos = async (req, res) => {
+  try {
+    const result = await authService.createBos();
+    res.json(result);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
+  }
+};

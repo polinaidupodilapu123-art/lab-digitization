@@ -12,6 +12,7 @@ const AdminDashboard = lazy(() => import('./pages/Admin/Dashboard'));
 const StudentDashboard = lazy(() => import('./pages/Student/Dashboard'));
 const EvaluatorDashboard = lazy(() => import('./pages/Evaluator/Dashboard'));
 const PrincipalDashboard = lazy(() => import('./pages/Principal/Dashboard'));
+const BOSDashboard = lazy(() => import('./pages/BOS/Dashboard'));
 
 // Global Axios Interceptor for Single Concurrent Login Enforcement
 axios.interceptors.response.use(
@@ -69,6 +70,7 @@ function AppContent() {
               <Route path="/student/*" element={<StudentDashboard />} />
               <Route path="/evaluator/*" element={<EvaluatorDashboard />} />
               <Route path="/principal/*" element={<PrincipalDashboard />} />
+              <Route path="/bos/*" element={<BOSDashboard />} />
             </Routes>
           </Suspense>
         </div>

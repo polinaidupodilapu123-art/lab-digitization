@@ -50,6 +50,7 @@ router.post('/bulk-assign-backlogs', adminController.bulkAssignBacklogs);
 router.get('/session-logs/summary', adminController.getSessionLogSummary);
 router.get('/session-logs', adminController.getSessionLogs);
 router.post('/college-passwords', systemAdminOnly, adminController.updateCollegePasswords);
+router.get('/paper-approvals', adminController.getPaperApprovals);
 
 // Activity Logs
 // Exports

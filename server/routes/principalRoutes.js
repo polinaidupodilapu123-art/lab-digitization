@@ -19,4 +19,9 @@ router.get('/pending-students', principalController.getPendingStudents);
 router.get('/records', principalController.getCollegeRecords);
 router.put('/records/:id/suggest-marks', principalController.suggestMarks);
 
+// Student registration approvals
+router.get('/pending-approvals', principalController.getPendingApprovals);
+router.post('/approve-student/:id', principalController.approveStudent);
+router.post('/reject-student/:id', principalController.rejectStudent);
+
 module.exports = router;

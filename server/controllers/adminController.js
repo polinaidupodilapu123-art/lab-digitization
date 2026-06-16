@@ -497,3 +497,13 @@ exports.updateCollegePasswords = async (req, res) => {
     res.status(error.statusCode || 500).json({ message: error.message });
   }
 };
+
+exports.getPaperApprovals = async (req, res) => {
+  try {
+    const PaperApproval = require('../models/PaperApproval');
+    const approvals = await PaperApproval.find({ approvalStatus: 'APPROVED' }).lean();
+    res.json(approvals);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};

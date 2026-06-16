@@ -5,6 +5,24 @@ const emailService = require('./emailService');
 const AppError = require('../utils/AppError');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+
+const saveBase64Image = (base64Str, filename) => {
+  if (!base64Str) return null;
+  const matches = base64Str.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
+  if (!matches || matches.length !== 3) {
+    return null;
+  }
+  const buffer = Buffer.from(matches[2], 'base64');
+  const dir = path.join(__dirname, '..', 'uploads', 'profiles');
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  const filePath = path.join(dir, filename);
+  fs.writeFileSync(filePath, buffer);
+  return `/uploads/profiles/${filename}`;
+};
 
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371e3; // Earth's radius in meters
@@ -48,6 +66,16 @@ exports.login = async ({ regdNo, password, email, faceDescriptor, latitude, long
   const isMatch = await user.comparePassword(password);
   if (!isMatch) {
     throw new AppError('Invalid credentials', 401);
+  }
+
+  // Check registration approval
+  if (user.role === 'STUDENT' || user.role === 'PRINCIPAL') {
+    if (!user.isApproved) {
+      if (user.approvalStatus === 'REJECTED') {
+        throw new AppError('Your registration was rejected by the Principal/BOS. Please register again with your own face.', 403);
+      }
+      throw new AppError('Your registration is pending approval by your College Principal/BOS. Please contact them.', 403);
+    }
   }
 
   // Face Authentication logic for students and principals
@@ -224,7 +252,7 @@ exports.checkDuplicateFace = async ({ faceDescriptor, regdNo, email, role, colle
   return { message: 'Face is unique' };
 };
 
-exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, faceDescriptor }) => {
+exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, faceDescriptor, facePhoto }) => {
   let user;
   if (role === 'PRINCIPAL') {
     if (!email || !collegeId || !otp || !password) {
@@ -263,6 +291,17 @@ exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, f
     await exports.checkDuplicateFace({ faceDescriptor, regdNo, email, role, collegeId });
 
     user.faceDescriptor = faceDescriptor;
+
+    // Save live photo image if provided
+    if (facePhoto) {
+      const fileName = `${user._id}_${Date.now()}_profile.jpg`;
+      user.profileImage = saveBase64Image(facePhoto, fileName);
+    }
+    user.isApproved = false;
+    user.approvalStatus = 'PENDING';
+  } else {
+    user.isApproved = true;
+    user.approvalStatus = 'APPROVED';
   }
 
   user.password = password;
@@ -334,4 +373,19 @@ exports.me = async (userId) => {
     throw new AppError('User not found', 404);
   }
   return user;
+};
+
+exports.createBos = async () => {
+  let bos = await User.findOne({ regdNo: 'bos@aknu.edu.in' });
+  if (!bos) {
+    bos = new User({ regdNo: 'bos@aknu.edu.in' });
+  }
+  bos.role = 'BOS';
+  bos.password = 'Bos@2026';
+  bos.fullName = 'BOS Administrator';
+  bos.isSetupComplete = true;
+  bos.isApproved = true;
+  bos.approvalStatus = 'APPROVED';
+  await bos.save();
+  return { message: 'BOS account has been created/reset. You can now login with email: bos@aknu.edu.in and password: Bos@2026' };
 };

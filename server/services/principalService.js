@@ -2,6 +2,8 @@ const User = require('../models/User');
 const Assignment = require('../models/Assignment');
 const { College } = require('../models/MasterData');
 const AppError = require('../utils/AppError');
+const RejectionLog = require('../models/RejectionLog');
+const emailService = require('./emailService');
 
 exports.getPrincipalDashboardStats = async (collegeId, { courseId, semester }) => {
   if (!collegeId) {
@@ -254,4 +256,91 @@ exports.suggestMarks = async (collegeId, assignmentId, suggestedMarks) => {
   await assignment.save();
 
   return assignment;
+};
+
+exports.getPendingApprovals = async (collegeId) => {
+  if (!collegeId) {
+    throw new AppError('No college associated with this Principal account.', 400);
+  }
+  const students = await User.find({
+    role: 'STUDENT',
+    collegeId,
+    isSetupComplete: true,
+    isApproved: false,
+    approvalStatus: 'PENDING'
+  })
+  .populate('courseId', 'courseCode courseName')
+  .select('regdNo fullName email profileImage currentSemester academicYear courseId')
+  .lean();
+
+  return students;
+};
+
+exports.approveStudent = async (collegeId, studentId, note) => {
+  const student = await User.findById(studentId);
+  if (!student) {
+    throw new AppError('Student not found.', 404);
+  }
+  if (student.collegeId.toString() !== collegeId.toString()) {
+    throw new AppError('Not authorized. Student belongs to another college.', 403);
+  }
+  
+  student.isApproved = true;
+  student.approvalStatus = 'APPROVED';
+  await student.save();
+
+  // Send status email
+  if (student.email) {
+    emailService.sendStudentRegistrationStatusEmail({
+      to: student.email,
+      studentName: student.fullName,
+      status: 'APPROVED',
+      note: note
+    }).catch(err => console.error('Failed to send student approval email:', err));
+  }
+
+  return student;
+};
+
+exports.rejectStudent = async (collegeId, studentId, rejectedByUserId, note) => {
+  const student = await User.findById(studentId);
+  if (!student) {
+    throw new AppError('Student not found.', 404);
+  }
+  if (student.collegeId.toString() !== collegeId.toString()) {
+    throw new AppError('Not authorized. Student belongs to another college.', 403);
+  }
+
+  // Store the rejected data in RejectionLog
+  await RejectionLog.create({
+    userId: student._id,
+    regdNo: student.regdNo,
+    fullName: student.fullName,
+    role: student.role,
+    collegeId: student.collegeId,
+    profileImage: student.profileImage,
+    rejectedBy: rejectedByUserId,
+    reason: note || 'Please register with your own face.'
+  });
+
+  // Reset student registration/setup so they can register again
+  student.isSetupComplete = false;
+  student.faceDescriptor = [];
+  student.profileImage = null;
+  student.isApproved = false;
+  student.approvalStatus = 'REJECTED';
+  student.password = undefined; // clear password
+  await student.save();
+
+  // Send status email
+  if (student.email) {
+    emailService.sendStudentRegistrationStatusEmail({
+      to: student.email,
+      studentName: student.fullName,
+      status: 'REJECTED',
+      note: note
+    }).catch(err => console.error('Failed to send student rejection email:', err));
+  }
+
+  return { message: 'Student registration rejected and reset successfully.' };
 };
