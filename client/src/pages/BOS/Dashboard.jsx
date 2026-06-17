@@ -576,7 +576,6 @@ const BOSDashboard = () => {
                     <table className="w-full text-sm">
                       <thead className="sticky top-0 z-10 shadow-sm">
                         <tr className="bg-teal-700 text-white text-sm">
-                          <th className="px-4 py-3 text-center whitespace-nowrap w-16">Photo</th>
                           <th className="px-4 py-3 text-left whitespace-nowrap">Roll No.</th>
                           <th className="px-4 py-3 text-left whitespace-nowrap">Student Name</th>
                           <th className="px-4 py-3 text-left whitespace-nowrap">Subject</th>
@@ -595,20 +594,6 @@ const BOSDashboard = () => {
                         ) : (
                           filteredRegularRecords.map((row, idx) => (
                             <tr key={row._id} className={`border-b border-slate-100 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-teal-50`}>
-                              <td className="px-4 py-2.5 text-center">
-                                {row.studentId?.profileImage ? (
-                                  <img
-                                    src={`${API_BASE_URL}${row.studentId.profileImage}`}
-                                    alt={row.studentId.fullName}
-                                    onClick={() => setPreviewPhoto({ src: `${API_BASE_URL}${row.studentId.profileImage}`, name: row.studentId.fullName })}
-                                    className="w-8 h-8 rounded-full object-cover border border-slate-200 cursor-pointer mx-auto shadow-sm hover:border-teal-500"
-                                  />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mx-auto text-[10px] border border-slate-200 font-semibold">
-                                    N/A
-                                  </div>
-                                )}
-                              </td>
                               <td className="px-4 py-2.5 text-slate-700 font-semibold whitespace-nowrap">{row.studentId?.regdNo}</td>
                               <td className="px-4 py-2.5 text-slate-700 font-medium whitespace-nowrap">{row.studentId?.fullName}</td>
                               <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">

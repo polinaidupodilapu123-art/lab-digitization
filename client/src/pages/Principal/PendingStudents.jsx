@@ -157,7 +157,7 @@ const PendingStudents = () => {
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 shadow-sm">
                 <tr className="bg-teal-700 text-white text-xs uppercase tracking-wide">
-                  <th className="px-4 py-3 text-left whitespace-nowrap">HT No</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">Registration No</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Student Name</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Course</th>
                   <th className="px-4 py-3 text-center whitespace-nowrap">Sem</th>
@@ -177,7 +177,7 @@ const PendingStudents = () => {
                       {student.fullName}
                     </td>
                     <td className="px-4 py-2.5 text-slate-600 whitespace-nowrap">
-                      {student.courseCode}
+                      {student.courseName}
                     </td>
                     <td className="px-4 py-2.5 text-slate-600 text-center">
                       {student.semester}
