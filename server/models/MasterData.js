@@ -8,7 +8,7 @@ const collegeSchema = new mongoose.Schema({
   courses:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
   latitude:    { type: Number },
   longitude:   { type: Number },
-  radiusMeter: { type: Number, default: 200 } // Geofence radius limit in meters
+  radiusMeter: { type: Number, default: 250 } // Geofence radius limit in meters
 }, { timestamps: true });
 
 const subjectSchema = new mongoose.Schema({

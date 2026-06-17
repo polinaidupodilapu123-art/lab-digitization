@@ -6,6 +6,36 @@ import { API_BASE_URL } from '../../utils/config';
 import Header from '../../components/Header';
 import FaceScanner from '../../components/FaceScanner';
 
+const getCoordinates = () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported by your browser.'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        let msg = 'Failed to retrieve location.';
+        if (error.code === 1) {
+          msg = 'Location permission was denied. Please allow location access in your browser settings.';
+        } else if (error.code === 2) {
+          msg = 'Location position is unavailable. Please check your system/OS location settings.';
+        } else if (error.code === 3) {
+          msg = 'Location request timed out. Please try again.';
+        }
+        reject(new Error(msg));
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 10000 }
+    );
+  });
+};
+
 const Register = () => {
   const [step, setStep] = useState(1); // 1 = Registration & Email, 2 = OTP & Password
   const [regdNo, setRegdNo] = useState('');
@@ -93,13 +123,30 @@ const Register = () => {
       return setError('Please enter a valid email address.');
     }
 
+    let coords = null;
+    if (role === 'PRINCIPAL') {
+      try {
+        coords = await getCoordinates();
+      } catch (locErr) {
+        setLoading(false);
+        return setError(locErr.message || 'GPS Location access is required to request registration OTP.');
+      }
+    }
+
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/auth/send-otp`, {
+      const payload = {
         regdNo: role === 'PRINCIPAL' ? email : regdNo,
         email,
         role,
         collegeId: role === 'PRINCIPAL' ? collegeId : undefined
-      });
+      };
+
+      if (coords) {
+        payload.latitude = coords.latitude;
+        payload.longitude = coords.longitude;
+      }
+
+      const res = await axios.post(`${API_BASE_URL}/api/auth/send-otp`, payload);
 
       // Save OTP to devOtp state for testing help if it's returned
       if (res.data.otp) {
@@ -142,8 +189,18 @@ const Register = () => {
       return setError('Face capture is required.');
     }
 
+    let coords = null;
+    if (role === 'PRINCIPAL') {
+      try {
+        coords = await getCoordinates();
+      } catch (locErr) {
+        setLoading(false);
+        return setError(locErr.message || 'GPS Location access is required to register.');
+      }
+    }
+
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/auth/setup`, {
+      const payload = {
         regdNo: role === 'PRINCIPAL' ? email : regdNo,
         email,
         otp,
@@ -152,7 +209,14 @@ const Register = () => {
         collegeId: role === 'PRINCIPAL' ? collegeId : undefined,
         faceDescriptor,
         facePhoto
-      });
+      };
+
+      if (coords) {
+        payload.latitude = coords.latitude;
+        payload.longitude = coords.longitude;
+      }
+
+      const res = await axios.post(`${API_BASE_URL}/api/auth/setup`, payload);
 
       setSuccess(true);
       

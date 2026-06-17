@@ -52,6 +52,11 @@ mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('✅ MongoDB Connected');
 
+    // Ensure all colleges have a 250m geofence radius limit
+    const { College } = require('./models/MasterData');
+    await College.updateMany({}, { radiusMeter: 250 });
+    console.log('🌱 College geofence radii synchronized to 250m');
+
     // Auto-seed default ADMIN account if none exists
     const User = require('./models/User');
     const existing = await User.findOne({ role: 'ADMIN' });

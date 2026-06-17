@@ -115,10 +115,10 @@ exports.login = async ({ regdNo, password, email, faceDescriptor, latitude, long
       }
 
       const distance = calculateDistance(latitude, longitude, college.latitude, college.longitude);
-      const limit = college.radiusMeter || 200;
+      const limit = 250; // Strict 250m geofence radius limit for Principal
 
       if (distance > limit) {
-        throw new AppError(`Access Denied: You must log in from within the college campus surroundings. (Distance: ${distance.toFixed(0)}m, Limit: ${limit}m)`, 403);
+        throw new AppError(`Access Denied: You must log in from within the college campus. (Distance: ${distance.toFixed(0)}m, Limit: ${limit}m)`, 403);
       }
     }
   }
@@ -166,12 +166,28 @@ exports.logout = async (user) => {
   return { message: 'Logged out successfully' };
 };
 
-exports.sendOtp = async ({ regdNo, email, role, collegeId }) => {
+exports.sendOtp = async ({ regdNo, email, role, collegeId, latitude, longitude }) => {
   let user;
   if (role === 'PRINCIPAL') {
     if (!email || !collegeId) {
       throw new AppError('College and email address are required.', 400);
     }
+
+    // GPS Geofencing logic for Principals requesting OTP
+    const college = await College.findById(collegeId);
+    if (college && typeof college.latitude === 'number' && typeof college.longitude === 'number') {
+      if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+        throw new AppError('GPS Location access is required to request registration OTP.', 400);
+      }
+
+      const distance = calculateDistance(latitude, longitude, college.latitude, college.longitude);
+      const limit = 250; // Strict 250m geofence radius limit
+
+      if (distance > limit) {
+        throw new AppError(`Access Denied: You must request registration OTP from within the college campus. (Distance: ${distance.toFixed(0)}m, Limit: ${limit}m)`, 403);
+      }
+    }
+
     user = await User.findOne({ regdNo: email, collegeId, role: 'PRINCIPAL' });
   } else {
     if (!regdNo || !email) {
@@ -252,12 +268,28 @@ exports.checkDuplicateFace = async ({ faceDescriptor, regdNo, email, role, colle
   return { message: 'Face is unique' };
 };
 
-exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, faceDescriptor, facePhoto }) => {
+exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, faceDescriptor, facePhoto, latitude, longitude }) => {
   let user;
   if (role === 'PRINCIPAL') {
     if (!email || !collegeId || !otp || !password) {
       throw new AppError('All fields are required.', 400);
     }
+
+    // GPS Geofencing logic for Principals during registration setup
+    const college = await College.findById(collegeId);
+    if (college && typeof college.latitude === 'number' && typeof college.longitude === 'number') {
+      if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+        throw new AppError('GPS Location access is required to register.', 400);
+      }
+
+      const distance = calculateDistance(latitude, longitude, college.latitude, college.longitude);
+      const limit = 250; // Strict 250m geofence radius limit
+
+      if (distance > limit) {
+        throw new AppError(`Access Denied: You must register from within the college campus. (Distance: ${distance.toFixed(0)}m, Limit: ${limit}m)`, 403);
+      }
+    }
+
     user = await User.findOne({ regdNo: email, collegeId, role: 'PRINCIPAL' });
   } else {
     if (!regdNo || !email || !otp || !password) {
