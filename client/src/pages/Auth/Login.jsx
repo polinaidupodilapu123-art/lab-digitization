@@ -16,7 +16,8 @@ const getCoordinates = () => {
       (position) => {
         resolve({
           latitude: position.coords.latitude,
-          longitude: position.coords.longitude
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy
         });
       },
       (error) => {
@@ -31,7 +32,7 @@ const getCoordinates = () => {
         }
         reject(new Error(msg));
       },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 10000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   });
 };
@@ -88,6 +89,7 @@ const Login = () => {
             const coords = await getCoordinates();
             payload.latitude = coords.latitude;
             payload.longitude = coords.longitude;
+            payload.accuracy = coords.accuracy;
           } catch (locErr) {
             setError(locErr.message || 'GPS Location access is required to log in.');
             setLoading(false);

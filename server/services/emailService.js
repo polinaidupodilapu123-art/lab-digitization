@@ -650,12 +650,12 @@ exports.sendPrincipalRegistrationStatusEmail = async ({ to, principalName, statu
     let messageHtml = '';
     if (isApproved) {
       messageHtml = `
-        <p>Congratulations! Your College Principal registration has been <strong>APPROVED</strong> by the Board of Studies (BOS).</p>
+        <p>Congratulations! Your College Principal registration has been <strong>APPROVED</strong> by the University.</p>
         <p>You can now log in to the portal to verify students, check submission statuses, and suggest practical exam marks.</p>
       `;
     } else {
       messageHtml = `
-        <p>We regret to inform you that your Principal registration setup has been <strong>REJECTED</strong> by the Board of Studies (BOS).</p>
+        <p>We regret to inform you that your Principal registration setup has been <strong>REJECTED</strong> by the University.</p>
         <p style="color: #be123c; font-weight: bold;">Reason: You are not the person to register. Only the designated college principal should register.</p>
         <p>Your registration setup has been reset. Please instruct the correct college principal to register from scratch with a proper face scan.</p>
       `;

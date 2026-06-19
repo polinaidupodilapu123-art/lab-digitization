@@ -4,26 +4,40 @@ import { Camera, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../utils/config';
 
-// Global cache for model loading promise to prevent reloading weights on remounts
-let modelsLoadingPromise = null;
-const loadFaceApiModels = () => {
-  if (!modelsLoadingPromise) {
+// Global cache for model loading promises based on detector type (mobile vs desktop)
+let modelsLoadingPromises = {};
+const loadFaceApiModels = (isMobile) => {
+  const key = isMobile ? 'mobile' : 'desktop';
+  if (!modelsLoadingPromises[key]) {
     const MODEL_URL = '/models';
-    modelsLoadingPromise = Promise.all([
-      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+    const detector = isMobile
+      ? faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
+      : faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+    modelsLoadingPromises[key] = Promise.all([
+      detector,
       faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
     ]);
   }
-  return modelsLoadingPromise;
+  return modelsLoadingPromises[key];
 };
 
 const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
+  // Detect if browser is on mobile to apply hardware-optimized configuration
+  const isMobile = useRef(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)).current;
+
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const isScanningRef = useRef(false);
   const scanLoopRef = useRef(null);
+
+  // Helper to get device-specific face detector options
+  const getDetectorOptions = () => {
+    return isMobile
+      ? new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 })
+      : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+  };
 
   // State machine refs for recursive loop stability (prevents stale closures)
   const livenessStateRef = useRef('CALIBRATING');
@@ -49,7 +63,7 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
   useEffect(() => {
     const loadModels = async () => {
       try {
-        await loadFaceApiModels();
+        await loadFaceApiModels(isMobile);
         setIsModelLoaded(true);
         setStatus('Ready. Please look at the camera.');
         startCamera();
@@ -119,17 +133,34 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
     }
   };
 
-  const processSuccessfulCapture = async (detection) => {
-    const photoBase64 = captureFrame();
-
+  const processSuccessfulCapture = async () => {
     isScanningRef.current = false;
     setScanning(false);
     if (scanLoopRef.current) clearTimeout(scanLoopRef.current);
 
-    if (mode === 'enroll') {
-      setStatus('Checking for duplicates...');
-      try {
-        const descriptorArray = Array.from(detection.descriptor);
+    const photoBase64 = captureFrame();
+    setStatus('Extracting face features...');
+
+    try {
+      if (!videoRef.current) {
+        throw new Error('Video stream is no longer available.');
+      }
+
+      // Extract high-quality face descriptor only once on liveness success
+      const detectorOptions = getDetectorOptions();
+      const finalDetection = await faceapi
+        .detectSingleFace(videoRef.current, detectorOptions)
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!finalDetection) {
+        throw new Error('Face lost during capture. Please stay still and look at the camera.');
+      }
+
+      const descriptorArray = Array.from(finalDetection.descriptor);
+
+      if (mode === 'enroll') {
+        setStatus('Checking for duplicates...');
         await axios.post(`${API_BASE_URL}/api/auth/check-duplicate-face`, {
           faceDescriptor: descriptorArray
         });
@@ -140,23 +171,17 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
         setTimeout(() => {
           onCapture(descriptorArray, photoBase64);
         }, 1000);
-      } catch (serverErr) {
-        setError(serverErr.response?.data?.message || 'Face validation failed.');
-        setStatus('Face Rejected.');
-        stopCamera();
-      }
-    } else {
-      setStatus('Verifying face with server...');
-      try {
-        await onCapture(Array.from(detection.descriptor));
+      } else {
+        setStatus('Verifying face with server...');
+        await onCapture(descriptorArray);
         setSuccess(true);
         setStatus('Face Verified!');
         stopCamera();
-      } catch (serverErr) {
-        setError(serverErr.message || 'Face Verification Failed');
-        setStatus('Verification failed. Try again.');
-        stopCamera();
       }
+    } catch (serverErr) {
+      setError(serverErr.response?.data?.message || serverErr.message || 'Face validation failed.');
+      setStatus('Face Rejected.');
+      stopCamera();
     }
   };
 
@@ -203,11 +228,11 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
           return;
         }
 
-        // SSD Mobilenet V1 provides rock-solid face landmarks
+        // Run face detector + landmarks (descriptor skipped during loop to maximize performance)
+        const detectorOptions = getDetectorOptions();
         const detection = await faceapi
-          .detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-          .withFaceLandmarks()
-          .withFaceDescriptor();
+          .detectSingleFace(videoRef.current, detectorOptions)
+          .withFaceLandmarks();
 
         if (!detection) {
           noFaceCount++;
@@ -265,7 +290,7 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
               setBaselineEARState(null);
               setStatus('Recalibrating camera...');
               setLivenessProgress(10);
-              scanLoopRef.current = setTimeout(scanFrame, 60);
+              scanLoopRef.current = setTimeout(scanFrame, isMobile ? 250 : 150);
               return;
             }
 
@@ -295,19 +320,22 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
               if (avgEAR >= openThreshold) {
                 livenessStateRef.current = 'SUCCESS';
                 setLivenessProgress(100);
-                processSuccessfulCapture(detection);
+                processSuccessfulCapture();
                 return;
               }
             }
           }
         }
         
-        // Polling interval of 60ms is fast enough to reliably capture quick blinks
-        scanLoopRef.current = setTimeout(scanFrame, 60);
+        // Polling interval: faster for active blink detection, slower when no face is found
+        const delay = detection 
+          ? (isMobile ? 100 : 60) 
+          : (isMobile ? 250 : 150);
+        scanLoopRef.current = setTimeout(scanFrame, delay);
 
       } catch (err) {
         console.error('Error scanning face:', err);
-        scanLoopRef.current = setTimeout(scanFrame, 150);
+        scanLoopRef.current = setTimeout(scanFrame, isMobile ? 250 : 150);
       }
     };
 

@@ -47,7 +47,7 @@ const generateToken = (id, role, sessionId) => {
   });
 };
 
-exports.login = async ({ regdNo, password, email, faceDescriptor, latitude, longitude }, ipAddress = 'Unknown') => {
+exports.login = async ({ regdNo, password, email, faceDescriptor, latitude, longitude, accuracy }, ipAddress = 'Unknown') => {
   let user;
   if (regdNo) {
     user = await User.findOne({ regdNo: new RegExp(`^${regdNo.trim()}$`, 'i') });
@@ -72,9 +72,9 @@ exports.login = async ({ regdNo, password, email, faceDescriptor, latitude, long
   if (user.role === 'STUDENT' || user.role === 'PRINCIPAL') {
     if (!user.isApproved) {
       if (user.approvalStatus === 'REJECTED') {
-        throw new AppError('Your registration was rejected by the Principal/BOS. Please register again with your own face.', 403);
+        throw new AppError('Your registration was rejected by the University. Please register again with your own face.', 403);
       }
-      throw new AppError('Your registration is pending approval by your College Principal/BOS. Please contact them.', 403);
+      throw new AppError('Your registration is pending approval by University. Please contact them.', 403);
     }
   }
 
@@ -115,10 +115,12 @@ exports.login = async ({ regdNo, password, email, faceDescriptor, latitude, long
       }
 
       const distance = calculateDistance(latitude, longitude, college.latitude, college.longitude);
-      const limit = 250; // Strict 250m geofence radius limit for Principal
+      const baseLimit = 250; // Strict 250m geofence radius limit for Principal
+      const accuracyBuffer = typeof accuracy === 'number' ? Math.min(accuracy, 1000) : 0;
+      const effectiveLimit = baseLimit + accuracyBuffer;
 
-      if (distance > limit) {
-        throw new AppError(`Access Denied: You must log in from within the college campus. (Distance: ${distance.toFixed(0)}m, Limit: ${limit}m)`, 403);
+      if (distance > effectiveLimit) {
+        throw new AppError(`Access Denied: You must log in from within the college campus. (Distance: ${distance.toFixed(0)}m, Limit: ${effectiveLimit.toFixed(0)}m)`, 403);
       }
     }
   }
@@ -166,7 +168,7 @@ exports.logout = async (user) => {
   return { message: 'Logged out successfully' };
 };
 
-exports.sendOtp = async ({ regdNo, email, role, collegeId, latitude, longitude }) => {
+exports.sendOtp = async ({ regdNo, email, role, collegeId, latitude, longitude, accuracy }) => {
   let user;
   if (role === 'PRINCIPAL') {
     if (!email || !collegeId) {
@@ -181,10 +183,12 @@ exports.sendOtp = async ({ regdNo, email, role, collegeId, latitude, longitude }
       }
 
       const distance = calculateDistance(latitude, longitude, college.latitude, college.longitude);
-      const limit = 250; // Strict 250m geofence radius limit
+      const baseLimit = 250; // Strict 250m geofence radius limit
+      const accuracyBuffer = typeof accuracy === 'number' ? Math.min(accuracy, 1000) : 0;
+      const effectiveLimit = baseLimit + accuracyBuffer;
 
-      if (distance > limit) {
-        throw new AppError(`Access Denied: You must request registration OTP from within the college campus. (Distance: ${distance.toFixed(0)}m, Limit: ${limit}m)`, 403);
+      if (distance > effectiveLimit) {
+        throw new AppError(`Access Denied: You must request registration OTP from within the college campus. (Distance: ${distance.toFixed(0)}m, Limit: ${effectiveLimit.toFixed(0)}m)`, 403);
       }
     }
 
@@ -268,7 +272,7 @@ exports.checkDuplicateFace = async ({ faceDescriptor, regdNo, email, role, colle
   return { message: 'Face is unique' };
 };
 
-exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, faceDescriptor, facePhoto, latitude, longitude }) => {
+exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, faceDescriptor, facePhoto, latitude, longitude, accuracy }) => {
   let user;
   if (role === 'PRINCIPAL') {
     if (!email || !collegeId || !otp || !password) {
@@ -283,10 +287,12 @@ exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, f
       }
 
       const distance = calculateDistance(latitude, longitude, college.latitude, college.longitude);
-      const limit = 250; // Strict 250m geofence radius limit
+      const baseLimit = 250; // Strict 250m geofence radius limit
+      const accuracyBuffer = typeof accuracy === 'number' ? Math.min(accuracy, 1000) : 0;
+      const effectiveLimit = baseLimit + accuracyBuffer;
 
-      if (distance > limit) {
-        throw new AppError(`Access Denied: You must register from within the college campus. (Distance: ${distance.toFixed(0)}m, Limit: ${limit}m)`, 403);
+      if (distance > effectiveLimit) {
+        throw new AppError(`Access Denied: You must register from within the college campus. (Distance: ${distance.toFixed(0)}m, Limit: ${effectiveLimit.toFixed(0)}m)`, 403);
       }
     }
 
