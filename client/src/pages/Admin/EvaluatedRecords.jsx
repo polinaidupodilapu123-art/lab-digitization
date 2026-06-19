@@ -297,6 +297,12 @@ const EvaluatedRecords = () => {
     return student;
   });
 
+  const isPaperApproved = (row) => paperApprovals.some(app => 
+    (app.studentId?.toString() === row.studentId?.toString() || app.studentId === row.studentId) && 
+    (app.paperId?.toString() === row.paperId?.toString() || app.paperId === row.paperId) && 
+    app.mode === row.mode
+  );
+
   const handleExportEvaluated = async () => {
     try {
       const XLSX = await import('xlsx');
@@ -364,12 +370,6 @@ const EvaluatedRecords = () => {
         'Result': row.obtainedScore !== null ? (row.isPassed ? 'PASS' : 'FAIL') : 'Pending'
       }));
 
-      const isPaperApproved = (row) => paperApprovals.some(app => 
-        (app.studentId?.toString() === row.studentId?.toString() || app.studentId === row.studentId) && 
-        (app.paperId?.toString() === row.paperId?.toString() || app.paperId === row.paperId) && 
-        app.mode === row.mode
-      );
-
       const approvedRegularPapers = regularPaperRows.filter(isPaperApproved);
       const approvedSupplyPapers = supplyPaperRows.filter(isPaperApproved);
 
@@ -407,6 +407,12 @@ const EvaluatedRecords = () => {
   const pagedRegularPapers = regularPaperRows.slice((paperPage - 1) * PAGE_SIZE, paperPage * PAGE_SIZE);
   const pagedSupplyPapers = supplyPaperRows.slice((paperPage - 1) * PAGE_SIZE, paperPage * PAGE_SIZE);
 
+  const evaluatedInFiltered = filteredRecords.filter(r => r.status === 'Evaluated');
+  const isSubmissionsApproved = evaluatedInFiltered.length > 0 && evaluatedInFiltered.every(r => r.isApprovedByBOS === true);
+
+  const totalPapersCount = regularPaperRows.length + supplyPaperRows.length;
+  const isPapersApproved = totalPapersCount > 0 && [...regularPaperRows, ...supplyPaperRows].every(isPaperApproved);
+
   return (
     <div className="p-4 sm:p-4 bg-slate-50 w-full animate-fade-in">
       {showActivity && <ActivityFeed actionTypes={['EXPORT_EXCEL', 'REALLOCATE_EVALUATOR', 'EXTEND_DEADLINE']} onClose={() => setShowActivity(false)} refreshTrigger={refreshTrigger} />}
@@ -441,7 +447,7 @@ const EvaluatedRecords = () => {
             : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
             }`}
         >
-          Paper Wise Final Makes Report
+          Paper Wise Final Marks Report
         </button>
       </div>
 
@@ -501,8 +507,14 @@ const EvaluatedRecords = () => {
 
             {(filteredRecords.length > 0 || regularPaperRows.length > 0 || supplyPaperRows.length > 0) && (
               <button
+                disabled={activeTab === 'submissions' ? !isSubmissionsApproved : !isPapersApproved}
                 onClick={activeTab === 'submissions' ? handleExportEvaluated : handleExportPaperGrades}
-                className="flex items-center justify-center px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-md text-xs font-semibold shadow-sm transition-colors cursor-pointer whitespace-nowrap"
+                title={!(activeTab === 'submissions' ? isSubmissionsApproved : isPapersApproved) ? "Waiting for BOS approval" : ""}
+                className={`flex items-center justify-center px-3 py-1.5 rounded-md text-xs font-semibold shadow-sm transition-all whitespace-nowrap ${
+                  (activeTab === 'submissions' ? isSubmissionsApproved : isPapersApproved)
+                    ? 'bg-teal-600 hover:bg-teal-700 text-white cursor-pointer'
+                    : 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-60'
+                }`}
               >
                 <Download className="h-3.5 w-3.5 mr-1.5" />
                 Export Excel
@@ -724,11 +736,7 @@ const EvaluatedRecords = () => {
                 </thead>
                 <tbody>
                   {pagedRegularPapers.map((row, idx) => {
-                    const isApproved = paperApprovals.some(app => 
-                      (app.studentId?.toString() === row.studentId?.toString() || app.studentId === row.studentId) && 
-                      (app.paperId?.toString() === row.paperId?.toString() || app.paperId === row.paperId) && 
-                      app.mode === row.mode
-                    );
+                    const isApproved = isPaperApproved(row);
                     return (
                       <tr key={`reg-${row.regdNo}-${row.paperCode || idx}`} className="border-b border-slate-100 hover:bg-teal-50 transition-colors">
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-medium text-slate-900">{row.fullName}</td>
@@ -788,11 +796,7 @@ const EvaluatedRecords = () => {
                 </thead>
                 <tbody>
                   {pagedSupplyPapers.map((row, idx) => {
-                    const isApproved = paperApprovals.some(app => 
-                      (app.studentId?.toString() === row.studentId?.toString() || app.studentId === row.studentId) && 
-                      (app.paperId?.toString() === row.paperId?.toString() || app.paperId === row.paperId) && 
-                      app.mode === row.mode
-                    );
+                    const isApproved = isPaperApproved(row);
                     return (
                       <tr key={`sup-${row.regdNo}-${row.paperCode || idx}`} className="border-b border-slate-100 hover:bg-teal-50 transition-colors">
                         <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm font-medium text-slate-900">{row.fullName}</td>

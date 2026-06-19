@@ -109,10 +109,8 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, pageSize = 
               <th className="px-4 py-3 text-left whitespace-nowrap">Roll No.</th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Pages</th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Record Submission Deadline</th>
-              <th className="px-4 py-3 text-left whitespace-nowrap">Assigned Evaluator</th>
-              <th className="px-4 py-3 text-left whitespace-nowrap">Evaluated by</th>
+              {/* <th className="px-4 py-3 text-left whitespace-nowrap">Assigned Evaluator</th> */}
               <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
-              <th className="px-4 py-3 text-right whitespace-nowrap">Final Marks</th>
             </tr>
           </thead>
           <tbody>
@@ -148,8 +146,8 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, pageSize = 
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">{assignment.evaluatorId?.fullName || <span className="text-slate-400 italic text-xs">Unassigned</span>}</td>
-                <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">{assignment.status === 'Evaluated' ? assignment.evaluatorId?.fullName : '—'}</td>
+                {/* <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">{assignment.evaluatorId?.fullName || <span className="text-slate-400 italic text-xs">Unassigned</span>}</td> */}
+                {/* <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">{assignment.status === 'Evaluated' ? assignment.evaluatorId?.fullName : '—'}</td> */}
                 <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
                   <div className="flex flex-col gap-1 items-start">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
@@ -165,7 +163,6 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, pageSize = 
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm text-right font-semibold text-slate-900">{assignment.score !== undefined && assignment.score !== null ? assignment.score : '—'}</td>
               </tr>
             ))}
             {data.length === 0 && (

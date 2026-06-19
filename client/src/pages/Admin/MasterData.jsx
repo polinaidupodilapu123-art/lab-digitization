@@ -18,10 +18,10 @@ const TAB_CONFIG = {
     columns: [
       { key: 'collegeCode', header: 'College Code' },
       { key: 'collegeName', header: 'College Name' },
-      { key: 'location',    header: 'Location', optional: true },
-      { key: 'district',    header: 'District', optional: true },
-      { key: 'latitude',    header: 'Latitude', optional: true },
-      { key: 'longitude',   header: 'Longitude', optional: true },
+      { key: 'location', header: 'Location', optional: true },
+      { key: 'district', header: 'District', optional: true },
+      { key: 'latitude', header: 'Latitude', optional: true },
+      { key: 'longitude', header: 'Longitude', optional: true },
       { key: 'radiusMeter', header: 'Geofence Radius (m)', optional: true },
     ],
   },
@@ -39,14 +39,14 @@ const TAB_CONFIG = {
     endpoint: '/subjects',
     uploadType: 'subjects',
     columns: [
-      { key: 'subCode',       header: 'Sub Code'       },
-      { key: 'subName',       header: 'Subject Name'   },
-      { key: 'semester',      header: 'Semester'       },
+      { key: 'subCode', header: 'Sub Code' },
+      { key: 'subName', header: 'Subject Name' },
+      { key: 'semester', header: 'Semester' },
       { key: 'studentChoice', header: 'Student Choice', optional: true },
-      { key: 'type',          header: 'Type',           optional: true },
-      { key: 'aliasName',     header: 'Alias Name',     optional: true },
-      { key: 'maxMarks',      header: 'Max Marks'      },
-      { key: 'subPassMarks',  header: 'Pass Marks'     },
+      { key: 'type', header: 'Type', optional: true },
+      { key: 'aliasName', header: 'Alias Name', optional: true },
+      { key: 'maxMarks', header: 'Max Marks' },
+      { key: 'subPassMarks', header: 'Pass Marks' },
     ],
   },
   groups: {
@@ -54,11 +54,11 @@ const TAB_CONFIG = {
     endpoint: '/groups',
     uploadType: 'groups',
     columns: [
-      { key: 'groupCode',     header: 'Group Code'     },
-      { key: 'courseCode',    header: 'Course Code'    },
-      { key: 'groupName',     header: 'Group Name',    optional: true },
-      { 
-        key: 'subjects', 
+      { key: 'groupCode', header: 'Group Code' },
+      { key: 'courseCode', header: 'Course Code' },
+      { key: 'groupName', header: 'Group Name', optional: true },
+      {
+        key: 'subjects',
         header: 'Group Subjects',
         render: (vals) => Array.isArray(vals) ? vals.join(', ') : vals
       },
@@ -69,13 +69,13 @@ const TAB_CONFIG = {
     endpoint: '/students',
     uploadType: 'students',
     columns: [
-      { key: 'regdNo',       header: 'Registration No'     },
-      { key: 'currentSemester', header: 'Semester'         },
-      { key: 'fullName',     header: 'Student Name'        },
-      { key: 'email',        header: 'Email Address',      optional: true },
+      { key: 'regdNo', header: 'Registration No' },
+      { key: 'currentSemester', header: 'Semester' },
+      { key: 'fullName', header: 'Student Name' },
+      { key: 'email', header: 'Email Address', optional: true },
       // { key: 'mobileNumber', header: 'Mobile Number'       },
-      { key: 'collegeCode',  header: 'College Code'        },
-      { key: 'groupCode',    header: 'Group Code'          },
+      { key: 'collegeCode', header: 'College Code' },
+      { key: 'groupCode', header: 'Group Code' },
     ],
   },
   papers: {
@@ -85,12 +85,12 @@ const TAB_CONFIG = {
     columns: [
       { key: 'paperCode', header: 'Paper Code' },
       { key: 'paperName', header: 'Paper Name' },
-      { key: 'semester',  header: 'Semester' },
-      { key: 'maxMarks',  header: 'Max Marks', autoCalculated: true },
+      { key: 'semester', header: 'Semester' },
+      { key: 'maxMarks', header: 'Max Marks', autoCalculated: true },
       { key: 'passMarks', header: 'Pass Marks', autoCalculated: true },
-      { 
-        key: 'subjectIds', 
-        header: 'Subject Code(s)', 
+      {
+        key: 'subjectIds',
+        header: 'Subject Code(s)',
         render: (vals) => Array.isArray(vals) && vals.length > 0 ? (
           <div className="text-[11px] font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-200 inline-block max-w-[200px] truncate" title={vals.map(s => s.aliasName || s.subCode).join(', ')}>
             {vals.map(s => s.aliasName || s.subCode).join(', ')}
@@ -107,19 +107,19 @@ const TAB_CONFIG = {
     uploadType: 'evaluators',
     columns: [
       { key: 'fullName', header: 'Full Name' },
-      { key: 'regdNo',   header: 'Email' },
+      { key: 'regdNo', header: 'Email' },
       { key: 'password', header: 'Password', hideInTable: true },
-      { 
-        key: 'assignedSubjects', 
+      {
+        key: 'assignedSubjects',
         header: 'Assigned Subjects',
         hideInForm: true,
         render: (_, row) => {
           const regularSubs = Array.isArray(row.subjects) ? row.subjects.map(s => s.subName || s.subCode) : [];
           const groupSubs = Array.isArray(row.groupSubjects) ? row.groupSubjects : [];
           const allSubs = [...regularSubs, ...groupSubs];
-          
+
           if (allSubs.length === 0) return <span className="text-slate-300 italic text-xs">No subjects assigned</span>;
-          
+
           return (
             <div className="flex flex-wrap gap-1 max-w-[300px]">
               {allSubs.map((sub, idx) => (
@@ -139,7 +139,7 @@ const TAB_CONFIG = {
     uploadType: 'principals',
     columns: [
       { key: 'fullName', header: 'Full Name' },
-      { key: 'regdNo',   header: 'Email / Username' },
+      { key: 'regdNo', header: 'Email / Username' },
       { key: 'collegeCode', header: 'College Code' },
       { key: 'collegeName', header: 'College Name', optional: true }
     ]
@@ -152,7 +152,7 @@ const Pagination = ({ total, page, onPage }) => {
   if (totalPages <= 1) return null;
 
   const start = (page - 1) * PAGE_SIZE + 1;
-  const end   = Math.min(page * PAGE_SIZE, total);
+  const end = Math.min(page * PAGE_SIZE, total);
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 bg-slate-50">
@@ -190,11 +190,10 @@ const Pagination = ({ total, page, onPage }) => {
               <button
                 key={p}
                 onClick={() => onPage(p)}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
-                  p === page
-                    ? 'bg-teal-700 text-white border border-teal-700'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                }`}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${p === page
+                  ? 'bg-teal-700 text-white border border-teal-700'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                  }`}
               >
                 {p}
               </button>
@@ -246,8 +245,8 @@ const CustomSearchDropdown = ({ value, onChange, options, placeholder }) => {
     }
   }, [value, options, isOpen]);
 
-  const filteredOptions = options.filter(opt => 
-    String(opt.label).toLowerCase().includes(search.toLowerCase()) || 
+  const filteredOptions = options.filter(opt =>
+    String(opt.label).toLowerCase().includes(search.toLowerCase()) ||
     String(opt.value).toLowerCase().includes(search.toLowerCase())
   );
 
@@ -313,14 +312,14 @@ const CustomMultiSelectDropdown = ({ values = [], onChange, options, placeholder
     }
   };
 
-  const filteredOptions = options.filter(opt => 
-    String(opt.label).toLowerCase().includes(search.toLowerCase()) || 
+  const filteredOptions = options.filter(opt =>
+    String(opt.label).toLowerCase().includes(search.toLowerCase()) ||
     String(opt.value).toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="relative w-full" ref={wrapperRef}>
-      <div 
+      <div
         className="w-full min-h-[38px] px-2 py-1.5 border border-slate-300 rounded-md flex flex-wrap gap-1 items-center cursor-text focus-within:ring-2 focus-within:ring-teal-500 focus-within:border-teal-500 transition-all text-slate-800 bg-white"
         onClick={() => setIsOpen(true)}
       >
@@ -329,8 +328,8 @@ const CustomMultiSelectDropdown = ({ values = [], onChange, options, placeholder
           return (
             <span key={val} className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-100 text-teal-800 text-xs rounded-md">
               <span className="font-semibold">{val}</span>
-              <button 
-                onClick={(e) => { e.stopPropagation(); toggleOption(val); }} 
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleOption(val); }}
                 className="hover:text-red-500 transition-colors p-0.5"
               >
                 <X className="h-3 w-3" />
@@ -424,11 +423,11 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
       let calcMax = 0;
       let calcPass = 0;
       formData.subjectIds.forEach(subCode => {
-         const subject = subjectOptions.find(s => s.subCode === subCode);
-         if (subject) {
-            calcMax += (Number(subject.maxMarks) || 0);
-            calcPass += (Number(subject.subPassMarks) || 0);
-         }
+        const subject = subjectOptions.find(s => s.subCode === subCode);
+        if (subject) {
+          calcMax += (Number(subject.maxMarks) || 0);
+          calcPass += (Number(subject.subPassMarks) || 0);
+        }
       });
       setFormData(prev => {
         if (prev.maxMarks === calcMax && prev.passMarks === calcPass) return prev;
@@ -484,89 +483,90 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
             <X className="h-5 w-5" />
           </button>
         </div>
-        
+
         <div className="p-6 overflow-y-visible flex-1">
           {error && (
             <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md text-sm font-medium border border-red-200 flex items-start gap-2">
               <span>✕ {error}</span>
             </div>
           )}
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             {[...cfg.columns].filter(c => !c.hideInForm).sort((a, b) => (a.autoCalculated ? 1 : 0) - (b.autoCalculated ? 1 : 0)).map(col => {
               const isRequired = !col.optional && !col.autoCalculated && !(col.key === 'password' && !isNew);
               return (
-              <div key={col.key}>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center">
-                  {col.header}
-                  {isRequired && <span className="text-red-500 ml-1 font-bold">*</span>}
-                </label>
-                {tabKey === 'papers' && col.key === 'subjectIds' ? (
-                  <CustomMultiSelectDropdown
-                    values={formData[col.key] || []}
-                    onChange={(val) => handleChange({ target: { value: val } }, col.key)}
-                    placeholder="Search and select subjects..."
-                    options={subjectOptions
-                      .filter(sub => !formData.semester || !sub.semester || String(sub.semester).trim().includes(String(formData.semester).trim()))
-                      .map(sub => ({ value: sub.subCode, label: sub.subName }))
-                    }
-                  />
-                ) : tabKey === 'evaluators' && col.key === 'subjects' ? (
-                  <CustomMultiSelectDropdown
-                    values={formData[col.key] || []}
-                    onChange={(val) => handleChange({ target: { value: val } }, col.key)}
-                    placeholder="Search and select subjects..."
-                    options={subjectOptions.map(sub => ({ value: sub._id, label: `${sub.subCode} - ${sub.subName}` }))}
-                  />
-                ) : tabKey === 'papers' && col.key === 'semester' ? (
-                  <CustomSearchDropdown
-                    value={formData[col.key]}
-                    onChange={(val) => handleChange({ target: { value: val } }, col.key)}
-                    placeholder="Select semester..."
-                    options={semesterOptions.map(sem => ({ value: sem, label: `Semester ${sem}` }))}
-                  />
-                ) : col.autoCalculated ? (
-                  <div className="space-y-1">
+                <div key={col.key}>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center">
+                    {col.header}
+                    {isRequired && <span className="text-red-500 ml-1 font-bold">*</span>}
+                  </label>
+                  {tabKey === 'papers' && col.key === 'subjectIds' ? (
+                    <CustomMultiSelectDropdown
+                      values={formData[col.key] || []}
+                      onChange={(val) => handleChange({ target: { value: val } }, col.key)}
+                      placeholder="Search and select subjects..."
+                      options={subjectOptions
+                        .filter(sub => !formData.semester || !sub.semester || String(sub.semester).trim().includes(String(formData.semester).trim()))
+                        .map(sub => ({ value: sub.subCode, label: sub.subName }))
+                      }
+                    />
+                  ) : tabKey === 'evaluators' && col.key === 'subjects' ? (
+                    <CustomMultiSelectDropdown
+                      values={formData[col.key] || []}
+                      onChange={(val) => handleChange({ target: { value: val } }, col.key)}
+                      placeholder="Search and select subjects..."
+                      options={subjectOptions.map(sub => ({ value: sub._id, label: `${sub.subCode} - ${sub.subName}` }))}
+                    />
+                  ) : tabKey === 'papers' && col.key === 'semester' ? (
+                    <CustomSearchDropdown
+                      value={formData[col.key]}
+                      onChange={(val) => handleChange({ target: { value: val } }, col.key)}
+                      placeholder="Select semester..."
+                      options={semesterOptions.map(sem => ({ value: sem, label: `Semester ${sem}` }))}
+                    />
+                  ) : col.autoCalculated ? (
+                    <div className="space-y-1">
+                      <input
+                        type="text"
+                        disabled
+                        value={formData[col.key] !== undefined ? formData[col.key] : ''}
+                        placeholder="Auto-calculated from subjects"
+                        className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-teal-700 cursor-not-allowed bg-slate-100"
+                      />
+                      <p className="text-[10px] text-teal-600 font-medium italic">Calculated automatically on save.</p>
+                    </div>
+                  ) : col.key === 'password' ? (
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={formData[col.key] || ''}
+                        placeholder={(!isNew && col.key === 'password') ? "Leave blank to keep unchanged" : ""}
+                        onChange={(e) => handleChange(e, col.key)}
+                        className="w-full border border-slate-300 rounded-md pl-3 pr-10 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer rounded p-1 flex items-center justify-center focus:outline-none"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  ) : (
                     <input
                       type="text"
-                      disabled
-                      value={formData[col.key] !== undefined ? formData[col.key] : ''}
-                      placeholder="Auto-calculated from subjects"
-                      className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-teal-700 cursor-not-allowed bg-slate-100"
-                    />
-                    <p className="text-[10px] text-teal-600 font-medium italic">Calculated automatically on save.</p>
-                  </div>
-                ) : col.key === 'password' ? (
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
                       value={formData[col.key] || ''}
-                      placeholder={(!isNew && col.key === 'password') ? "Leave blank to keep unchanged" : ""}
                       onChange={(e) => handleChange(e, col.key)}
-                      className="w-full border border-slate-300 rounded-md pl-3 pr-10 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800"
+                      className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer rounded p-1 flex items-center justify-center focus:outline-none"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                ) : (
-                  <input
-                    type="text"
-                    value={formData[col.key] || ''}
-                    onChange={(e) => handleChange(e, col.key)}
-                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
-                  />
-                )}
-              </div>
-            )})}
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
 
@@ -590,14 +590,14 @@ const RecordModal = ({ record, cfg, tabKey, token, onClose, onSuccess }) => {
 
 /* ── Upload Modal ── */
 const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
-  const [file, setFile]               = useState(null);
-  const [semester, setSemester]       = useState('');
+  const [file, setFile] = useState(null);
+  const [semester, setSemester] = useState('');
   const [academicYear, setAcademicYear] = useState('');
-  const [uploading, setUploading]     = useState(false);
-  const [error, setError]             = useState('');
-  const [rowErrors, setRowErrors]     = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [rowErrors, setRowErrors] = useState([]);
   const [missingCols, setMissingCols] = useState([]);
-  const [result, setResult]           = useState(null);
+  const [result, setResult] = useState(null);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -651,7 +651,7 @@ const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
         <div className="flex items-center justify-between px-6 py-4 bg-teal-700 flex-shrink-0">
           <div className="flex items-center gap-2 text-white">
             <UploadCloud className="h-5 w-5" />
-            <h3 className="text-lg font-semibold">Upload {cfg.label} Data</h3>
+            <h3 className="text-lg font-semibold">Add {cfg.label} Data</h3>
           </div>
           <button onClick={onClose} className="text-white/70 hover:text-white transition-colors cursor-pointer rounded-md p-0.5">
             <X className="h-5 w-5" />
@@ -675,7 +675,7 @@ const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
                 Semester
                 <span className="text-red-500 ml-1 font-bold">*</span>
               </label>
-              <select 
+              <select
                 className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
                 value={semester}
                 onChange={(e) => setSemester(e.target.value)}
@@ -700,7 +700,7 @@ const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
                 Academic Year
                 <span className="text-red-500 ml-1 font-bold">*</span>
               </label>
-              <input 
+              <input
                 type="text"
                 placeholder="e.g. 2024-2025"
                 className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
@@ -809,9 +809,8 @@ const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
             <button
               onClick={handleUpload}
               disabled={!file || uploading}
-              className={`flex items-center gap-2 px-5 py-2 rounded-md text-sm font-semibold text-white transition-colors ${
-                !file || uploading ? 'bg-teal-400 cursor-not-allowed' : 'bg-teal-700 hover:bg-teal-800 cursor-pointer'
-              }`}
+              className={`flex items-center gap-2 px-5 py-2 rounded-md text-sm font-semibold text-white transition-colors ${!file || uploading ? 'bg-teal-400 cursor-not-allowed' : 'bg-teal-700 hover:bg-teal-800 cursor-pointer'
+                }`}
             >
               {uploading && <RefreshCw className="h-4 w-4 animate-spin" />}
               {uploading ? 'Uploading…' : `Upload ${cfg.label}`}
@@ -824,16 +823,16 @@ const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
 };
 /* ── Main Component ── */
 const MasterData = () => {
-  const [activeTab, setActiveTab]   = useState('colleges');
-  const [tableData, setTableData]   = useState({});
+  const [activeTab, setActiveTab] = useState('colleges');
+  const [tableData, setTableData] = useState({});
   const [loadingTab, setLoadingTab] = useState(false);
-  const [modalTab, setModalTab]     = useState(null);
+  const [modalTab, setModalTab] = useState(null);
   const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [editRecord, setEditRecord] = useState(null);
-  const [addRecord, setAddRecord]   = useState(false);
+  const [addRecord, setAddRecord] = useState(false);
   const [expandedRows, setExpandedRows] = useState({});
-  const [globalMsg, setGlobalMsg]   = useState('');
-  const [pages, setPages]           = useState({}); // { students: 1, colleges: 1, … }
+  const [globalMsg, setGlobalMsg] = useState('');
+  const [pages, setPages] = useState({}); // { students: 1, colleges: 1, … }
   const [searchQuery, setSearchQuery] = useState(''); // Global search state
   const [selectedSemesterFilter, setSelectedSemesterFilter] = useState('');
   const [showActivity, setShowActivity] = useState(false);
@@ -855,7 +854,7 @@ const MasterData = () => {
       const cleaned = (res.data || []).filter(row =>
         Object.values(row).some(v => v !== null && v !== undefined && v !== '' && v !== 0)
       );
-      
+
       // Sort records specifically based on active tab
       let sorted;
       if (tab === 'groups') {
@@ -934,7 +933,7 @@ const MasterData = () => {
 
   let cfg = TAB_CONFIG[activeTab];
   const allRows = tableData[activeTab] || [];
-  
+
   if (activeTab === 'groups') {
     let maxSubjects = 0;
     allRows.forEach(row => {
@@ -1022,11 +1021,10 @@ const MasterData = () => {
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`px-5 py-2.5 font-medium text-sm transition-colors border-b-2 cursor-pointer rounded-t-md ${
-              activeTab === id
-                ? 'border-teal-600 text-teal-700'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-            }`}
+            className={`px-5 py-2.5 font-medium text-sm transition-colors border-b-2 cursor-pointer rounded-t-md ${activeTab === id
+              ? 'border-teal-600 text-teal-700'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
           >
             {t.label}
           </button>
@@ -1038,7 +1036,7 @@ const MasterData = () => {
 
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50 gap-3">
-          
+
           {/* Left Side: Title and Search */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
             <div className="flex items-center gap-2 text-slate-600 flex-shrink-0">
@@ -1072,9 +1070,9 @@ const MasterData = () => {
               )}
             </div>
           </div>
-          
+
           {/* Right Side: Actions */}<div className="grid grid-cols-1 sm:flex sm:flex-row sm:items-center gap-3 w-full sm:w-auto mt-3 sm:mt-0">
-             {/* <button
+            {/* <button
               onClick={refreshTab}
               className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-teal-700 transition-colors px-2 py-1.5 rounded-md hover:bg-slate-200 cursor-pointer flex-shrink-0"
             >
@@ -1099,9 +1097,9 @@ const MasterData = () => {
             )}
 
             {/* Search Input */}
-           
 
-           
+
+
             <button
               onClick={() => setAddRecord(true)}
               className="flex items-center justify-center gap-1.5 bg-slate-100 whitespace-nowrap hover:bg-slate-200 text-teal-700 border border-slate-200 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer w-full sm:w-auto"
@@ -1123,7 +1121,7 @@ const MasterData = () => {
               className="flex items-center whitespace-nowrap justify-center gap-1.5 bg-teal-700 hover:bg-teal-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer w-full sm:w-auto"
             >
               <UploadCloud className="h-3.5 w-3.5" />
-              Upload {cfg.label}
+              Add {cfg.label}
             </button>
           </div>
         </div>
@@ -1190,7 +1188,7 @@ const MasterData = () => {
                           <td className="px-4 py-2.5 text-right whitespace-nowrap">
                             {activeTab === 'papers' && (
                               <button
-                                onClick={() => setExpandedRows(prev => ({...prev, [rowId]: !prev[rowId]}))}
+                                onClick={() => setExpandedRows(prev => ({ ...prev, [rowId]: !prev[rowId] }))}
                                 className="text-slate-400 hover:text-teal-600 transition-colors cursor-pointer p-1.5 rounded-md hover:bg-teal-50 mr-1"
                                 title={isExpanded ? "Hide Details" : "View Details"}
                               >
@@ -1277,7 +1275,7 @@ const MasterData = () => {
 
       {/* Activity Feed Slide-over */}
       {showActivity && (
-        <ActivityFeed 
+        <ActivityFeed
           actionTypes={['CREATE_MASTER_DATA', 'UPDATE_MASTER_DATA', 'DELETE_MASTER_DATA']}
           onClose={() => setShowActivity(false)}
           refreshTrigger={refreshTrigger}
