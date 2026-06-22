@@ -15,7 +15,8 @@ app.use(cors({
   origin: [
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://educationmod.aknu.edu.in'
+    'https://educationmod.aknu.edu.in',
+    'https://dev.educationmod.aknu.edu.in'
   ],
   credentials: true
 }));
@@ -52,10 +53,10 @@ mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('✅ MongoDB Connected');
 
-    // Ensure all colleges have a 250m geofence radius limit
+    // Ensure all colleges have a 500m geofence radius limit
     const { College } = require('./models/MasterData');
-    await College.updateMany({}, { radiusMeter: 250 });
-    console.log('🌱 College geofence radii synchronized to 250m');
+    await College.updateMany({}, { radiusMeter: 500 });
+    console.log('🌱 College geofence radii synchronized to 500m');
 
     // Auto-seed default ADMIN account if none exists
     const User = require('./models/User');

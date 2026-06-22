@@ -115,7 +115,7 @@ exports.login = async ({ regdNo, password, email, faceDescriptor, latitude, long
       }
 
       const distance = calculateDistance(latitude, longitude, college.latitude, college.longitude);
-      const baseLimit = 250; // Strict 250m geofence radius limit for Principal
+      const baseLimit = 500; // Strict 500m geofence radius limit for Principal
       const accuracyBuffer = typeof accuracy === 'number' ? Math.min(accuracy, 1000) : 0;
       const effectiveLimit = baseLimit + accuracyBuffer;
 
@@ -183,7 +183,7 @@ exports.sendOtp = async ({ regdNo, email, role, collegeId, latitude, longitude, 
       }
 
       const distance = calculateDistance(latitude, longitude, college.latitude, college.longitude);
-      const baseLimit = 250; // Strict 250m geofence radius limit
+      const baseLimit = 500; // Strict 500m geofence radius limit
       const accuracyBuffer = typeof accuracy === 'number' ? Math.min(accuracy, 1000) : 0;
       const effectiveLimit = baseLimit + accuracyBuffer;
 
@@ -287,7 +287,7 @@ exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, f
       }
 
       const distance = calculateDistance(latitude, longitude, college.latitude, college.longitude);
-      const baseLimit = 250; // Strict 250m geofence radius limit
+      const baseLimit = 500; // Strict 500m geofence radius limit
       const accuracyBuffer = typeof accuracy === 'number' ? Math.min(accuracy, 1000) : 0;
       const effectiveLimit = baseLimit + accuracyBuffer;
 

@@ -586,7 +586,7 @@ exports.createRecord = async (type, body) => {
     if (body.radiusMeter !== undefined && body.radiusMeter !== null && body.radiusMeter !== '') {
       body.radiusMeter = Number(body.radiusMeter);
     } else {
-      body.radiusMeter = 250;
+      body.radiusMeter = 500;
     }
   }
 
@@ -712,7 +712,7 @@ exports.updateRecord = async (type, id, body) => {
       body.longitude = (body.longitude === null || body.longitude === '') ? null : Number(body.longitude);
     }
     if (body.radiusMeter !== undefined) {
-      body.radiusMeter = (body.radiusMeter === null || body.radiusMeter === '') ? 250 : Number(body.radiusMeter);
+      body.radiusMeter = (body.radiusMeter === null || body.radiusMeter === '') ? 500 : Number(body.radiusMeter);
     }
   }
 
