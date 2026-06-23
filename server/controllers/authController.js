@@ -99,3 +99,23 @@ exports.createBos = async (req, res) => {
     res.status(statusCode).json({ message: error.message });
   }
 };
+
+exports.forgotPasswordSendOtp = async (req, res) => {
+  try {
+    const result = await authService.forgotPasswordSendOtp(req.body);
+    res.status(200).json(result);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
+  }
+};
+
+exports.forgotPasswordReset = async (req, res) => {
+  try {
+    const result = await authService.forgotPasswordReset(req.body);
+    res.status(200).json(result);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({ message: error.message });
+  }
+};

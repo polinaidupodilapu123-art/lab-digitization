@@ -6,15 +6,16 @@ const PaperApproval = require('../models/PaperApproval');
 const emailService = require('./emailService');
 
 exports.getPendingPrincipals = async () => {
-  // Find all users who are Principals, completed setup, but are not approved
+  // Find all users who are Principals and are either pending, approved, or rejected
   const principals = await User.find({
     role: 'PRINCIPAL',
-    isSetupComplete: true,
-    isApproved: false,
-    approvalStatus: 'PENDING'
+    $or: [
+      { isSetupComplete: true },
+      { approvalStatus: { $in: ['APPROVED', 'REJECTED'] } }
+    ]
   })
   .populate('collegeId', 'collegeCode collegeName')
-  .select('regdNo fullName email profileImage collegeId')
+  .select('regdNo fullName email profileImage collegeId approvalStatus isApproved')
   .lean();
 
   return principals;

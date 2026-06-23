@@ -300,6 +300,47 @@ exports.sendStudentOtpEmail = async ({ to, studentName, otp }) => {
 };
 
 /**
+ * Send Password Reset OTP Email
+ */
+exports.sendForgotPasswordOtpEmail = async ({ to, userName, otp }) => {
+  try {
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 10px; margin-top: 0;">Password Reset Verification</h2>
+        <p>Dear <strong>${userName}</strong>,</p>
+        <p>We received a request to reset your password for the AKNU Digitization Portal.</p>
+        
+        <div style="background-color: #f0fdf4; border-left: 4px solid #0f766e; padding: 20px; margin: 20px 0; border-radius: 4px; text-align: center;">
+          <h4 style="margin-top: 0; color: #0f766e; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Your Password Reset OTP:</h4>
+          <p style="margin: 10px 0; font-size: 32px; font-weight: bold; color: #0f766e; letter-spacing: 5px;">${otp}</p>
+          <p style="margin: 0; font-size: 12px; color: #64748b;"><em>This verification code is valid for 5 minutes. Please do not share this code with anyone.</em></p>
+        </div>
+
+        <p style="font-size: 12px; color: #64748b; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+          If you did not request a password reset, please ignore this email. This is an automated message, please do not reply.
+        </p>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      to,
+      subject: `${otp} is your verification code to reset password`,
+      html: htmlContent,
+      text: convertHtmlToText(htmlContent).replace(/^\s+|\s+$/gm, '')
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Password reset OTP email successfully sent to ${to}. Message ID: ${info.messageId}`);
+    return info;
+  } catch (error) {
+    console.error('Failed to send password reset OTP email:', error);
+    // Return mock success to allow local testing if email fails
+    return { mock: true };
+  }
+};
+
+/**
  * Send Student Subject Assignment Notification Email
  */
 exports.sendStudentAssignmentNotificationEmail = async ({ to, studentName, subjectNames, deadline }) => {

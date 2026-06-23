@@ -13,6 +13,7 @@ const BOSDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [statusFilter, setStatusFilter] = useState('PENDING'); // 'ALL', 'PENDING', 'APPROVED', 'REJECTED'
 
   // UI state
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
@@ -118,7 +119,7 @@ const BOSDashboard = () => {
       });
       if (res.data.success) {
         setSuccessMessage(res.data.message || `Principal registration ${type}d successfully.`);
-        setPrincipals(prev => prev.filter(p => p._id !== targetId));
+        fetchPendingPrincipals();
         setTimeout(() => setSuccessMessage(''), 4000);
       }
     } catch (err) {
@@ -227,6 +228,12 @@ const BOSDashboard = () => {
     localStorage.removeItem('user');
     navigate('/login');
   };
+
+  // Computed values for principals filtering
+  const filteredPrincipals = (principals || []).filter(p => {
+    if (statusFilter === 'ALL') return true;
+    return p.approvalStatus === statusFilter;
+  });
 
   // Computed values for approvals filtering & count
   const filteredRegularRecords = (recordsData.regular || []).filter(r => {
@@ -356,38 +363,40 @@ const BOSDashboard = () => {
           </div>
         </div>
 
-        {/* Feedback Notifications */}
-        {successMessage && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-md flex items-center justify-between gap-3 mb-6 animate-fadeIn">
-            <div className="flex items-center gap-3">
-              <Check className="h-5 w-5 flex-shrink-0" />
-              <p className="text-sm font-semibold">{successMessage}</p>
+        {/* Feedback Notifications Toast */}
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+          {successMessage && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-lg flex items-center justify-between gap-3 shadow-2xl animate-fadeIn pointer-events-auto">
+              <div className="flex items-center gap-3">
+                <Check className="h-5 w-5 flex-shrink-0" />
+                <p className="text-sm font-semibold">{successMessage}</p>
+              </div>
+              <button 
+                onClick={() => setSuccessMessage('')} 
+                className="text-emerald-400 hover:text-emerald-700 cursor-pointer"
+                title="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <button 
-              onClick={() => setSuccessMessage('')} 
-              className="text-emerald-400 hover:text-emerald-700 cursor-pointer"
-              title="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
+          )}
 
-        {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-md flex items-center justify-between gap-3 mb-6 animate-fadeIn">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 flex-shrink-0" />
-              <p className="text-sm font-semibold">{error}</p>
+          {error && (
+            <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-lg flex items-center justify-between gap-3 shadow-2xl animate-fadeIn pointer-events-auto">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                <p className="text-sm font-semibold">{error}</p>
+              </div>
+              <button 
+                onClick={() => setError('')} 
+                className="text-rose-400 hover:text-rose-700 cursor-pointer"
+                title="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <button 
-              onClick={() => setError('')} 
-              className="text-rose-400 hover:text-rose-700 cursor-pointer"
-              title="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Dynamic Panel Content */}
         {activeView === 'principals' ? (
@@ -412,8 +421,23 @@ const BOSDashboard = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50 gap-3">
                 <div className="flex items-center gap-2 text-slate-600 flex-shrink-0">
                   <FileSpreadsheet className="h-4 w-4 text-teal-600" />
-                  <span className="text-sm font-medium">Pending Principal Registrations</span>
-                  <span className="text-xs text-slate-400 ml-1">({principals.length} pending)</span>
+                  <span className="text-sm font-medium">Principal Registrations</span>
+                  <span className="text-xs text-slate-400 ml-1">({filteredPrincipals.length} shown)</span>
+                </div>
+                
+                {/* Status Filter Dropdown */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-500">Filter Status:</span>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="px-3 py-1.5 border border-slate-300 rounded-md text-xs bg-white text-slate-700 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer font-semibold shadow-sm"
+                  >
+                    <option value="ALL">All Statuses</option>
+                    <option value="PENDING">Pending Approval</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="REJECTED">Rejected</option>
+                  </select>
                 </div>
               </div>
               <div className="w-full overflow-x-auto">
@@ -425,76 +449,96 @@ const BOSDashboard = () => {
                       <th className="px-4 py-3 text-left whitespace-nowrap">College Code</th>
                       <th className="px-4 py-3 text-left whitespace-nowrap">College Name</th>
                       <th className="px-4 py-3 text-center whitespace-nowrap">Registered Photo</th>
-                      <th className="px-4 py-3 text-right whitespace-nowrap">Actions</th>
+                      <th className="px-4 py-3 text-right whitespace-nowrap">Status / Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {principals.map((principal, idx) => (
-                      <tr 
-                        key={principal._id} 
-                        className={`border-b border-slate-100 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-teal-50`}
-                      >
-                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap font-medium">
-                          {principal.fullName}
-                        </td>
-                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">
-                          {principal.email || principal.regdNo}
-                        </td>
-                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap font-semibold">
-                          {principal.collegeId?.collegeCode || 'N/A'}
-                        </td>
-                        <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap font-medium">
-                          {principal.collegeId?.collegeName || 'N/A'}
-                        </td>
-                        <td className="px-4 py-2.5 text-center">
-                          <div className="flex items-center justify-center">
-                            {principal.profileImage ? (
-                              <div className="relative group">
-                                <img 
-                                  src={`${API_BASE_URL}${principal.profileImage}`} 
-                                  alt={`${principal.fullName} capture`} 
-                                  className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm cursor-pointer hover:border-teal-500 transition-colors"
-                                  onClick={() => setPreviewPhoto({ src: `${API_BASE_URL}${principal.profileImage}`, name: principal.fullName })}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setPreviewPhoto({ src: `${API_BASE_URL}${principal.profileImage}`, name: principal.fullName })}
-                                  className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                  title="Zoom Image"
-                                >
-                                  <Eye className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 text-xs italic">No Photo</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                          <button
-                            type="button"
-                            onClick={() => openNoteModal(principal._id, principal.fullName, 'approve')}
-                            className="text-slate-400 hover:text-teal-600 transition-colors cursor-pointer p-1.5 rounded-md hover:bg-teal-50 mr-1"
-                            title="Approve Principal"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openNoteModal(principal._id, principal.fullName, 'reject')}
-                            className="text-slate-400 hover:text-red-600 transition-colors cursor-pointer p-1.5 rounded-md hover:bg-red-50"
-                            title="Reject Principal"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
+                    {filteredPrincipals.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="px-4 py-8 text-center text-slate-400 italic">
+                          No principal registrations found matching the selected filter.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredPrincipals.map((principal, idx) => (
+                        <tr 
+                          key={principal._id} 
+                          className={`border-b border-slate-100 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-teal-50`}
+                        >
+                          <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap font-medium">
+                            {principal.fullName}
+                          </td>
+                          <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">
+                            {principal.email || principal.regdNo}
+                          </td>
+                          <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap font-semibold">
+                            {principal.collegeId?.collegeCode || 'N/A'}
+                          </td>
+                          <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap font-medium">
+                            {principal.collegeId?.collegeName || 'N/A'}
+                          </td>
+                          <td className="px-4 py-2.5 text-center">
+                            <div className="flex items-center justify-center">
+                              {principal.profileImage ? (
+                                <div className="relative group">
+                                  <img 
+                                    src={`${API_BASE_URL}${principal.profileImage}`} 
+                                    alt={`${principal.fullName} capture`} 
+                                    className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm cursor-pointer hover:border-teal-500 transition-colors"
+                                    onClick={() => setPreviewPhoto({ src: `${API_BASE_URL}${principal.profileImage}`, name: principal.fullName })}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewPhoto({ src: `${API_BASE_URL}${principal.profileImage}`, name: principal.fullName })}
+                                    className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                    title="Zoom Image"
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 text-xs italic">No Photo</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                            {principal.approvalStatus === 'PENDING' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => openNoteModal(principal._id, principal.fullName, 'approve')}
+                                  className="text-slate-400 hover:text-teal-600 transition-colors cursor-pointer p-1.5 rounded-md hover:bg-teal-50 mr-1"
+                                  title="Approve Principal"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openNoteModal(principal._id, principal.fullName, 'reject')}
+                                  className="text-slate-400 hover:text-red-600 transition-colors cursor-pointer p-1.5 rounded-md hover:bg-red-50"
+                                  title="Reject Principal"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </>
+                            ) : principal.approvalStatus === 'APPROVED' ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-sm">
+                                Approved
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200 shadow-sm">
+                                Rejected
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
               <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-                <span>Showing <span className="font-semibold text-slate-700">{principals.length}</span> pending Principal registrations</span>
+                <span>Showing <span className="font-semibold text-slate-700">{filteredPrincipals.length}</span> registrations matching filter</span>
               </div>
             </div>
           )

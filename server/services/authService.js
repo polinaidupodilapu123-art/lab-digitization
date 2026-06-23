@@ -427,3 +427,72 @@ exports.createBos = async () => {
   await bos.save();
   return { message: 'BOS account has been created/reset. You can now login with email: bos@aknu.edu.in and password: Bos@2026' };
 };
+
+exports.forgotPasswordSendOtp = async ({ email }) => {
+  if (!email) {
+    throw new AppError('Email address is required.', 400);
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ email: cleanEmail, role: { $in: ['STUDENT', 'PRINCIPAL'] } });
+
+  if (!user) {
+    throw new AppError('Account with this email does not exist.', 404);
+  }
+
+  if (!user.isSetupComplete) {
+    throw new AppError('Please complete your initial registration / first-time setup first.', 400);
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  user.tempOtp = otp;
+  user.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+  
+  await user.save();
+
+  const emailResult = await emailService.sendForgotPasswordOtpEmail({ 
+    to: cleanEmail, 
+    userName: user.fullName || 'User', 
+    otp 
+  });
+
+  const isMock = emailResult && emailResult.mock;
+  return {
+    message: isMock 
+      ? `OTP sent successfully. (Testing/Development Mode OTP: ${otp})`
+      : `OTP verification email has been successfully sent to ${cleanEmail}.`,
+    otp: isMock ? otp : undefined
+  };
+};
+
+exports.forgotPasswordReset = async ({ email, otp, password }) => {
+  if (!email || !otp || !password) {
+    throw new AppError('All fields are required.', 400);
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ email: cleanEmail, role: { $in: ['STUDENT', 'PRINCIPAL'] } });
+
+  if (!user) {
+    throw new AppError('Account with this email does not exist.', 404);
+  }
+
+  if (!user.tempOtp || user.tempOtp !== otp) {
+    throw new AppError('Invalid OTP code.', 400);
+  }
+
+  if (!user.otpExpiresAt || new Date() > user.otpExpiresAt) {
+    throw new AppError('OTP has expired. Please request a new one.', 400);
+  }
+
+  user.password = password;
+  user.tempOtp = undefined;
+  user.otpExpiresAt = undefined;
+  
+  await user.save();
+
+  return {
+    message: 'Password reset successful. Please log in with your new password.',
+    success: true
+  };
+};

@@ -14,4 +14,7 @@ router.get('/create-bos', authController.createBos);
 router.get('/colleges', authController.getCollegesList);
 router.get('/me', protect, authController.me);
 
+router.post('/forgot-password/send-otp', authController.forgotPasswordSendOtp);
+router.post('/forgot-password/reset', authController.forgotPasswordReset);
+
 module.exports = router;

@@ -265,12 +265,13 @@ exports.getPendingApprovals = async (collegeId) => {
   const students = await User.find({
     role: 'STUDENT',
     collegeId,
-    isSetupComplete: true,
-    isApproved: false,
-    approvalStatus: 'PENDING'
+    $or: [
+      { isSetupComplete: true },
+      { approvalStatus: { $in: ['APPROVED', 'REJECTED'] } }
+    ]
   })
   .populate('courseId', 'courseCode courseName')
-  .select('regdNo fullName email profileImage currentSemester academicYear courseId')
+  .select('regdNo fullName email profileImage currentSemester academicYear courseId approvalStatus isApproved')
   .lean();
 
   return students;

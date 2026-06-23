@@ -8,6 +8,7 @@ const StudentApprovals = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [statusFilter, setStatusFilter] = useState('PENDING'); // 'ALL', 'PENDING', 'APPROVED', 'REJECTED'
   
   // Modal viewer state
   const [previewPhoto, setPreviewPhoto] = useState(null);
@@ -17,6 +18,11 @@ const StudentApprovals = () => {
     targetId: null,
     targetName: '',
     noteText: ''
+  });
+
+  const filteredStudents = (pendingStudents || []).filter(s => {
+    if (statusFilter === 'ALL') return true;
+    return s.approvalStatus === statusFilter;
   });
 
   const openNoteModal = (id, name, type) => {
@@ -65,7 +71,7 @@ const StudentApprovals = () => {
       });
       if (res.data.success) {
         setSuccessMessage(res.data.message || `Student registration ${type}d successfully.`);
-        setPendingStudents(prev => prev.filter(s => s._id !== targetId));
+        fetchPendingApprovals();
         setTimeout(() => setSuccessMessage(''), 4000);
       }
     } catch (err) {
@@ -97,38 +103,40 @@ const StudentApprovals = () => {
         </button> */}
       </div>
 
-      {/* Alert Notices */}
-      {successMessage && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-md flex items-center justify-between gap-3 mb-6 animate-fadeIn">
-          <div className="flex items-center gap-3">
-            <Check className="h-5 w-5 flex-shrink-0" />
-            <p className="text-sm font-semibold">{successMessage}</p>
+      {/* Feedback Notifications Toast */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+        {successMessage && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-lg flex items-center justify-between gap-3 shadow-2xl animate-fadeIn pointer-events-auto">
+            <div className="flex items-center gap-3">
+              <Check className="h-5 w-5 flex-shrink-0" />
+              <p className="text-sm font-semibold">{successMessage}</p>
+            </div>
+            <button 
+              onClick={() => setSuccessMessage('')} 
+              className="text-emerald-400 hover:text-emerald-700 cursor-pointer"
+              title="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <button 
-            onClick={() => setSuccessMessage('')} 
-            className="text-emerald-400 hover:text-emerald-700 cursor-pointer"
-            title="Dismiss"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+        )}
 
-      {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-md flex items-center justify-between gap-3 mb-6 animate-fadeIn">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 flex-shrink-0" />
-            <p className="text-sm font-semibold">{error}</p>
+        {error && (
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-lg flex items-center justify-between gap-3 shadow-2xl animate-fadeIn pointer-events-auto">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <p className="text-sm font-semibold">{error}</p>
+            </div>
+            <button 
+              onClick={() => setError('')} 
+              className="text-rose-400 hover:text-rose-700 cursor-pointer"
+              title="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <button 
-            onClick={() => setError('')} 
-            className="text-rose-400 hover:text-rose-700 cursor-pointer"
-            title="Dismiss"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Main Listing */}
       {loading && pendingStudents.length === 0 ? (
@@ -147,7 +155,29 @@ const StudentApprovals = () => {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden animate-fadeIn">
+          {/* Toolbar with status filter */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50 gap-3">
+            <div className="flex items-center gap-2 text-slate-600 flex-shrink-0">
+              <span className="text-sm font-semibold text-slate-700">Student Registration Log</span>
+              <span className="text-xs text-slate-400 font-semibold ml-1">({filteredStudents.length} shown)</span>
+            </div>
+            
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <span className="text-xs font-bold text-slate-500">Filter Status:</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-1.5 border border-slate-300 rounded-md text-xs bg-white text-slate-700 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer font-bold shadow-sm"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="PENDING">Pending Approval</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
+          </div>
+
           <div className="w-full overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -157,78 +187,96 @@ const StudentApprovals = () => {
                   <th className="px-5 py-3.5 text-center whitespace-nowrap">Semester</th>
                   <th className="px-5 py-3.5 text-center whitespace-nowrap">Academic Year</th>
                   <th className="px-5 py-3.5 text-center whitespace-nowrap">Registered Photo</th>
-                  <th className="px-5 py-3.5 text-center whitespace-nowrap">Actions</th>
+                  <th className="px-5 py-3.5 text-center whitespace-nowrap">Status / Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {pendingStudents.map((student, idx) => (
-                  <tr 
-                    key={student._id} 
-                    className={`transition-colors hover:bg-teal-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}
-                  >
-                    <td className="px-5 py-3 font-semibold text-slate-700 whitespace-nowrap">
-                      {student.regdNo}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600 font-medium whitespace-nowrap">
-                      {student.fullName}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600 text-center font-bold">
-                      Sem {student.currentSemester || 'N/A'}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600 text-center font-medium">
-                      {student.academicYear || 'N/A'}
-                    </td>
-                    <td className="px-5 py-3 text-center">
-                      <div className="flex items-center justify-center">
-                        {student.profileImage ? (
-                          <div className="relative group">
-                            <img 
-                              src={`${API_BASE_URL}${student.profileImage}`} 
-                              alt={`${student.fullName} capture`} 
-                              className="w-10 h-10 rounded-md object-cover border border-slate-200 shadow-sm cursor-pointer hover:border-teal-500 transition-colors"
-                              onClick={() => setPreviewPhoto({ src: `${API_BASE_URL}${student.profileImage}`, name: student.fullName })}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setPreviewPhoto({ src: `${API_BASE_URL}${student.profileImage}`, name: student.fullName })}
-                              className="absolute inset-0 bg-black/40 rounded-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                              title="Zoom Photo"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 text-xs italic">No Photo Available</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => openNoteModal(student._id, student.fullName, 'approve')}
-                          className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200 transition-colors hover:scale-105 active:scale-95 cursor-pointer"
-                          title="Approve Registration"
-                        >
-                          <Check className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openNoteModal(student._id, student.fullName, 'reject')}
-                          className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-full border border-rose-200 transition-colors hover:scale-105 active:scale-95 cursor-pointer"
-                          title="Reject Registration"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-5 py-8 text-center text-slate-400 italic">
+                      No student registrations found matching the selected filter.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredStudents.map((student, idx) => (
+                    <tr 
+                      key={student._id} 
+                      className={`transition-colors hover:bg-teal-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}
+                    >
+                      <td className="px-5 py-3 font-semibold text-slate-700 whitespace-nowrap">
+                        {student.regdNo}
+                      </td>
+                      <td className="px-5 py-3 text-slate-600 font-medium whitespace-nowrap">
+                        {student.fullName}
+                      </td>
+                      <td className="px-5 py-3 text-slate-600 text-center font-bold">
+                        Sem {student.currentSemester || 'N/A'}
+                      </td>
+                      <td className="px-5 py-3 text-slate-600 text-center font-medium">
+                        {student.academicYear || 'N/A'}
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        <div className="flex items-center justify-center">
+                          {student.profileImage ? (
+                            <div className="relative group">
+                              <img 
+                                src={`${API_BASE_URL}${student.profileImage}`} 
+                                alt={`${student.fullName} capture`} 
+                                className="w-10 h-10 rounded-md object-cover border border-slate-200 shadow-sm cursor-pointer hover:border-teal-500 transition-colors"
+                                onClick={() => setPreviewPhoto({ src: `${API_BASE_URL}${student.profileImage}`, name: student.fullName })}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setPreviewPhoto({ src: `${API_BASE_URL}${student.profileImage}`, name: student.fullName })}
+                                className="absolute inset-0 bg-black/40 rounded-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                title="Zoom Photo"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-xs italic">No Photo Available</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-center whitespace-nowrap">
+                        {student.approvalStatus === 'PENDING' ? (
+                          <div className="flex items-center justify-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => openNoteModal(student._id, student.fullName, 'approve')}
+                              className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200 transition-colors hover:scale-105 active:scale-95 cursor-pointer"
+                              title="Approve Registration"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openNoteModal(student._id, student.fullName, 'reject')}
+                              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-full border border-rose-200 transition-colors hover:scale-105 active:scale-95 cursor-pointer"
+                              title="Reject Registration"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : student.approvalStatus === 'APPROVED' ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200 shadow-sm">
+                            Approved
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 shadow-sm">
+                            Rejected
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
           <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs font-semibold text-slate-500">
-            <span>Showing {pendingStudents.length} pending registration approvals</span>
+            <span>Showing {filteredStudents.length} student registration approvals</span>
           </div>
         </div>
       )}
