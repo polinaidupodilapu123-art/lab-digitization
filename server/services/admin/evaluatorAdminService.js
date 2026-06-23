@@ -1,6 +1,6 @@
 const User = require('../../models/User');
 const Assignment = require('../../models/Assignment');
-const { Subject } = require('../../models/MasterData');
+const { Subject, Course } = require('../../models/MasterData');
 const emailService = require('../emailService');
 const AppError = require('../../utils/AppError');
 const bcrypt = require('bcryptjs');
@@ -25,49 +25,130 @@ exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academi
     throw new AppError('Suggested Marks Deadline is required.', 400);
   }
   const students = await User.find({ _id: { $in: studentIds } }).populate('groupId');
-  const subjects = await Subject.find({ _id: { $in: subjectIds } });
 
-  const semesters = [...new Set(subjects.map(s => s.semester).filter(Boolean))];
-  const allChoiceSubjects = await Subject.find({ 
-    semester: { $in: semesters }, 
-    studentChoice: { $in: ['C', 'c'] } 
-  }).lean();
-  allChoiceSubjects.sort((a, b) => a.subCode.localeCompare(b.subCode));
-  
-  const choiceIndexMap = {};
-  allChoiceSubjects.forEach((sub, index) => {
-    choiceIndexMap[sub._id.toString()] = index;
-  });
+  const isBacklog = mode === 'Supply';
 
-  const evaluators = await User.find({
-    role: 'EVALUATOR',
-    subjects: { $in: subjectIds }
-  }).lean();
+  // We will cache populated course subjects to avoid redundant DB queries
+  const courseSubjectsCache = {};
 
-  const subjectEvaluatorMap = {};
-  evaluators.forEach(ev => {
-    if (ev.subjects && Array.isArray(ev.subjects)) {
-      ev.subjects.forEach(subId => {
-        subjectEvaluatorMap[subId.toString()] = ev._id;
-      });
+  const getCourseSubjects = async (courseId) => {
+    const courseIdStr = courseId.toString();
+    if (courseSubjectsCache[courseIdStr]) {
+      return courseSubjectsCache[courseIdStr];
     }
-  });
+    const course = await Course.findById(courseId).populate('subjects');
+    const courseSubs = course ? (course.subjects || []) : [];
+    courseSubjectsCache[courseIdStr] = courseSubs;
+    return courseSubs;
+  };
 
   const studentAllocations = {}; 
+
   for (const student of students) {
-    for (const subject of subjects) {
+    if (!student.courseId || !student.currentSemester) {
+      continue;
+    }
+
+    let targetSubjects = [];
+    if (subjectIds && subjectIds.length > 0) {
+      targetSubjects = await Subject.find({ _id: { $in: subjectIds } });
+    } else {
+      // Auto-resolve subjects for this student's course and semester
+      const allCourseSubs = await getCourseSubjects(student.courseId);
+      if (allCourseSubs && allCourseSubs.length > 0) {
+        targetSubjects = allCourseSubs.filter(s => String(s.semester) === String(student.currentSemester));
+      }
+      
+      // Fallback: If no subjects are formally linked to the Course document,
+      // resolve all subjects belonging to the student's current semester.
+      if (targetSubjects.length === 0) {
+        targetSubjects = await Subject.find({ semester: student.currentSemester });
+      }
+    }
+
+    if (targetSubjects.length === 0) {
+      continue;
+    }
+
+    // Resolve choice subjects index mapping for these subjects
+    const semesters = [...new Set(targetSubjects.map(s => s.semester).filter(Boolean))];
+    const allChoiceSubjects = await Subject.find({ 
+      semester: { $in: semesters }, 
+      studentChoice: { $in: ['C', 'c'] } 
+    }).lean();
+    allChoiceSubjects.sort((a, b) => a.subCode.localeCompare(b.subCode));
+    
+    const choiceIndexMap = {};
+    allChoiceSubjects.forEach((sub, index) => {
+      choiceIndexMap[sub._id.toString()] = index;
+    });
+
+    const activeSubjectIds = targetSubjects.map(s => s._id);
+
+    // Fetch evaluators assigned to these subjects
+    const evaluators = await User.find({
+      role: 'EVALUATOR',
+      subjects: { $in: activeSubjectIds }
+    }).lean();
+
+    const subjectEvaluatorMap = {};
+    evaluators.forEach(ev => {
+      if (ev.subjects && Array.isArray(ev.subjects)) {
+        ev.subjects.forEach(subId => {
+          subjectEvaluatorMap[subId.toString()] = ev._id;
+        });
+      }
+    });
+
+    // Check past assignments for backlog filtering if backlog mode
+    let latestAssignments = {};
+    if (isBacklog) {
+      const pastAssignments = await Assignment.find({
+        studentId: student._id,
+        subjectId: { $in: activeSubjectIds }
+      }).lean();
+
+      pastAssignments.forEach(a => {
+        const key = a.subjectId.toString();
+        if (!latestAssignments[key] || new Date(a.createdAt) > new Date(latestAssignments[key].createdAt)) {
+          latestAssignments[key] = a;
+        }
+      });
+    }
+
+    for (const subject of targetSubjects) {
       let belongsToMe = true;
       let assignedGroupName = '';
 
-      if (subject.studentChoice === 'C' || subject.studentChoice === 'c') { 
-        const pedIndex = choiceIndexMap[subject._id.toString()];
-        const pedName = student.groupId && student.groupId.subjects && student.groupId.subjects[pedIndex] 
-                        ? student.groupId.subjects[pedIndex] 
-                        : null;
-        if (!pedName || String(pedName).trim() === '') {
-          belongsToMe = false;
-        } else {
-          assignedGroupName = String(pedName).trim();
+      // If backlog, only allocate if they failed or missed it
+      if (isBacklog) {
+        const key = subject._id.toString();
+        const assignment = latestAssignments[key];
+        if (assignment) {
+          if (assignment.status === 'Evaluated') {
+            const passMark = subject.subPassMarks != null ? subject.subPassMarks : (subject.maxMarks ? subject.maxMarks * 0.4 : 0);
+            if (assignment.score >= passMark) {
+              // Passed, so skip
+              belongsToMe = false;
+            }
+          } else {
+            // Already pending/submitted, skip
+            belongsToMe = false;
+          }
+        }
+      }
+
+      if (belongsToMe) {
+        if (subject.studentChoice === 'C' || subject.studentChoice === 'c') { 
+          const pedIndex = choiceIndexMap[subject._id.toString()];
+          const pedName = student.groupId && student.groupId.subjects && student.groupId.subjects[pedIndex] 
+                          ? student.groupId.subjects[pedIndex] 
+                          : null;
+          if (!pedName || String(pedName).trim() === '') {
+            belongsToMe = false;
+          } else {
+            assignedGroupName = String(pedName).trim();
+          }
         }
       }
 
@@ -75,18 +156,18 @@ exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academi
         const evaluatorId = subjectEvaluatorMap[subject._id.toString()] || null;
 
         await Assignment.findOneAndUpdate(
-          { studentId: student._id, subjectId: subject._id, mode: mode || 'Regular' },
+          { studentId: student._id, subjectId: subject._id, mode: isBacklog ? 'Supply' : 'Regular' },
           { 
             $set: {
               pagesRequired, 
-              academicYear: academicYear || '', 
+              academicYear: academicYear || student.academicYear || '', 
               deadline, 
               createdBy, 
               status: 'Pending',
               groupSubjectName: assignedGroupName,
               maxMarks: subject.maxMarks || 0,
               evaluatorId,
-              mode: mode || 'Regular',
+              mode: isBacklog ? 'Supply' : 'Regular',
               suggestedMarksDeadline: suggestedMarksDeadline ? new Date(suggestedMarksDeadline) : null
             },
             $unset: {
@@ -131,7 +212,7 @@ exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academi
     }
   })();
   
-  return { message: 'Subjects assigned to students successfully with smart group filtering applied.' };
+  return { message: 'Subjects assigned to students successfully.' };
 };
 
 exports.assignToEvaluator = async ({ assignmentIds, evaluatorId }) => {

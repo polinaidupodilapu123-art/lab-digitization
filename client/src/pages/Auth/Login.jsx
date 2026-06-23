@@ -158,20 +158,13 @@ const Login = () => {
         password: forgotNewPassword
       });
 
-      setSuccessMsg(res.data.message);
+      setSuccessMsg(res.data.message || 'Password reset successful!');
       
-      // Reset form states and transition back to login form after 2 seconds
-      setTimeout(() => {
-        setShowForgotPassword(false);
-        setForgotPasswordStep(1);
-        setForgotEmail('');
-        setForgotOtp('');
-        setForgotNewPassword('');
-        setForgotConfirmPassword('');
-        setForgotDevOtp('');
-        setError('');
-        setSuccessMsg('You can now log in with your new password.');
-      }, 2000);
+      // Clear password reset input fields
+      setForgotOtp('');
+      setForgotNewPassword('');
+      setForgotConfirmPassword('');
+      setForgotDevOtp('');
     } catch (err) {
       setError(err.response?.data?.message || 'Password reset failed. Please check your OTP.');
     } finally {
@@ -337,14 +330,14 @@ const Login = () => {
             </p>
           </div>
 
-          {successMsg && (
+          {successMsg && !showForgotPassword && (
             <div className="bg-teal-50 border border-teal-200 text-teal-700 p-3 rounded-md mb-4 text-sm font-semibold flex items-center justify-center gap-2 text-center animate-fadeIn">
               <ShieldCheck className="h-5 w-5" />
               {successMsg}
             </div>
           )}
 
-          {error && (
+          {error && !showForgotPassword && (
             <div className="bg-rose-50 border border-rose-100 text-rose-600 p-2 rounded-md mb-4 text-sm font-semibold flex items-center gap-2 animate-fadeIn">
               <X className="h-4 w-4" />
               {error}
@@ -361,6 +354,20 @@ const Login = () => {
                     : "Enter the OTP code sent to your email and create a new password."}
                 </p>
               </div>
+
+              {successMsg && (
+                <div className="bg-teal-50 border border-teal-200 text-teal-700 p-3 rounded-md text-sm font-semibold flex items-center justify-center gap-2 text-center animate-fadeIn">
+                  <ShieldCheck className="h-5 w-5 text-teal-600 flex-shrink-0" />
+                  <span>{successMsg}</span>
+                </div>
+              )}
+
+              {error && (
+                <div className="bg-rose-50 border border-rose-100 text-rose-600 p-2 rounded-md text-sm font-semibold flex items-center gap-2 animate-fadeIn">
+                  <X className="h-4 w-4 text-rose-500 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
 
               {forgotPasswordStep === 1 ? (
                 <form onSubmit={handleSendForgotOtp} className="space-y-4">
@@ -407,14 +414,14 @@ const Login = () => {
                 </form>
               ) : (
                 <form onSubmit={handleResetPassword} className="space-y-4">
-                  <div className="bg-teal-50 border border-teal-200 p-3 rounded-md text-teal-800 text-xs text-center font-medium mb-2">
+                  {/* <div className="bg-teal-50 border border-teal-200 p-3 rounded-md text-teal-800 text-xs text-center font-medium mb-2">
                     <p>Verification OTP sent to: <span className="font-semibold">{forgotEmail}</span></p>
                     {forgotDevOtp && (
                       <p className="mt-1 font-bold text-teal-900 bg-teal-100/80 py-1 rounded inline-block px-3">
                         Development Mode OTP: <span className="underline select-all">{forgotDevOtp}</span>
                       </p>
                     )}
-                  </div>
+                  </div> */}
 
                   <div>
                     <div className="flex items-center justify-between mb-1">

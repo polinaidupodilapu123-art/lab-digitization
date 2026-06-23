@@ -185,12 +185,10 @@ const Assignments = () => {
   const [selectedCollege, setSelectedCollege] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState('');
 
   const [students, setStudents] = useState([]);
-  const [subjects, setSubjects] = useState([]);
+  const [studentSearch, setStudentSearch] = useState('');
   const [selectedStudents, setSelectedStudents] = useState([]);
-  const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('generate');
@@ -211,7 +209,7 @@ const Assignments = () => {
     }
   }, [message]);
 
-  const [pagesRequired, setPagesRequired] = useState(10);
+  const [pagesRequired, setPagesRequired] = useState(30);
   const [deadline, setDeadline] = useState('');
   const [suggestedMarksDeadline, setSuggestedMarksDeadline] = useState('');
 
@@ -308,7 +306,7 @@ const Assignments = () => {
     fetchAssignments();
   }, []);
 
-  // 2. Fetch students and subjects when filters change
+  // 2. Fetch students when filters change
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -316,38 +314,23 @@ const Assignments = () => {
         if (selectedCollege) params.append('collegeCode', selectedCollege);
         if (selectedCourse) params.append('courseCode', selectedCourse);
         if (selectedSemester) params.append('semester', selectedSemester);
-        if (selectedGroup) params.append('groupCode', selectedGroup);
         params.append('mode', mode);
 
         const res = await axios.get(`${API_BASE_URL}/api/admin/assignment-data?${params.toString()}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
 
-        const rawSubs = res.data.subjects || [];
-        const sortedSubs = [...rawSubs].sort((a, b) => {
-          const aIsGroup = !!a.isGroupSubject;
-          const bIsGroup = !!b.isGroupSubject;
-
-          if (aIsGroup && !bIsGroup) return 1;
-          if (!aIsGroup && bIsGroup) return -1;
-          if (!aIsGroup && !bIsGroup) {
-            return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-          }
-          return (a.subName || '').localeCompare(b.subName || '');
-        });
-
         setStudents(res.data.students || []);
-        setSubjects(sortedSubs);
 
-        // Reset selections when filters change
+        // Reset selections and student search when filters change
         setSelectedStudents([]);
-        setSelectedSubjects([]);
+        setStudentSearch('');
       } catch (err) {
         console.error('Failed to load data');
       }
     };
     fetchData();
-  }, [selectedCollege, selectedCourse, selectedSemester, selectedGroup, mode]);
+  }, [selectedCollege, selectedCourse, selectedSemester, mode]);
 
   const toggleStudent = (id) => {
     setSelectedStudents(prev =>
@@ -355,47 +338,53 @@ const Assignments = () => {
     );
   };
 
-  const toggleSubject = (subjectId) => {
-    setSelectedSubjects(prev =>
-      prev.includes(subjectId) ? prev.filter(id => id !== subjectId) : [...prev, subjectId]
-    );
-  };
-
-  const toggleAllSubjects = () => {
-    if (subjects.length === 0) return;
-
+  const assignedStudentsSet = useMemo(() => {
+    const set = new Set();
     const targetMode = mode === 'Backlog' ? 'Supply' : 'Regular';
-    const unassignedSubjects = subjects.filter(subject => {
-      const isAssigned = selectedStudents.length > 0 && assignments.some(a => {
-        const aStudentId = a.studentId?._id || a.studentId;
-        const aSubjectId = a.subjectId?._id || a.subjectId;
-        const aMode = a.mode || 'Regular';
-        return aStudentId && aSubjectId &&
-          selectedStudents.includes(aStudentId.toString()) &&
-          aSubjectId.toString() === subject._id.toString() &&
-          aMode === targetMode;
-      });
-      return !isAssigned;
+    assignments.forEach(a => {
+      const aStudentId = a.studentId?._id || a.studentId;
+      const aMode = a.mode || 'Regular';
+      if (aStudentId && aMode === targetMode) {
+        set.add(aStudentId.toString());
+      }
     });
+    return set;
+  }, [assignments, mode]);
 
-    if (selectedSubjects.length === unassignedSubjects.length && unassignedSubjects.length > 0) {
-      setSelectedSubjects([]);
-    } else {
-      setSelectedSubjects(unassignedSubjects.map(s => s._id));
-    }
-  };
+  const filteredStudents = useMemo(() => {
+    if (!studentSearch) return students;
+    const query = studentSearch.toLowerCase();
+    return students.filter(s =>
+      (s.fullName || '').toLowerCase().includes(query) ||
+      (s.regdNo || '').toLowerCase().includes(query)
+    );
+  }, [students, studentSearch]);
 
   const handleSelectAllStudents = () => {
-    if (selectedStudents.length === students.length && students.length > 0) {
-      setSelectedStudents([]);
+    const visibleUnassignedStudents = filteredStudents.filter(s => !assignedStudentsSet.has(s._id.toString()));
+    const visibleUnassignedIds = visibleUnassignedStudents.map(s => s._id);
+    const allVisibleUnassignedSelected = visibleUnassignedIds.length > 0 && 
+      visibleUnassignedIds.every(id => selectedStudents.includes(id));
+
+    if (allVisibleUnassignedSelected) {
+      setSelectedStudents(prev => prev.filter(id => !visibleUnassignedIds.includes(id)));
     } else {
-      setSelectedStudents(students.map(s => s._id));
+      setSelectedStudents(prev => {
+        const union = new Set([...prev, ...visibleUnassignedIds]);
+        return Array.from(union);
+      });
     }
   };
 
+  const unassignedSelectedCount = useMemo(() => {
+    return selectedStudents.filter(id => !assignedStudentsSet.has(id)).length;
+  }, [selectedStudents, assignedStudentsSet]);
+
   const handleAssign = async () => {
-    if (selectedStudents.length === 0 || selectedSubjects.length === 0) {
-      return setError('Please select at least one student and one subject.');
+    const unassignedSelectedIds = selectedStudents.filter(id => !assignedStudentsSet.has(id));
+
+    if (unassignedSelectedIds.length === 0) {
+      return setError('Please select at least one unassigned student.');
     }
     if (!deadline || !suggestedMarksDeadline || !pagesRequired) {
       return setError('Please fill in Submission Deadline, Suggested Marks Deadline and Required Pages.');
@@ -406,8 +395,7 @@ const Assignments = () => {
 
     try {
       await axios.post(`${API_BASE_URL}/api/admin/assign-subjects`, {
-        studentIds: selectedStudents,
-        subjectIds: selectedSubjects,
+        studentIds: unassignedSelectedIds,
         pagesRequired,
         deadline,
         suggestedMarksDeadline: suggestedMarksDeadline || undefined,
@@ -416,16 +404,14 @@ const Assignments = () => {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
 
-      setMessage(`Successfully assigned ${selectedSubjects.length} subject(s) to ${selectedStudents.length} student(s).`);
+      setMessage(`Successfully generated assignments for ${unassignedSelectedIds.length} student(s).`);
       setTimeout(() => setMessage(''), 4000);
       setSelectedStudents([]);
-      setSelectedSubjects([]);
       setSuggestedMarksDeadline('');
       setRefreshTrigger(prev => prev + 1);
       setSelectedCollege('');
       setSelectedCourse('');
       setSelectedSemester('');
-      setSelectedGroup('');
       fetchAssignments();
       setActiveTab('list');
     } catch (err) {
@@ -615,8 +601,8 @@ const Assignments = () => {
             )}
           </div>
           {/* Filters Card */}
-          <div className="bg-white p-5 rounded-md shadow-sm border border-slate-200 mb-8 flex flex-wrap gap-4 items-end animate-fadeIn">
-            <div className="flex-1 min-w-[200px]">
+          <div className="bg-white p-5 rounded-md shadow-sm border border-slate-200 mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 items-end animate-fadeIn">
+            <div>
               <SearchableDropdown
                 label="College"
                 placeholder="-- Select College --"
@@ -626,11 +612,10 @@ const Assignments = () => {
                   setSelectedCollege(val);
                   setSelectedCourse('');
                   setSelectedSemester('');
-                  setSelectedGroup('');
                 }}
               />
             </div>
-            <div className="flex-1 min-w-[200px]">
+            <div>
               <SearchableDropdown
                 label="Course"
                 placeholder="-- Select Course --"
@@ -639,38 +624,25 @@ const Assignments = () => {
                 onChange={(val) => {
                   setSelectedCourse(val);
                   setSelectedSemester('');
-                  setSelectedGroup('');
                 }}
               />
             </div>
-            <div className="flex-1 min-w-[200px]">
+            <div>
               <SearchableDropdown
                 label="Semester"
                 placeholder="-- Select Semester --"
                 options={filters.semesters?.map(sem => ({ value: sem, label: sem })) || []}
                 value={selectedSemester}
-                onChange={(val) => {
-                  setSelectedSemester(val);
-                  setSelectedGroup('');
-                }}
-              />
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <SearchableDropdown
-                label="Group"
-                placeholder="-- All Groups --"
-                options={filters.groups?.map(g => ({ value: g.groupCode, label: `${g.groupCode} - ${g.groupName}` })) || []}
-                value={selectedGroup}
-                onChange={setSelectedGroup}
+                onChange={setSelectedSemester}
               />
             </div>
           </div>
 
-          {/* Grid Layout for Students and Subjects */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
+          {/* Grid Layout for Students and Assignment Parameters */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fadeIn items-start">
             {/* Students Panel */}
-            <div className="bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden flex flex-col h-[600px]">
-              <div className="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+            <div className="lg:col-span-2 bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden flex flex-col h-[650px]">
+              <div className="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center flex-wrap gap-2">
                 <h2 className="text-lg font-semibold text-slate-800 flex items-center">
                   <Users className="h-5 w-5 mr-2 text-teal-600" />
                   Select Students
@@ -680,147 +652,144 @@ const Assignments = () => {
                     onClick={handleSelectAllStudents}
                     className="text-xs font-semibold text-teal-600 hover:text-teal-800 hover:underline cursor-pointer"
                   >
-                    {selectedStudents.length === students.length && students.length > 0 ? 'Deselect All' : 'Select All'}
+                    {filteredStudents.length > 0 && filteredStudents.every(s => selectedStudents.includes(s._id)) ? 'Deselect All' : 'Select All'}
                   </button>
-                  <span className="text-xs font-medium bg-teal-100 text-teal-700 px-2 py-1 rounded-full">
+                  <span className="text-xs font-medium bg-teal-100 text-teal-700 px-2.5 py-1 rounded-full">
                     {selectedStudents.length} Selected
                   </span>
                 </div>
               </div>
+
+              {/* Student Search Box */}
+              {students.length > 0 && (
+                <div className="p-3 border-b border-slate-100 bg-slate-50/50">
+                  <div className="relative flex items-center">
+                    <Search className="absolute left-3 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by student name or roll number..."
+                      value={studentSearch}
+                      onChange={(e) => setStudentSearch(e.target.value)}
+                      className="w-full pl-9 pr-8 py-1.5 text-sm bg-white border border-slate-200 rounded-md outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                    />
+                    {studentSearch && (
+                      <button onClick={() => setStudentSearch('')} className="absolute right-3 text-slate-400 hover:text-slate-600 cursor-pointer">
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="flex-1 overflow-y-auto elegant-scrollbar p-4 space-y-2">
                 {students.length === 0 ? (
-                  <p className="text-sm text-slate-500 text-center py-10">Select College and Course to view students.</p>
+                  <p className="text-sm text-slate-500 text-center py-10">Select College, Course and Semester to view students.</p>
+                ) : filteredStudents.length === 0 ? (
+                  <p className="text-sm text-slate-500 text-center py-10">No students match your search query.</p>
                 ) : (
-                  students.map(student => (
-                    <label key={student._id} className={`flex items-center p-3 border rounded-md cursor-pointer transition-colors ${selectedStudents.includes(student._id) ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:bg-slate-50'}`}>
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500"
-                        checked={selectedStudents.includes(student._id)}
-                        onChange={() => toggleStudent(student._id)}
-                      />
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-slate-900">{student.fullName}</p>
-                        <p className="text-xs text-slate-500">
-                          {student.regdNo} • Grp: {student.groupId?.groupCode || 'N/A'}
-                        </p>
-                      </div>
-                    </label>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Subjects Panel */}
-            <div className="bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden flex flex-col h-[600px]">
-              <div className="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-slate-800 flex items-center">
-                  <BookOpen className="h-5 w-5 mr-2 text-teal-600" />
-                  Select Subjects
-                </h2>
-                <div className="flex items-center gap-4">
-                  {subjects.length > 0 && (
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 mr-2"
-                        checked={selectedSubjects.length === subjects.length}
-                        onChange={toggleAllSubjects}
-                      />
-                      <span className="text-sm font-medium text-slate-700">Select All</span>
-                    </label>
-                  )}
-                  <span className="text-xs font-medium bg-teal-100 text-teal-700 px-2 py-1 rounded-full">
-                    {selectedSubjects.length} Selected
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-4 border-b border-slate-200 bg-slate-50 grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fadeIn">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Submission Deadline <span className="text-red-500">*</span></label>
-                  <input
-                    type="date"
-                    value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
-                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5 whitespace-nowrap">Suggested Marks Deadline <span className="text-red-500">*</span></label>
-                  <input
-                    type="date"
-                    value={suggestedMarksDeadline}
-                    onChange={(e) => setSuggestedMarksDeadline(e.target.value)}
-                    className="w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
-                  />
-                </div>
-                <div className='ml-2'>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Req. Pages <span className="text-red-500">*</span></label>
-                  <input
-                    type="number"
-                    value={pagesRequired}
-                    onChange={(e) => setPagesRequired(Number(e.target.value))}
-                    className="sm:w-full border border-slate-300 rounded-md px-3 py-1.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
-                    min="1"
-                  />
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto elegant-scrollbar p-4 space-y-2">
-                {subjects.length === 0 ? (
-                  <p className="text-sm text-slate-500 text-center py-10">Select a Semester to view subjects.</p>
-                ) : (
-                  subjects.map(subject => {
-                    const targetMode = mode === 'Backlog' ? 'Supply' : 'Regular';
-                    const isAssigned = selectedStudents.length > 0 && assignments.some(a => {
-                      const aStudentId = a.studentId?._id || a.studentId;
-                      const aSubjectId = a.subjectId?._id || a.subjectId;
-                      const aMode = a.mode || 'Regular';
-                      return aStudentId && aSubjectId &&
-                        selectedStudents.includes(aStudentId.toString()) &&
-                        aSubjectId.toString() === subject._id.toString() &&
-                        aMode === targetMode;
-                    });
-
+                  filteredStudents.map(student => {
+                    const isAssigned = assignedStudentsSet.has(student._id.toString());
                     return (
-                      <label key={subject._id} className={`flex items-center p-3 border rounded-md transition-colors ${isAssigned ? 'border-slate-100 bg-slate-50/50 cursor-not-allowed opacity-65' : selectedSubjects.includes(subject._id) ? 'border-teal-500 bg-teal-50 cursor-pointer' : 'border-slate-200 hover:bg-slate-50 cursor-pointer'}`}>
+                      <label 
+                        key={student._id} 
+                        className={`flex items-center p-3 border rounded-md transition-colors ${
+                          isAssigned 
+                            ? 'border-slate-100 bg-slate-50/50 cursor-not-allowed opacity-60' 
+                            : selectedStudents.includes(student._id) 
+                              ? 'border-teal-500 bg-teal-50 cursor-pointer' 
+                              : 'border-slate-200 hover:bg-slate-50 cursor-pointer'
+                        }`}
+                      >
                         <input
                           type="checkbox"
                           disabled={isAssigned}
                           className={`w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 ${isAssigned ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                          checked={!isAssigned && selectedSubjects.includes(subject._id)}
-                          onChange={() => toggleSubject(subject._id)}
+                          checked={!isAssigned && selectedStudents.includes(student._id)}
+                          onChange={() => toggleStudent(student._id)}
                         />
-                        <div className="ml-3 flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className={`text-sm font-medium ${isAssigned ? 'text-slate-400' : 'text-slate-900'}`}>{subject.subName}</p>
-                            {isAssigned && (
-                              <span className="inline-flex px-1.5 py-0.5 text-[9px] font-bold text-red-700 bg-red-50 border border-red-200 rounded-md leading-none">
-                                Subject Assigned
-                              </span>
-                            )}
+                        <div className="ml-3 flex-1 flex justify-between items-center">
+                          <div>
+                            <p className={`text-sm font-medium ${isAssigned ? 'text-slate-400' : 'text-slate-900'}`}>{student.fullName}</p>
+                            <p className={`text-xs ${isAssigned ? 'text-slate-400/80' : 'text-slate-500'}`}>
+                              {student.regdNo} • Grp: {student.groupId?.groupCode || 'N/A'} • Sem: {student.currentSemester || 'N/A'}
+                            </p>
                           </div>
-                          <p className={`text-xs flex items-center ${isAssigned ? 'text-slate-400/80' : 'text-slate-500'}`}>
-                            {subject.subCode} • Semester: {subject.semester || 'N/A'}
-                            {(subject.isGroupSubject && selectedGroup) && (
-                              <span className="ml-2 text-[10px] font-semibold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Group Subject</span>
-                            )}
-                          </p>
+                          {isAssigned && (
+                            <span className="inline-flex px-2 py-0.5 text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded-md">
+                              Already Assigned
+                            </span>
+                          )}
                         </div>
                       </label>
                     );
                   })
                 )}
               </div>
-              <div className="p-4 border-t border-slate-200">
+            </div>
+
+            {/* Assignment Parameters Panel */}
+            <div className="lg:col-span-1 bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden flex flex-col">
+              <div className="p-5 border-b border-slate-200 bg-slate-50">
+                <h2 className="text-lg font-semibold text-slate-800 flex items-center">
+                  <BookOpen className="h-5 w-5 mr-2 text-teal-600" />
+                  Assignment Parameters
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">Specify deadlines and limits to generate assignments for all matching semester subjects.</p>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    Submission Deadline <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                    className="w-full border border-slate-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    Suggested Marks Deadline <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={suggestedMarksDeadline}
+                    onChange={(e) => setSuggestedMarksDeadline(e.target.value)}
+                    className="w-full border border-slate-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    Req. Pages <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={pagesRequired}
+                    onChange={(e) => setPagesRequired(Number(e.target.value))}
+                    className="w-full border border-slate-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-slate-800 bg-white"
+                    min="1"
+                  />
+                </div>
+              </div>
+
+              <div className="p-5 bg-slate-50 border-t border-slate-100 flex flex-col gap-2">
                 <button
                   onClick={handleAssign}
-                  disabled={selectedSubjects.length === 0}
-                  className={`w-full font-medium py-2.5 rounded-md transition-colors text-sm ${selectedSubjects.length === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-teal-600 hover:bg-teal-700 text-white cursor-pointer shadow-sm'}`}
+                  disabled={unassignedSelectedCount === 0}
+                  className={`w-full font-semibold py-2.5 rounded-md transition-colors text-sm flex items-center justify-center gap-2 ${unassignedSelectedCount === 0
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    : 'bg-teal-600 hover:bg-teal-700 text-white cursor-pointer shadow-sm'
+                    }`}
                 >
                   Generate Assignments
                 </button>
+                {unassignedSelectedCount > 0 && (
+                  <p className="text-[11px] text-center text-slate-500">
+                    Generating assignments for <span className="font-semibold text-teal-700">{unassignedSelectedCount}</span> student(s).
+                  </p>
+                )}
               </div>
             </div>
           </div>
