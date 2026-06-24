@@ -264,7 +264,7 @@ exports.checkDuplicateFace = async ({ faceDescriptor, regdNo, email, role, colle
     }
     distance = Math.sqrt(distance);
     
-    if (distance <= 0.65) {
+    if (distance <= 0.60) {
       throw new AppError(`Security Alert: This face is already registered to another user (${existingUser.regdNo}). You cannot register the same face for multiple accounts.`, 400);
     }
   }

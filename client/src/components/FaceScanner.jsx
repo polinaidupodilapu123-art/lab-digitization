@@ -22,7 +22,7 @@ const loadFaceApiModels = (isMobile) => {
   return modelsLoadingPromises[key];
 };
 
-const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
+const FaceScanner = ({ onCapture, mode = 'enroll', regdNo, email, role, collegeId }) => {
   // Detect if browser is on mobile to apply hardware-optimized configuration
   const isMobile = useRef(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)).current;
 
@@ -162,7 +162,11 @@ const FaceScanner = ({ onCapture, mode = 'enroll' }) => {
       if (mode === 'enroll') {
         setStatus('Checking for duplicates...');
         await axios.post(`${API_BASE_URL}/api/auth/check-duplicate-face`, {
-          faceDescriptor: descriptorArray
+          faceDescriptor: descriptorArray,
+          regdNo,
+          email,
+          role,
+          collegeId
         });
         
         setSuccess(true);
