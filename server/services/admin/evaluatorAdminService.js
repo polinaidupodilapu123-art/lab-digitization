@@ -10,11 +10,11 @@ exports.createEvaluator = async ({ fullName, email, password }) => {
   if (existing) throw new AppError('Evaluator already exists', 400);
 
   const evaluator = await User.create({
-    fullName, 
-    regdNo: email, 
+    fullName,
+    regdNo: email,
     password,
     plainPassword: password,
-    role: 'EVALUATOR', 
+    role: 'EVALUATOR',
     isSetupComplete: true
   });
   return { message: 'Evaluator created successfully', evaluator };
@@ -42,7 +42,7 @@ exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academi
     return courseSubs;
   };
 
-  const studentAllocations = {}; 
+  const studentAllocations = {};
 
   for (const student of students) {
     if (!student.courseId || !student.currentSemester) {
@@ -58,7 +58,7 @@ exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academi
       if (allCourseSubs && allCourseSubs.length > 0) {
         targetSubjects = allCourseSubs.filter(s => String(s.semester) === String(student.currentSemester));
       }
-      
+
       // Fallback: If no subjects are formally linked to the Course document,
       // resolve all subjects belonging to the student's current semester.
       if (targetSubjects.length === 0) {
@@ -72,12 +72,12 @@ exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academi
 
     // Resolve choice subjects index mapping for these subjects
     const semesters = [...new Set(targetSubjects.map(s => s.semester).filter(Boolean))];
-    const allChoiceSubjects = await Subject.find({ 
-      semester: { $in: semesters }, 
-      studentChoice: { $in: ['C', 'c'] } 
+    const allChoiceSubjects = await Subject.find({
+      semester: { $in: semesters },
+      studentChoice: { $in: ['C', 'c'] }
     }).lean();
     allChoiceSubjects.sort((a, b) => a.subCode.localeCompare(b.subCode));
-    
+
     const choiceIndexMap = {};
     allChoiceSubjects.forEach((sub, index) => {
       choiceIndexMap[sub._id.toString()] = index;
@@ -139,11 +139,11 @@ exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academi
       }
 
       if (belongsToMe) {
-        if (subject.studentChoice === 'C' || subject.studentChoice === 'c') { 
+        if (subject.studentChoice === 'C' || subject.studentChoice === 'c') {
           const pedIndex = choiceIndexMap[subject._id.toString()];
-          const pedName = student.groupId && student.groupId.subjects && student.groupId.subjects[pedIndex] 
-                          ? student.groupId.subjects[pedIndex] 
-                          : null;
+          const pedName = student.groupId && student.groupId.subjects && student.groupId.subjects[pedIndex]
+            ? student.groupId.subjects[pedIndex]
+            : null;
           if (!pedName || String(pedName).trim() === '') {
             belongsToMe = false;
           } else {
@@ -157,12 +157,12 @@ exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academi
 
         await Assignment.findOneAndUpdate(
           { studentId: student._id, subjectId: subject._id, mode: isBacklog ? 'Supply' : 'Regular' },
-          { 
+          {
             $set: {
-              pagesRequired, 
-              academicYear: academicYear || student.academicYear || '', 
-              deadline, 
-              createdBy, 
+              pagesRequired,
+              academicYear: academicYear || student.academicYear || '',
+              deadline,
+              createdBy,
               status: 'Pending',
               groupSubjectName: assignedGroupName,
               maxMarks: subject.maxMarks || 0,
@@ -185,8 +185,8 @@ exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academi
         if (!studentAllocations[sIdStr]) {
           studentAllocations[sIdStr] = [];
         }
-        const displayName = assignedGroupName 
-          ? `${subject.subName} (${assignedGroupName})` 
+        const displayName = assignedGroupName
+          ? `${subject.subName} (${assignedGroupName})`
           : subject.subName;
         studentAllocations[sIdStr].push(displayName);
       }
@@ -211,7 +211,7 @@ exports.assignSubjects = async ({ studentIds, subjectIds, pagesRequired, academi
       console.error('Failed to send student assignment notification emails:', emailErr.message);
     }
   })();
-  
+
   return { message: 'Subjects assigned to students successfully.' };
 };
 
@@ -236,7 +236,7 @@ exports.assignSubjectsToEvaluator = async (id, { allocations, subjectIds, groupS
   if (allocations && Array.isArray(allocations) && allocations.length > 0) {
     for (const allocation of allocations) {
       const { subjectId, groupSubjectName, splitMethod, collegeIds, rollStart, rollEnd, valuationDeadline } = allocation;
-      
+
       if (subjectId) {
         finalSubjectIds.push(subjectId.toString());
       }
@@ -301,7 +301,7 @@ exports.assignSubjectsToEvaluator = async (id, { allocations, subjectIds, groupS
 
   evaluator.subjects = [...new Set(finalSubjectIds)];
   evaluator.groupSubjects = [...new Set(finalGroupSubjects)];
-  
+
   await evaluator.save();
   await evaluator.populate('subjects');
 
@@ -320,7 +320,7 @@ exports.assignSubjectsToEvaluator = async (id, { allocations, subjectIds, groupS
 
   const addedSubjects = finalSubjectIds.filter(id => !oldSubjectIds.includes(id));
   const addedGroupSubjects = finalGroupSubjects.filter(name => !oldGroupSubjects.includes(name));
-  
+
   let diffMessages = [];
   if (addedSubjects.length > 0) diffMessages.push(`Added ${addedSubjects.length} regular subjects`);
   if (addedGroupSubjects.length > 0) diffMessages.push(`Added ${addedGroupSubjects.length} group subjects`);
@@ -331,7 +331,7 @@ exports.assignSubjectsToEvaluator = async (id, { allocations, subjectIds, groupS
 
 exports.getSubjectsWithSubmissions = async (mode = 'Regular') => {
   const query = { status: { $ne: 'Pending' } };
-  
+
   if (mode === 'Supply') {
     query.mode = 'Supply';
   } else {
@@ -339,10 +339,10 @@ exports.getSubjectsWithSubmissions = async (mode = 'Regular') => {
   }
 
   const assignments = await Assignment.find(query).select('subjectId groupSubjectName evaluatorId').lean();
-  
+
   const subjectsSet = new Set();
   const groupSubjectsSet = new Set();
-  
+
   const unallocatedSubjectsSet = new Set();
   const unallocatedGroupSubjectsSet = new Set();
 
@@ -370,13 +370,13 @@ exports.getSubjectsWithSubmissions = async (mode = 'Regular') => {
 
 exports.getSubjectAllocationStats = async ({ subjectId, groupSubjectName, subjects, mode = 'Regular' }) => {
   let query = {};
-  
+
   if (subjects) {
     let parsedSubjects = [];
     try {
       parsedSubjects = typeof subjects === 'string' ? JSON.parse(subjects) : subjects;
-    } catch(e) {}
-    
+    } catch (e) { }
+
     if (parsedSubjects.length > 0) {
       const orClauses = parsedSubjects.map(s => {
         if (s.subjectId) return { subjectId: s.subjectId };
@@ -407,12 +407,12 @@ exports.getSubjectAllocationStats = async ({ subjectId, groupSubjectName, subjec
       submittedQuery.$or = [{ mode: 'Regular' }, { mode: { $exists: false } }, { mode: null }];
     }
   }
-  
+
   const total = await Assignment.countDocuments(submittedQuery);
   const unallocatedAssignments = await Assignment.find({ ...submittedQuery, evaluatorId: null })
     .populate('studentId', 'collegeId')
     .lean();
-    
+
   const unallocated = unallocatedAssignments.length;
   const allocated = total - unallocated;
 
@@ -558,17 +558,17 @@ exports.reallocateEvaluator = async ({ assignmentId, newEvaluatorId, valuationDe
   }
 
   let diffMessages = [];
-  
+
   let subjectsUpdated = false;
   let newEvaluator = null;
 
   if (newEvaluatorId) {
     newEvaluator = await User.findById(newEvaluatorId);
-    
+
     if (!newEvaluator || newEvaluator.role !== 'EVALUATOR') {
       throw new AppError('Invalid new evaluator selected', 400);
     }
-    
+
     if (String(assignment.evaluatorId?._id) !== String(newEvaluatorId)) {
       const oldEvName = assignment.evaluatorId ? assignment.evaluatorId.fullName : 'None';
       diffMessages.push(`Evaluator changed from '${oldEvName}' to '${newEvaluator.fullName}'`);
@@ -599,9 +599,9 @@ exports.reallocateEvaluator = async ({ assignmentId, newEvaluatorId, valuationDe
     }
     assignment.valuationDeadline = new Date(valuationDeadline);
   }
-  
+
   const diffString = diffMessages.length > 0 ? diffMessages.join(', ') : 'No visible fields changed';
-  
+
   await assignment.save();
   if (subjectsUpdated && newEvaluator) {
     await newEvaluator.save();
@@ -613,7 +613,7 @@ exports.reallocateEvaluator = async ({ assignmentId, newEvaluatorId, valuationDe
       if (newEvaluator.subjects && newEvaluator.subjects.length > 0) {
         allocatedRegularSubjects = await Subject.find({ _id: { $in: newEvaluator.subjects } }).lean();
       }
-      
+
       await emailService.sendEvaluatorAllocationEmail({
         to: newEvaluator.regdNo, // Using regdNo as email for evaluators in this system
         evaluatorName: newEvaluator.fullName,

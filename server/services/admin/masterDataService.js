@@ -26,7 +26,7 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
   }
 
   const normalizeKey = (k) => (k || '').toString().toLowerCase().replace(/[\s_]+/g, ' ').trim();
-  
+
   const data = rawData.map(row => {
     const normalizedRow = {};
     for (const [key, val] of Object.entries(row)) {
@@ -43,9 +43,9 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
   const REQUIRED_COLS = {
     students: ['registration number', 'student name', 'college code', 'group code'],
     colleges: ['college code', 'college name'],
-    courses:  ['course code', 'course name'],
-    groups:   ['group code', 'course code', 'group name', 'pedagogy1 name', 'pedagogy2 name'],
-    subjects: [], 
+    courses: ['course code', 'course name'],
+    groups: ['group code', 'course code', 'group name', 'pedagogy1 name', 'pedagogy2 name'],
+    subjects: [],
     evaluators: ['full name'],
     principals: ['full name', 'college code'],
     backlogfees: ['registration number']
@@ -53,7 +53,7 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
 
   if (type !== 'subjects' && REQUIRED_COLS[type]) {
     const missing = REQUIRED_COLS[type].filter(col => !(col in firstRow));
-    
+
     if (type === 'evaluators' || type === 'principals') {
       const hasEmail = Object.keys(firstRow).some(k => ['email', 'email address', 'username', 'registration number', 'regdno'].includes(k));
       if (!hasEmail) {
@@ -93,12 +93,12 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
     courses.forEach(c => { courseMap[normalizeCode(c.courseCode)] = c._id; });
   } else if (type === 'papers') {
     const subjects = await Subject.find().lean();
-    subjects.forEach(s => { 
-      subjectMap[normalizeCode(s.subCode)] = { 
-        _id: s._id, 
-        maxMarks: s.maxMarks, 
-        subPassMarks: s.subPassMarks 
-      }; 
+    subjects.forEach(s => {
+      subjectMap[normalizeCode(s.subCode)] = {
+        _id: s._id,
+        maxMarks: s.maxMarks,
+        subPassMarks: s.subPassMarks
+      };
     });
   }
 
@@ -106,20 +106,20 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
 
   for (let i = 0; i < data.length; i++) {
     const row = data[i];
-    const rowNum = i + 2; 
+    const rowNum = i + 2;
     try {
       if (type === 'students') {
         const regdNo = row['registration number']?.toString()?.trim();
         if (!regdNo) { rowErrors.push({ row: rowNum, message: 'Registration Number is empty.' }); continue; }
-        
+
         const collegeCode = row['college code']?.toString()?.trim();
         const groupCode = row['group code']?.toString()?.trim();
-        
+
         const collegeId = collegeMap[normalizeCode(collegeCode)]?._id || null;
         const groupData = groupMap[normalizeCode(groupCode)];
         const groupId = groupData ? groupData._id : null;
         const courseId = groupData ? groupData.courseId : null;
-        
+
         const mobileNumber = (row['mobile number'] || row['phone number'] || row['mobile'] || row['phone'])?.toString()?.trim() || '';
         const emailCol = (row['email'] || row['email address'] || row['student email'] || row['email id'])?.toString()?.trim() || '';
 
@@ -135,9 +135,9 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
         operations.push({
           updateOne: {
             filter: { regdNo },
-            update: { 
+            update: {
               $set: {
-                fullName: row['student name']?.trim(), 
+                fullName: row['student name']?.trim(),
                 collegeId,
                 groupId,
                 courseId,
@@ -145,7 +145,7 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
                 academicYear: academicYear || '',
                 mobileNumber,
                 email: emailCol,
-                role: 'STUDENT' 
+                role: 'STUDENT'
               }
             },
             upsert: true
@@ -155,10 +155,10 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
       } else if (type === 'colleges') {
         const collegeCode = row['college code']?.toString()?.trim();
         if (!collegeCode) { rowErrors.push({ row: rowNum, message: 'College Code is empty.' }); continue; }
-        
+
         const updateData = {
-          collegeName: row['college name']?.trim(), 
-          location: row['location']?.trim(), 
+          collegeName: row['college name']?.trim(),
+          location: row['location']?.trim(),
           district: row['district']?.trim()
         };
 
@@ -171,10 +171,10 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
           if (!isNaN(lonVal)) updateData.longitude = lonVal;
         }
 
-        const radiusKey = Object.keys(row).find(k => 
-          k === 'radius meter' || 
-          k === 'radiusmeter' || 
-          k === 'radius' || 
+        const radiusKey = Object.keys(row).find(k =>
+          k === 'radius meter' ||
+          k === 'radiusmeter' ||
+          k === 'radius' ||
           k === 'radius_meter' ||
           k === 'geofence radius (m)' ||
           k === 'geofence radius' ||
@@ -196,7 +196,7 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
       } else if (type === 'courses') {
         const courseCode = row['course code']?.toString()?.trim();
         if (!courseCode) { rowErrors.push({ row: rowNum, message: 'Course Code is empty.' }); continue; }
-        
+
         operations.push({
           updateOne: {
             filter: { courseCode },
@@ -208,7 +208,7 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
       } else if (type === 'groups') {
         const groupCode = row['group code']?.toString()?.trim();
         if (!groupCode) { rowErrors.push({ row: rowNum, message: 'Group Code is empty.' }); continue; }
-        
+
         const courseCode = row['course code']?.toString()?.trim();
 
         const courseId = courseMap[courseCode] || null;
@@ -228,10 +228,10 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
         operations.push({
           updateOne: {
             filter: { groupCode },
-            update: { 
+            update: {
               $set: {
                 courseId,
-                groupName: row['group name']?.trim(), 
+                groupName: row['group name']?.trim(),
                 subjects
               }
             },
@@ -242,19 +242,19 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
       } else if (type === 'subjects') {
         const subCode = (row['sub code'] || row['subject code'])?.toString()?.trim();
         if (!subCode) { rowErrors.push({ row: rowNum, message: 'Subject Code is empty.' }); continue; }
-        if (subCode.toLowerCase() === 'sub code' || subCode.toLowerCase() === 'subject code') continue; 
+        if (subCode.toLowerCase() === 'sub code' || subCode.toLowerCase() === 'subject code') continue;
 
         operations.push({
           updateOne: {
             filter: { subCode },
-            update: { 
+            update: {
               $set: {
-                subName: (row['sub name'] || row['subject name'])?.trim(), 
-                studentChoice: row['student choice']?.trim(), 
-                type: row['type']?.trim(), 
-                aliasName: row['alias name']?.trim(), 
-                maxMarks: Number(row['max marks']) || 0, 
-                subPassMarks: Number(row['sub pass marks'] || row['subject pass marks'] || row['pass marks']) || 0, 
+                subName: (row['sub name'] || row['subject name'])?.trim(),
+                studentChoice: row['student choice']?.trim(),
+                type: row['type']?.trim(),
+                aliasName: row['alias name']?.trim(),
+                maxMarks: Number(row['max marks']) || 0,
+                subPassMarks: Number(row['sub pass marks'] || row['subject pass marks'] || row['pass marks']) || 0,
                 semester: semester || row['semester']?.toString()?.trim() || ''
               }
             },
@@ -265,16 +265,16 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
       } else if (type === 'papers') {
         const paperCode = row['paper code']?.toString()?.trim();
         if (!paperCode) { rowErrors.push({ row: rowNum, message: 'Paper Code is empty.' }); continue; }
-        
+
         const rawSubjects = (row['subject code'] || row['subject codes'])?.toString() || '';
         const subjectCodesList = rawSubjects.split(',').map(s => normalizeCode(s)).filter(Boolean);
-        
+
         const resolvedIds = [];
         const missingCodes = [];
-        
+
         let calculatedMaxMarks = 0;
         let calculatedPassMarks = 0;
-        
+
         subjectCodesList.forEach(code => {
           const subjData = subjectMap[code];
           if (subjData) {
@@ -285,18 +285,18 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
             missingCodes.push(code);
           }
         });
-        
+
         if (missingCodes.length > 0) {
           rowErrors.push({ row: rowNum, message: `Subject Code(s) [${missingCodes.join(', ')}] not found. Upload Subjects first.` });
           continue;
         }
-        
+
         operations.push({
           updateOne: {
             filter: { paperCode },
-            update: { 
+            update: {
               $set: {
-                paperName: row['paper name']?.trim() || 'Untitled Paper', 
+                paperName: row['paper name']?.trim() || 'Untitled Paper',
                 semester: row['semester']?.toString()?.trim() || '',
                 maxMarks: calculatedMaxMarks,
                 passMarks: calculatedPassMarks,
@@ -322,21 +322,21 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
         const emailCol = Object.keys(row).find(k => ['email', 'email address', 'username', 'registration number', 'regdno'].includes(k));
         const regdNo = row[emailCol]?.toString()?.trim();
         if (!regdNo) { rowErrors.push({ row: rowNum, message: 'Email/Username is empty.' }); continue; }
-        
+
         const fullName = row['full name']?.toString()?.trim() || row['name']?.toString()?.trim() || 'Evaluator';
         const rawPassword = row['password']?.toString()?.trim() || 'Password@123';
-        
+
         const salt = await bcrypt.genSalt(10);
         const password = await bcrypt.hash(rawPassword, salt);
 
         operations.push({
           updateOne: {
             filter: { regdNo },
-            update: { 
+            update: {
               $set: {
                 fullName,
                 password,
-                plainPassword: rawPassword, 
+                plainPassword: rawPassword,
                 role: 'EVALUATOR',
                 isSetupComplete: true
               }
@@ -348,7 +348,7 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
         const emailCol = Object.keys(row).find(k => ['email', 'email address', 'username', 'registration number', 'regdno'].includes(k));
         const regdNo = row[emailCol]?.toString()?.trim();
         if (!regdNo) { rowErrors.push({ row: rowNum, message: 'Email/Username is empty.' }); continue; }
-        
+
         const collegeCode = row['college code']?.toString()?.trim();
         const collegeData = collegeMap[normalizeCode(collegeCode)];
         const collegeId = collegeData?._id || null;
@@ -363,7 +363,7 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
         }
 
         const fullName = row['full name']?.toString()?.trim() || row['name']?.toString()?.trim() || 'Principal';
-        const rawPassword = Math.random().toString(36).slice(-10) + 'A1!'; 
+        const rawPassword = Math.random().toString(36).slice(-10) + 'A1!';
 
         const salt = await bcrypt.genSalt(10);
         const password = await bcrypt.hash(rawPassword, salt);
@@ -371,7 +371,7 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
         operations.push({
           updateOne: {
             filter: { regdNo },
-            update: { 
+            update: {
               $set: {
                 fullName,
                 email: regdNo,
@@ -384,7 +384,7 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
             upsert: true
           }
         });
-        
+
         principalsToEmail.push({
           to: regdNo,
           principalName: fullName,
@@ -395,11 +395,11 @@ exports.uploadMasterData = async ({ type, semester, academicYear, file }) => {
         if (!regdNo) { rowErrors.push({ row: rowNum, message: 'Registration Number is empty.' }); continue; }
         const feeSemester = row['semester']?.toString()?.trim() || semester;
         if (!feeSemester) { rowErrors.push({ row: rowNum, message: 'Semester is empty.' }); continue; }
-        
+
         operations.push({
           updateOne: {
             filter: { regdNo, semester: feeSemester },
-            update: { 
+            update: {
               $set: {
                 name: row['student name']?.trim(),
                 collegeCode: row['college code']?.trim(),
@@ -472,11 +472,11 @@ const getModelForType = (type) => {
     case 'evaluators': return User;
     case 'principals': return User;
     case 'colleges': return College;
-    case 'courses':  return Course;
-    case 'groups':   return Group;
+    case 'courses': return Course;
+    case 'groups': return Group;
     case 'subjects': return Subject;
     case 'subjectmaps': return Subject;
-    case 'papers':   return Paper;
+    case 'papers': return Paper;
     case 'assignments': return Assignment;
     default: return null;
   }
@@ -493,11 +493,11 @@ exports.createRecord = async (type, body) => {
 
     const existing = await User.findOne({ regdNo: body.regdNo });
     if (existing) throw new AppError('An evaluator with this email already exists.', 400);
-    
+
     body.role = 'EVALUATOR';
     body.isSetupComplete = true;
-    body.plainPassword = body.password; 
-    
+    body.plainPassword = body.password;
+
     const newRecord = new User(body);
     await newRecord.save();
     const populated = await User.findById(newRecord._id).populate('subjects').select('-password');
@@ -507,27 +507,27 @@ exports.createRecord = async (type, body) => {
   if (type === 'principals') {
     const existing = await User.findOne({ regdNo: body.regdNo });
     if (existing) throw new AppError('A principal user with this email already exists.', 400);
-    
+
     body.role = 'PRINCIPAL';
     body.isSetupComplete = false;
-    
-    const rawPassword = Math.random().toString(36).slice(-10) + 'A1!'; 
+
+    const rawPassword = Math.random().toString(36).slice(-10) + 'A1!';
     const salt = await bcrypt.genSalt(10);
     body.password = await bcrypt.hash(rawPassword, salt);
     body.email = body.regdNo;
-    
+
     if (body.collegeCode) {
       const college = await College.findOne({ collegeCode: body.collegeCode });
       if (college) body.collegeId = college._id;
     }
-    
+
     const newRecord = new User(body);
     await newRecord.save();
     const populated = await User.findById(newRecord._id).populate('collegeId').select('-password');
-    
+
     const mapped = populated.toObject();
     mapped.collegeCode = populated.collegeId?.collegeCode || '';
-    
+
     emailService.sendPrincipalOnboardingEmail({
       to: body.regdNo,
       principalName: body.fullName || 'Principal',
@@ -540,7 +540,7 @@ exports.createRecord = async (type, body) => {
   if (type === 'papers' && body.subjectIds && Array.isArray(body.subjectIds)) {
     const subjects = await Subject.find({ subCode: { $in: body.subjectIds } });
     body.subjectIds = subjects.map(s => s._id);
-    
+
     let calculatedMaxMarks = 0;
     let calculatedPassMarks = 0;
     subjects.forEach(s => {
@@ -612,12 +612,12 @@ exports.updateRecord = async (type, id, body) => {
 
     const evaluator = await User.findById(id);
     if (!evaluator) throw new AppError('Evaluator not found', 404);
-    
+
     if (body.regdNo && body.regdNo !== evaluator.regdNo) {
       const existing = await User.findOne({ regdNo: body.regdNo });
       if (existing) throw new AppError('An evaluator with this email already exists.', 400);
     }
-    
+
     let diffMessages = [];
     if (body.fullName && body.fullName !== evaluator.fullName) diffMessages.push(`fullName changed from '${evaluator.fullName}' to '${body.fullName}'`);
     if (body.regdNo && body.regdNo !== evaluator.regdNo) diffMessages.push(`email changed from '${evaluator.regdNo}' to '${body.regdNo}'`);
@@ -625,16 +625,16 @@ exports.updateRecord = async (type, id, body) => {
 
     evaluator.fullName = body.fullName || evaluator.fullName;
     evaluator.regdNo = body.regdNo || evaluator.regdNo;
-    
+
     if (body.password && body.password.trim() !== '') {
       evaluator.password = body.password;
       evaluator.plainPassword = body.password;
     }
-    
+
     if (body.subjects) {
       evaluator.subjects = body.subjects;
     }
-    
+
     await evaluator.save();
     const updated = await User.findById(id).populate('subjects').select('-password');
     return { message: 'Evaluator updated successfully', record: updated, diffString };
@@ -643,7 +643,7 @@ exports.updateRecord = async (type, id, body) => {
   if (type === 'principals') {
     const principal = await User.findById(id);
     if (!principal) throw new AppError('Principal not found', 404);
-    
+
     let diffMessages = [];
     if (body.fullName && body.fullName !== principal.fullName) diffMessages.push(`fullName changed from '${principal.fullName}' to '${body.fullName}'`);
     if (body.regdNo && body.regdNo !== principal.regdNo) diffMessages.push(`email changed from '${principal.regdNo}' to '${body.regdNo}'`);
@@ -651,19 +651,22 @@ exports.updateRecord = async (type, id, body) => {
 
     principal.fullName = body.fullName || principal.fullName;
     principal.regdNo = body.regdNo || principal.regdNo;
-    
+    if (body.regdNo) {
+      principal.email = body.regdNo;
+    }
+
     if (body.password && body.password.trim() !== '') {
       principal.password = body.password;
     }
-    
+
     if (body.collegeCode) {
       const college = await College.findOne({ collegeCode: body.collegeCode });
       if (college) principal.collegeId = college._id;
     }
-    
+
     await principal.save();
     const updated = await User.findById(id).populate('collegeId').select('-password');
-    
+
     const mapped = updated.toObject();
     mapped.collegeCode = updated.collegeId?.collegeCode || '';
     return { message: 'Principal updated successfully', record: mapped, diffString };
@@ -672,7 +675,7 @@ exports.updateRecord = async (type, id, body) => {
   if (type === 'papers' && body.subjectIds && Array.isArray(body.subjectIds)) {
     const subjects = await Subject.find({ subCode: { $in: body.subjectIds } });
     body.subjectIds = subjects.map(s => s._id);
-    
+
     let calculatedMaxMarks = 0;
     let calculatedPassMarks = 0;
     subjects.forEach(s => {
@@ -728,10 +731,10 @@ exports.updateRecord = async (type, id, body) => {
   let diffMessages = [];
   for (const key of Object.keys(body)) {
     if (['password', 'plainPassword', '_id', '__v', 'createdAt', 'updatedAt'].includes(key)) continue;
-    
+
     const oldVal = oldRecord[key] !== undefined ? String(oldRecord[key]) : '';
     const newVal = body[key] !== undefined ? String(body[key]) : '';
-    
+
     if (oldVal !== newVal) {
       diffMessages.push(`${key} changed from '${oldVal}' to '${newVal}'`);
     }
@@ -758,7 +761,7 @@ exports.getStudents = async () => {
     .populate('courseId', 'courseCode')
     .select('-password')
     .lean();
-  
+
   return students.map(s => ({
     ...s,
     collegeCode: s.collegeId?.collegeCode || '',
@@ -787,7 +790,7 @@ exports.getPrincipals = async () => {
     .populate('collegeId', 'collegeCode collegeName')
     .select('-password')
     .lean();
-  
+
   return principals.map(p => ({
     ...p,
     collegeCode: p.collegeId?.collegeCode || '',

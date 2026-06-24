@@ -414,14 +414,6 @@ const Login = () => {
                 </form>
               ) : (
                 <form onSubmit={handleResetPassword} className="space-y-4">
-                  {/* <div className="bg-teal-50 border border-teal-200 p-3 rounded-md text-teal-800 text-xs text-center font-medium mb-2">
-                    <p>Verification OTP sent to: <span className="font-semibold">{forgotEmail}</span></p>
-                    {forgotDevOtp && (
-                      <p className="mt-1 font-bold text-teal-900 bg-teal-100/80 py-1 rounded inline-block px-3">
-                        Development Mode OTP: <span className="underline select-all">{forgotDevOtp}</span>
-                      </p>
-                    )}
-                  </div> */}
 
                   <div>
                     <div className="flex items-center justify-between mb-1">

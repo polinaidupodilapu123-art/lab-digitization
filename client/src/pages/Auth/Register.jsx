@@ -428,11 +428,7 @@ const Register = () => {
                 {/* OTP Info Display */}
                 <div className="bg-teal-50 border border-teal-200 p-3 rounded-md text-teal-800 text-xs text-center font-medium mb-2">
                   <p>Verification OTP sent to: <span className="font-semibold">{email}</span></p>
-                  {devOtp && (
-                    <p className="mt-1 font-bold text-teal-900 bg-teal-100/80 py-1 rounded inline-block px-3">
-                      Development Mode OTP: <span className="underline select-all">{devOtp}</span>
-                    </p>
-                  )}
+                
                 </div>
 
                 <div>
