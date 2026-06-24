@@ -4,22 +4,44 @@ import { Camera, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../utils/config';
 
-// Global cache for model loading promises based on detector type (mobile vs desktop)
-let modelsLoadingPromises = {};
-const loadFaceApiModels = (isMobile) => {
-  const key = isMobile ? 'mobile' : 'desktop';
-  if (!modelsLoadingPromises[key]) {
+// Setup Cache-First Fetch Interceptor for static model assets (PWA performance optimization)
+const cacheName = 'face-api-models-v1';
+const originalFetch = window.fetch;
+window.fetch = async (input, init) => {
+  const url = typeof input === 'string' ? input : input.url;
+  if (url && url.includes('/models/')) {
+    try {
+      if (window.caches) {
+        const cache = await caches.open(cacheName);
+        const cachedResponse = await cache.match(url);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        const response = await originalFetch(input, init);
+        if (response && response.ok) {
+          await cache.put(input, response.clone());
+        }
+        return response;
+      }
+    } catch (e) {
+      console.warn('Cache Storage fetch failure, falling back to network fetch:', e);
+    }
+  }
+  return originalFetch(input, init);
+};
+
+// Global cache for model loading promise (now unified to use tinyFaceDetector on all devices)
+let modelsLoadingPromise = null;
+const loadFaceApiModels = () => {
+  if (!modelsLoadingPromise) {
     const MODEL_URL = '/models';
-    const detector = isMobile
-      ? faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
-      : faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
-    modelsLoadingPromises[key] = Promise.all([
-      detector,
+    modelsLoadingPromise = Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
       faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
     ]);
   }
-  return modelsLoadingPromises[key];
+  return modelsLoadingPromise;
 };
 
 const FaceScanner = ({ onCapture, mode = 'enroll', regdNo, email, role, collegeId }) => {
@@ -32,11 +54,9 @@ const FaceScanner = ({ onCapture, mode = 'enroll', regdNo, email, role, collegeI
   const isScanningRef = useRef(false);
   const scanLoopRef = useRef(null);
 
-  // Helper to get device-specific face detector options
+  // Helper to get device-specific face detector options (optimized input size for fast CPU inference)
   const getDetectorOptions = () => {
-    return isMobile
-      ? new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 })
-      : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+    return new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 });
   };
 
   // State machine refs for recursive loop stability (prevents stale closures)
@@ -60,10 +80,14 @@ const FaceScanner = ({ onCapture, mode = 'enroll', regdNo, email, role, collegeI
   const [currentEAR, setCurrentEAR] = useState(null);
   const [baselineEARState, setBaselineEARState] = useState(null);
 
+  // UX Fallback states for manual capture and slow blink responses
+  const [showManualFallback, setShowManualFallback] = useState(false);
+  const faceDetectedSinceRef = useRef(null);
+
   useEffect(() => {
     const loadModels = async () => {
       try {
-        await loadFaceApiModels(isMobile);
+        await loadFaceApiModels();
         setIsModelLoaded(true);
         setStatus('Ready. Please look at the camera.');
         startCamera();
@@ -210,6 +234,8 @@ const FaceScanner = ({ onCapture, mode = 'enroll', regdNo, email, role, collegeI
 
     setBaselineEARState(null);
     setCurrentEAR(null);
+    setShowManualFallback(false);
+    faceDetectedSinceRef.current = null;
 
     const startTime = Date.now();
     setTimeLeft(30);
@@ -251,10 +277,20 @@ const FaceScanner = ({ onCapture, mode = 'enroll', regdNo, email, role, collegeI
             baselineFramesRef.current = [];
             setBaselineEARState(null);
             setCurrentEAR(null);
+            
+            // Reset manual capture variables
+            faceDetectedSinceRef.current = null;
+            setShowManualFallback(false);
           }
         } else {
           noFaceCount = 0;
           setFaceDetected(true);
+          
+          if (faceDetectedSinceRef.current === null) {
+            faceDetectedSinceRef.current = Date.now();
+          } else if (Date.now() - faceDetectedSinceRef.current > 3500) {
+            setShowManualFallback(true);
+          }
 
           const landmarks = detection.landmarks;
           const leftEye = landmarks.getLeftEye();
@@ -355,6 +391,12 @@ const FaceScanner = ({ onCapture, mode = 'enroll', regdNo, email, role, collegeI
     }
   }, [isModelLoaded, cameraActive]);
 
+  const handleManualCapture = () => {
+    if (!faceDetected || success) return;
+    setStatus('Capturing face...');
+    processSuccessfulCapture();
+  };
+
   const handleRetry = () => {
     setError('');
     setSuccess(false);
@@ -364,6 +406,8 @@ const FaceScanner = ({ onCapture, mode = 'enroll', regdNo, email, role, collegeI
     setLivenessProgress(0);
     setCurrentEAR(null);
     setBaselineEARState(null);
+    setShowManualFallback(false);
+    faceDetectedSinceRef.current = null;
     if (scanLoopRef.current) clearTimeout(scanLoopRef.current);
     setStatus('Ready. Please look at the camera.');
     if (!cameraActive) {
@@ -474,7 +518,7 @@ const FaceScanner = ({ onCapture, mode = 'enroll', regdNo, email, role, collegeI
       )}
 
       {!success && !error && isModelLoaded && (
-        <div className="flex flex-col items-center w-full">
+        <div className="flex flex-col items-center w-full space-y-3">
           <div className="flex items-center space-x-2 px-6 py-2 bg-slate-100 border border-slate-200/80 text-slate-600 rounded-full text-xs font-semibold shadow-sm select-none">
             {faceDetected ? (
               <>
@@ -488,10 +532,28 @@ const FaceScanner = ({ onCapture, mode = 'enroll', regdNo, email, role, collegeI
               </>
             )}
           </div>
+          
           {faceDetected && (
-            <p className="text-[10px] text-slate-400 mt-2 font-medium tracking-wide max-w-[220px] text-center leading-relaxed">
-              The scanner automatically completes when you blink.
-            </p>
+            <div className="flex flex-col items-center space-y-2 w-full px-4 animate-fadeIn">
+              <button
+                type="button"
+                onClick={handleManualCapture}
+                className="w-full max-w-[200px] py-2 px-4 bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs rounded-full shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center space-x-1.5"
+              >
+                <Camera className="h-3.5 w-3.5" />
+                <span>Capture Face</span>
+              </button>
+              
+              {showManualFallback ? (
+                <p className="text-[10px] text-rose-500 font-semibold tracking-wide max-w-[240px] text-center leading-relaxed animate-pulse">
+                  Blink not detected? Tap the button above to capture manually.
+                </p>
+              ) : (
+                <p className="text-[10px] text-slate-400 font-medium tracking-wide max-w-[220px] text-center leading-relaxed">
+                  The scanner automatically completes when you blink.
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}
