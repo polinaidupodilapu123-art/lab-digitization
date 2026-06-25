@@ -243,18 +243,32 @@ exports.checkDuplicateFace = async ({ faceDescriptor, regdNo, email, role, colle
     throw new AppError('Invalid face descriptor.', 400);
   }
 
+  const isZeroed = (arr) => arr.every(val => (val || 0) === 0);
+
+  if (isZeroed(faceDescriptor)) {
+    throw new AppError('Invalid face capture data (blank or zeroed descriptor). Please stand in a well-lit area and try again.', 400);
+  }
+
   // Find the current user to skip them
   let currentUser = null;
   if (role === 'PRINCIPAL' && email && collegeId) {
-    currentUser = await User.findOne({ regdNo: email, collegeId, role: 'PRINCIPAL' });
+    currentUser = await User.findOne({ 
+      regdNo: new RegExp(`^${email.trim()}$`, 'i'), 
+      collegeId, 
+      role: 'PRINCIPAL' 
+    });
   } else if (regdNo) {
-    currentUser = await User.findOne({ regdNo, role: 'STUDENT' });
+    currentUser = await User.findOne({ 
+      regdNo: new RegExp(`^${regdNo.trim()}$`, 'i'), 
+      role: 'STUDENT' 
+    });
   }
 
   const existingUsers = await User.find({ isSetupComplete: true }, 'regdNo faceDescriptor').lean();
 
   for (const existingUser of existingUsers) {
     if (!existingUser.faceDescriptor || existingUser.faceDescriptor.length !== 128) continue;
+    if (isZeroed(existingUser.faceDescriptor)) continue;
     
     if (currentUser && existingUser._id.toString() === currentUser._id.toString()) continue;
     
@@ -264,7 +278,8 @@ exports.checkDuplicateFace = async ({ faceDescriptor, regdNo, email, role, colle
     }
     distance = Math.sqrt(distance);
     
-    if (distance <= 0.60) {
+    // Strict threshold (0.48) optimized for 1-to-many lookups to prevent false matches across large datasets
+    if (distance <= 0.48) {
       throw new AppError(`Security Alert: This face is already registered to another user (${existingUser.regdNo}). You cannot register the same face for multiple accounts.`, 400);
     }
   }
