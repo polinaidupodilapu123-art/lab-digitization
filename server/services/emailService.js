@@ -11,6 +11,9 @@ if (process.env.SMTP_HOST && process.env.SMTP_PORT) {
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS
+    },
+    tls: {
+      rejectUnauthorized: false // bypass self-signed certificate check
     }
   });
 } else {

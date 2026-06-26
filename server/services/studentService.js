@@ -91,13 +91,11 @@ exports.submitAssignment = async ({ assignmentId, file, user, note, extractedTex
     const hasStudentName = serverExtractedText.includes(studentName) || (clientExtractedText && clientExtractedText.toUpperCase().includes(studentName));
     const hasSubjectCode = subjectCode ? (serverExtractedText.includes(subjectCode) || (clientExtractedText && clientExtractedText.toUpperCase().includes(subjectCode))) : true;
 
-    if (!hasRegNo || !hasSubjectCode || !hasStudentName) {
+    const hasText = serverExtractedText.trim() !== '' || (clientExtractedText && clientExtractedText.trim() !== '');
+
+    if (hasText && (!hasRegNo || !hasSubjectCode || !hasStudentName)) {
       if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
       
-      if (serverExtractedText.trim() === '' && (!clientExtractedText || clientExtractedText.trim() === '')) {
-        throw new AppError('Document Verification Failed: This PDF appears to be an image-only scan without readable text. Please ensure your cover page has digitally typed text, or use an OCR scanner app to create your PDF.', 400);
-      }
-
       let errorMsg = '';
       if (!hasRegNo && !hasSubjectCode && !hasStudentName) {
         errorMsg = 'We could not find the student name, reg no, and subject code in the uploading document. Please ensure you have uploaded the correct lab record.';
