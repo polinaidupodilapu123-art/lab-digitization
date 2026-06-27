@@ -1,5 +1,7 @@
 const nodemailer = require('nodemailer');
 
+const SMTP_FROM = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@aknu.edu';
+
 // Set up transporter based on env variables
 let transporter;
 
@@ -107,7 +109,7 @@ exports.sendEvaluatorAllocationEmail = async ({ to, evaluatorName, password, sub
     `;
 
     const mailOptions = {
-      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      from: `"AKNU Digitization Portal" <${SMTP_FROM}>`,
       to,
       subject: 'Subject Allocation Notification - AKNU Digitization Portal',
       html: htmlContent,
@@ -158,7 +160,7 @@ exports.sendStudentReminderEmail = async ({ to, studentName, subjectName, deadli
     `;
 
     const mailOptions = {
-      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      from: `"AKNU Digitization Portal" <${SMTP_FROM}>`,
       to,
       subject: `URGENT: Lab Record Submission Deadline Reminder - ${subjectName}`,
       html: htmlContent,
@@ -202,7 +204,7 @@ exports.sendPrincipalReminderEmail = async ({ to, principalName, collegeName, un
     `;
 
     const mailOptions = {
-      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      from: `"AKNU Digitization Portal" <${SMTP_FROM}>`,
       to,
       subject: `ALERT: Unsubmitted Student Records - ${collegeName}`,
       html: htmlContent,
@@ -246,7 +248,7 @@ exports.sendEvaluatorReminderEmail = async ({ to, evaluatorName, unsubmittedRegd
     `;
 
     const mailOptions = {
-      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      from: `"AKNU Digitization Portal" <${SMTP_FROM}>`,
       to,
       subject: `Allocation Status: Pending Student Submissions`,
       html: htmlContent,
@@ -285,7 +287,7 @@ exports.sendStudentOtpEmail = async ({ to, studentName, otp }) => {
     `;
 
     const mailOptions = {
-      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      from: `"AKNU Digitization Portal" <${SMTP_FROM}>`,
       to,
       subject: `${otp} is your verification code for B.Ed Portal Setup`,
       html: htmlContent,
@@ -326,7 +328,7 @@ exports.sendForgotPasswordOtpEmail = async ({ to, userName, otp }) => {
     `;
 
     const mailOptions = {
-      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      from: `"AKNU Digitization Portal" <${SMTP_FROM}>`,
       to,
       subject: `${otp} is your verification code to reset password`,
       html: htmlContent,
@@ -398,7 +400,7 @@ exports.sendStudentAssignmentNotificationEmail = async ({ to, studentName, subje
     `;
 
     const mailOptions = {
-      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      from: `"AKNU Digitization Portal" <${SMTP_FROM}>`,
       to,
       subject: `New Practical Subject Allocation Notification - ${formattedDeadline}`,
       html: htmlContent,
@@ -452,7 +454,7 @@ exports.sendPrincipalOnboardingEmail = async ({ to, principalName, collegeName }
     `;
 
     const mailOptions = {
-      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      from: `"AKNU Digitization Portal" <${SMTP_FROM}>`,
       to,
       subject: `Action Required: Create Your Principal Account for ${collegeName}`,
       html: htmlContent,
@@ -493,7 +495,7 @@ exports.sendStudentDeadlineReminderEmail = async ({ to, studentName, daysLeft })
     `;
 
     const mailOptions = {
-      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      from: `"AKNU Digitization Portal" <${SMTP_FROM}>`,
       to,
       subject: `Action Required: Record Submission Deadline is ${urgency}`,
       html: htmlContent,
@@ -553,7 +555,7 @@ exports.sendPrincipalDeadlineReminderEmail = async ({ to, principalName, daysLef
     `;
 
     const mailOptions = {
-      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      from: `"AKNU Digitization Portal" <${SMTP_FROM}>`,
       to,
       subject: `Urgent: Defaulting Students Alert - Deadline ${urgency}`,
       html: htmlContent,
@@ -595,7 +597,7 @@ exports.sendEvaluatorDeadlineReminderEmail = async ({ to, evaluatorName, daysLef
     `;
 
     const mailOptions = {
-      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      from: `"AKNU Digitization Portal" <${SMTP_FROM}>`,
       to,
       subject: `Action Required: Evaluation Deadline is ${urgency}`,
       html: htmlContent,
@@ -665,7 +667,7 @@ exports.sendStudentRegistrationStatusEmail = async ({ to, studentName, status, n
     `;
 
     const mailOptions = {
-      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      from: `"AKNU Digitization Portal" <${SMTP_FROM}>`,
       to,
       subject: `Registration ${statusText} Notification - AKNU Digitization Portal`,
       html: htmlContent,
@@ -735,7 +737,7 @@ exports.sendPrincipalRegistrationStatusEmail = async ({ to, principalName, statu
     `;
 
     const mailOptions = {
-      from: `"AKNU Digitization Portal" <${process.env.SMTP_USER || 'no-reply@aknu.edu'}>`,
+      from: `"AKNU Digitization Portal" <${SMTP_FROM}>`,
       to,
       subject: `Principal Registration ${statusText} Notification - AKNU Digitization Portal`,
       html: htmlContent,
