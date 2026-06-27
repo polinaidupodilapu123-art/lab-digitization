@@ -253,7 +253,9 @@ exports.assignSubjectsToEvaluator = async (id, { allocations, subjectIds, groupS
         updateFields.valuationDeadline = null;
       }
 
-      const assignmentQuery = {};
+      const assignmentQuery = {
+        suggestedMarks: { $ne: null }
+      };
       if (subjectId) {
         assignmentQuery.subjectId = subjectId;
       } else if (groupSubjectName) {
@@ -330,7 +332,10 @@ exports.assignSubjectsToEvaluator = async (id, { allocations, subjectIds, groupS
 };
 
 exports.getSubjectsWithSubmissions = async (mode = 'Regular') => {
-  const query = { status: { $ne: 'Pending' } };
+  const query = { 
+    status: { $ne: 'Pending' },
+    suggestedMarks: { $ne: null }
+  };
 
   if (mode === 'Supply') {
     query.mode = 'Supply';
@@ -393,7 +398,7 @@ exports.getSubjectAllocationStats = async ({ subjectId, groupSubjectName, subjec
     throw new AppError('Subject is required', 400);
   }
 
-  const submittedQuery = { ...query, status: { $ne: 'Pending' } };
+  const submittedQuery = { ...query, status: { $ne: 'Pending' }, suggestedMarks: { $ne: null } };
   if (mode === 'Supply') {
     submittedQuery.mode = 'Supply';
   } else {
@@ -470,7 +475,7 @@ exports.allocateSubjectBulk = async ({ subjectId, groupSubjectName, subjects, ev
   let totalAllocated = 0;
 
   for (const s of parsedSubjects) {
-    const query = { evaluatorId: null, status: { $ne: 'Pending' } };
+    const query = { evaluatorId: null, status: { $ne: 'Pending' }, suggestedMarks: { $ne: null } };
     if (mode === 'Supply') {
       query.mode = 'Supply';
     } else {
