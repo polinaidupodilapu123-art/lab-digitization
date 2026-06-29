@@ -249,6 +249,11 @@ exports.checkDuplicateFace = async ({ faceDescriptor, regdNo, email, role, colle
     throw new AppError('Invalid face capture data (blank or zeroed descriptor). Please stand in a well-lit area and try again.', 400);
   }
 
+  // Skip duplicate face checking for students, as registration is approved by the principal
+  if (role === 'STUDENT') {
+    return { message: 'Face duplicate check skipped for students' };
+  }
+
   // Find the current user to skip them
   let currentUser = null;
   if (role === 'PRINCIPAL' && email && collegeId) {
