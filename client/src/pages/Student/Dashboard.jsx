@@ -306,10 +306,10 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
     const semester = String(assignment.subjectId?.semester);
     const isEligibleFor5MB = isGroupSubject && (semester === '3' || semester === '4');
     
-    const MAX_SIZE = isEligibleFor5MB ? 5 * 1024 * 1024 : 1 * 1024 * 1024;
+    const MAX_SIZE = isEligibleFor5MB ? 5 * 1024 * 1024 : 2.5 * 1024 * 1024;
     
     if (selected.size > MAX_SIZE) {
-      setError(`File size exceeds the limit. ${isEligibleFor5MB ? 'Max 5MB allowed.' : 'Max 1MB allowed.'}`);
+      setError(`File size exceeds the limit. ${isEligibleFor5MB ? 'Max 5MB allowed.' : 'Max 2.5MB allowed.'}`);
       setFile(null);
       return;
     }
@@ -410,7 +410,7 @@ const UploadRecordModal = ({ assignment, onClose, onSuccess }) => {
                   const semester = String(assignment.subjectId?.semester);
                   const isEligibleFor5MB = isGroupSubject && (semester === '3' || semester === '4');
                   return (
-                    <p className="text-xs text-slate-400">PDF up to {isEligibleFor5MB ? '5MB' : '1MB'}</p>
+                    <p className="text-xs text-slate-400">PDF up to {isEligibleFor5MB ? '5MB' : '2.5MB'}</p>
                   );
                 })()}
               </div>
