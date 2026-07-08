@@ -81,7 +81,7 @@ exports.getAssignmentData = async ({ collegeCode, courseCode, semester, groupCod
       
       const pastAssignments = await Assignment.find({
         studentId: { $in: studentIds },
-        subjectId: { $in: subjectIds }
+        subjectId: { $in: subjectIds } 
       }).lean();
 
       const latestAssignments = {};

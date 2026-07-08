@@ -34,9 +34,9 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
     Math.cos(phi1) *
-      Math.cos(phi2) *
-      Math.sin(deltaLambda / 2) *
-      Math.sin(deltaLambda / 2);
+    Math.cos(phi2) *
+    Math.sin(deltaLambda / 2) *
+    Math.sin(deltaLambda / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; // Distance in meters
 };
@@ -102,7 +102,7 @@ exports.login = async ({ regdNo, password, email, faceDescriptor, latitude, long
 
     // Threshold: 0.55 is a good balance for face-api.js
     if (distance > 0.55) {
-      throw new AppError(`Face authentication failed. (Distance: ${distance.toFixed(2)})`, 401);
+      throw new AppError(`Face authentication failed.`, 401);
     }
   }
 
@@ -120,7 +120,7 @@ exports.login = async ({ regdNo, password, email, faceDescriptor, latitude, long
       const effectiveLimit = baseLimit + accuracyBuffer;
 
       if (distance > effectiveLimit) {
-        throw new AppError(`Access Denied: You must log in from within the college campus. (Distance: ${distance.toFixed(0)}m, Limit: ${effectiveLimit.toFixed(0)}m)`, 403);
+        throw new AppError(`Access Denied: You must log in from within the college campus.`, 403);
       }
     }
   }
@@ -188,7 +188,7 @@ exports.sendOtp = async ({ regdNo, email, role, collegeId, latitude, longitude, 
       const effectiveLimit = baseLimit + accuracyBuffer;
 
       if (distance > effectiveLimit) {
-        throw new AppError(`Access Denied: You must request registration OTP from within the college campus. (Distance: ${distance.toFixed(0)}m, Limit: ${effectiveLimit.toFixed(0)}m)`, 403);
+        throw new AppError(`Access Denied: You must request registration OTP from within the college campus.`, 403);
       }
     }
 
@@ -216,22 +216,22 @@ exports.sendOtp = async ({ regdNo, email, role, collegeId, latitude, longitude, 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   user.tempOtp = otp;
   user.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
-  
+
   if (!user.email) {
     user.email = cleanEmail;
   }
-  
+
   await user.save();
 
-  const emailResult = await emailService.sendStudentOtpEmail({ 
-    to: cleanEmail, 
-    studentName: user.fullName || 'User', 
-    otp 
+  const emailResult = await emailService.sendStudentOtpEmail({
+    to: cleanEmail,
+    studentName: user.fullName || 'User',
+    otp
   });
 
   const isMock = emailResult && emailResult.mock;
   return {
-    message: isMock 
+    message: isMock
       ? `OTP sent successfully. (Testing/Development Mode OTP: ${otp})`
       : `OTP verification email has been successfully sent to ${cleanEmail}.`,
     otp: isMock ? otp : undefined
@@ -257,15 +257,15 @@ exports.checkDuplicateFace = async ({ faceDescriptor, regdNo, email, role, colle
   // Find the current user to skip them
   let currentUser = null;
   if (role === 'PRINCIPAL' && email && collegeId) {
-    currentUser = await User.findOne({ 
-      regdNo: new RegExp(`^${email.trim()}$`, 'i'), 
-      collegeId, 
-      role: 'PRINCIPAL' 
+    currentUser = await User.findOne({
+      regdNo: new RegExp(`^${email.trim()}$`, 'i'),
+      collegeId,
+      role: 'PRINCIPAL'
     });
   } else if (regdNo) {
-    currentUser = await User.findOne({ 
-      regdNo: new RegExp(`^${regdNo.trim()}$`, 'i'), 
-      role: 'STUDENT' 
+    currentUser = await User.findOne({
+      regdNo: new RegExp(`^${regdNo.trim()}$`, 'i'),
+      role: 'STUDENT'
     });
   }
 
@@ -274,15 +274,15 @@ exports.checkDuplicateFace = async ({ faceDescriptor, regdNo, email, role, colle
   for (const existingUser of existingUsers) {
     if (!existingUser.faceDescriptor || existingUser.faceDescriptor.length !== 128) continue;
     if (isZeroed(existingUser.faceDescriptor)) continue;
-    
+
     if (currentUser && existingUser._id.toString() === currentUser._id.toString()) continue;
-    
+
     let distance = 0;
     for (let i = 0; i < 128; i++) {
       distance += Math.pow((faceDescriptor[i] || 0) - (existingUser.faceDescriptor[i] || 0), 2);
     }
     distance = Math.sqrt(distance);
-    
+
     // Strict threshold (0.48) optimized for 1-to-many lookups to prevent false matches across large datasets
     if (distance <= 0.48) {
       throw new AppError(`Security Alert: This face is already registered to another user (${existingUser.regdNo}). You cannot register the same face for multiple accounts.`, 400);
@@ -312,7 +312,7 @@ exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, f
       const effectiveLimit = baseLimit + accuracyBuffer;
 
       if (distance > effectiveLimit) {
-        throw new AppError(`Access Denied: You must register from within the college campus. (Distance: ${distance.toFixed(0)}m, Limit: ${effectiveLimit.toFixed(0)}m)`, 403);
+        throw new AppError(`Access Denied: You must register from within the college campus.`, 403);
       }
     }
 
@@ -327,7 +327,7 @@ exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, f
   if (!user) {
     throw new AppError('User record not found.', 404);
   }
-  
+
   if (user.isSetupComplete) {
     throw new AppError('Account is already set up. Please log in.', 400);
   }
@@ -367,11 +367,11 @@ exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, f
   user.tempOtp = undefined;
   user.otpExpiresAt = undefined;
   user.email = email.trim().toLowerCase();
-  
+
   // NOTE: According to the new flow, we do NOT automatically create a session and log them in here.
   // We want them to navigate to Login page and authenticate with their newly captured face.
   user.currentSessionId = null;
-  
+
   await user.save();
 
   return {
@@ -408,7 +408,7 @@ exports.createSysAdmin = async () => {
 
 exports.getCollegesList = async () => {
   const colleges = await College.find({}, 'collegeCode collegeName').lean();
-  
+
   colleges.sort((a, b) => {
     const numA = parseInt(a.collegeCode, 10);
     const numB = parseInt(b.collegeCode, 10);
@@ -426,7 +426,7 @@ exports.me = async (userId) => {
     .populate('collegeId', 'collegeName collegeCode')
     .populate('courseId', 'courseName courseCode')
     .select('-password -plainPassword -tempOtp -otpExpiresAt');
-  
+
   if (!user) {
     throw new AppError('User not found', 404);
   }
@@ -467,18 +467,18 @@ exports.forgotPasswordSendOtp = async ({ email }) => {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   user.tempOtp = otp;
   user.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-  
+
   await user.save();
 
-  const emailResult = await emailService.sendForgotPasswordOtpEmail({ 
-    to: cleanEmail, 
-    userName: user.fullName || 'User', 
-    otp 
+  const emailResult = await emailService.sendForgotPasswordOtpEmail({
+    to: cleanEmail,
+    userName: user.fullName || 'User',
+    otp
   });
 
   const isMock = emailResult && emailResult.mock;
   return {
-    message: isMock 
+    message: isMock
       ? `OTP sent successfully. (Testing/Development Mode OTP: ${otp})`
       : `OTP verification email has been successfully sent to ${cleanEmail}.`,
     otp: isMock ? otp : undefined
@@ -508,7 +508,7 @@ exports.forgotPasswordReset = async ({ email, otp, password }) => {
   user.password = password;
   user.tempOtp = undefined;
   user.otpExpiresAt = undefined;
-  
+
   await user.save();
 
   return {
