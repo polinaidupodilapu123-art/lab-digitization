@@ -4,6 +4,7 @@ import { UploadCloud, CheckCircle, X, FileSpreadsheet, Plus, RefreshCw, ChevronL
 
 import PromoteStudentsModal from './PromoteStudentsModal';
 import ActivityFeed from '../../components/ActivityFeed';
+import { downloadMasterDataTemplate } from '../../utils/exportUtils';
 
 import { API_BASE_URL } from '../../utils/config';
 
@@ -651,7 +652,7 @@ const UploadModal = ({ tabKey, cfg, token, onClose, onSuccess }) => {
         <div className="flex items-center justify-between px-6 py-4 bg-teal-700 flex-shrink-0">
           <div className="flex items-center gap-2 text-white">
             <UploadCloud className="h-5 w-5" />
-            <h3 className="text-lg font-semibold">Add {cfg.label} Data</h3>
+            <h3 className="text-lg font-semibold">Upload {cfg.label} Data</h3>
           </div>
           <button onClick={onClose} className="text-white/70 hover:text-white transition-colors cursor-pointer rounded-md p-0.5">
             <X className="h-5 w-5" />
@@ -1121,7 +1122,14 @@ const MasterData = () => {
               className="flex items-center whitespace-nowrap justify-center gap-1.5 bg-teal-700 hover:bg-teal-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer w-full sm:w-auto"
             >
               <UploadCloud className="h-3.5 w-3.5" />
-              Add {cfg.label}
+              Upload {cfg.label}
+            </button>
+            <button
+              onClick={() => downloadMasterDataTemplate(activeTab)}
+              className="flex items-center whitespace-nowrap justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm cursor-pointer w-full sm:w-auto"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 text-teal-600" />
+              Download Template
             </button>
           </div>
         </div>

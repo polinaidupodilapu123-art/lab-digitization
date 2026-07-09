@@ -41,6 +41,39 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c; // Distance in meters
 };
 
+const verifyPrincipalGeofence = (college, latitude, longitude, accuracy, actionName = 'access the system') => {
+  if (!college || typeof college.latitude !== 'number' || typeof college.longitude !== 'number') {
+    return; // No college coordinates configured, skip check
+  }
+
+  const userLat = parseFloat(latitude);
+  const userLon = parseFloat(longitude);
+  const userAcc = parseFloat(accuracy);
+
+  if (isNaN(userLat) || isNaN(userLon)) {
+    throw new AppError(`GPS Location access is required to ${actionName}.`, 400);
+  }
+
+  const distance = calculateDistance(userLat, userLon, college.latitude, college.longitude);
+  
+  // Use college's configured radius (radiusMeter) or default to 500m
+  const baseLimit = typeof college.radiusMeter === 'number' ? college.radiusMeter : 500;
+  
+  // Allow accuracy buffer (cap at 1500m to prevent complete spoofing, but allow wider margin)
+  const accuracyBuffer = !isNaN(userAcc) ? Math.min(userAcc, 1500) : 0;
+  const effectiveLimit = baseLimit + accuracyBuffer;
+
+  console.log(`[Geofence Audit] Action: ${actionName}, College: ${college.collegeName} (${college.collegeCode}), ` +
+              `College Coords: (${college.latitude}, ${college.longitude}), ` +
+              `User Coords: (${userLat}, ${userLon}) [Acc: ${userAcc}m], ` +
+              `Distance: ${distance.toFixed(1)}m, Limit: ${effectiveLimit.toFixed(1)}m`);
+
+  if (distance > effectiveLimit) {
+    throw new AppError(`Access Denied: You must ${actionName} from within the college campus.`, 403);
+  }
+};
+
+
 const generateToken = (id, role, sessionId) => {
   return jwt.sign({ id, role, sessionId }, process.env.JWT_SECRET || 'secret123', {
     expiresIn: '2h'
@@ -109,20 +142,7 @@ exports.login = async ({ regdNo, password, email, faceDescriptor, latitude, long
   // GPS Geofencing logic for Principals
   if (user.role === 'PRINCIPAL') {
     const college = await College.findById(user.collegeId);
-    if (college && typeof college.latitude === 'number' && typeof college.longitude === 'number') {
-      if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-        throw new AppError('GPS Location access is required to log in.', 400);
-      }
-
-      const distance = calculateDistance(latitude, longitude, college.latitude, college.longitude);
-      const baseLimit = 500; // Strict 500m geofence radius limit for Principal
-      const accuracyBuffer = typeof accuracy === 'number' ? Math.min(accuracy, 1000) : 0;
-      const effectiveLimit = baseLimit + accuracyBuffer;
-
-      if (distance > effectiveLimit) {
-        throw new AppError(`Access Denied: You must log in from within the college campus.`, 403);
-      }
-    }
+    verifyPrincipalGeofence(college, latitude, longitude, accuracy, 'log in');
   }
 
   const sessionId = crypto.randomUUID();
@@ -177,20 +197,7 @@ exports.sendOtp = async ({ regdNo, email, role, collegeId, latitude, longitude, 
 
     // GPS Geofencing logic for Principals requesting OTP
     const college = await College.findById(collegeId);
-    if (college && typeof college.latitude === 'number' && typeof college.longitude === 'number') {
-      if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-        throw new AppError('GPS Location access is required to request registration OTP.', 400);
-      }
-
-      const distance = calculateDistance(latitude, longitude, college.latitude, college.longitude);
-      const baseLimit = 500; // Strict 500m geofence radius limit
-      const accuracyBuffer = typeof accuracy === 'number' ? Math.min(accuracy, 1000) : 0;
-      const effectiveLimit = baseLimit + accuracyBuffer;
-
-      if (distance > effectiveLimit) {
-        throw new AppError(`Access Denied: You must request registration OTP from within the college campus.`, 403);
-      }
-    }
+    verifyPrincipalGeofence(college, latitude, longitude, accuracy, 'request registration OTP');
 
     user = await User.findOne({ regdNo: email, collegeId, role: 'PRINCIPAL' });
   } else {
@@ -301,20 +308,7 @@ exports.setupAccount = async ({ regdNo, email, otp, password, role, collegeId, f
 
     // GPS Geofencing logic for Principals during registration setup
     const college = await College.findById(collegeId);
-    if (college && typeof college.latitude === 'number' && typeof college.longitude === 'number') {
-      if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-        throw new AppError('GPS Location access is required to register.', 400);
-      }
-
-      const distance = calculateDistance(latitude, longitude, college.latitude, college.longitude);
-      const baseLimit = 500; // Strict 500m geofence radius limit
-      const accuracyBuffer = typeof accuracy === 'number' ? Math.min(accuracy, 1000) : 0;
-      const effectiveLimit = baseLimit + accuracyBuffer;
-
-      if (distance > effectiveLimit) {
-        throw new AppError(`Access Denied: You must register from within the college campus.`, 403);
-      }
-    }
+    verifyPrincipalGeofence(college, latitude, longitude, accuracy, 'register');
 
     user = await User.findOne({ regdNo: email, collegeId, role: 'PRINCIPAL' });
   } else {
