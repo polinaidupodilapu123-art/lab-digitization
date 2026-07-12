@@ -20,6 +20,21 @@ const StudentApprovals = () => {
     noteText: ''
   });
 
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${day}/${month}/${year} ${String(hours).padStart(2, '0')}:${minutes}(${ampm})`;
+  };
+
   const filteredStudents = (pendingStudents || []).filter(s => {
     if (statusFilter === 'ALL') return true;
     return s.approvalStatus === statusFilter;
@@ -187,13 +202,14 @@ const StudentApprovals = () => {
                   <th className="px-5 py-3.5 text-center whitespace-nowrap">Semester</th>
                   <th className="px-5 py-3.5 text-center whitespace-nowrap">Academic Year</th>
                   <th className="px-5 py-3.5 text-center whitespace-nowrap">Registered Photo</th>
+                  <th className="px-5 py-3.5 text-center whitespace-nowrap">Registration Date & Time</th>
                   <th className="px-5 py-3.5 text-center whitespace-nowrap">Status / Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredStudents.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-5 py-8 text-center text-slate-400 italic">
+                    <td colSpan="7" className="px-5 py-8 text-center text-slate-400 italic">
                       No student registrations found matching the selected filter.
                     </td>
                   </tr>
@@ -238,6 +254,9 @@ const StudentApprovals = () => {
                             <span className="text-slate-400 text-xs italic">No Photo Available</span>
                           )}
                         </div>
+                      </td>
+                      <td className="px-5 py-3 text-center text-slate-600 font-medium whitespace-nowrap">
+                        {formatDateTime(student.updatedAt || student.createdAt)}
                       </td>
                       <td className="px-5 py-3 text-center whitespace-nowrap">
                         {student.approvalStatus === 'PENDING' ? (

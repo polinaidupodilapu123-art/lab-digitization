@@ -14,6 +14,22 @@ const BOSDashboard = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState('PENDING'); // 'ALL', 'PENDING', 'APPROVED', 'REJECTED'
+  const [principalsSearch, setPrincipalsSearch] = useState('');
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${day}/${month}/${year} ${String(hours).padStart(2, '0')}:${minutes}(${ampm})`;
+  };
 
   // UI state
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
@@ -231,8 +247,13 @@ const BOSDashboard = () => {
 
   // Computed values for principals filtering
   const filteredPrincipals = (principals || []).filter(p => {
-    if (statusFilter === 'ALL') return true;
-    return p.approvalStatus === statusFilter;
+    const term = principalsSearch.toLowerCase().trim();
+    const matchesSearch = term ? (
+      (p.fullName || '').toLowerCase().includes(term) ||
+      (p.email || p.regdNo || '').toLowerCase().includes(term)
+    ) : true;
+    const matchesStatus = statusFilter === 'ALL' ? true : p.approvalStatus === statusFilter;
+    return matchesSearch && matchesStatus;
   });
 
   // Computed values for approvals filtering & count
@@ -425,19 +446,33 @@ const BOSDashboard = () => {
                   <span className="text-xs text-slate-400 ml-1">({filteredPrincipals.length} shown)</span>
                 </div>
                 
-                {/* Status Filter Dropdown */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-500">Filter Status:</span>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-3 py-1.5 border border-slate-300 rounded-md text-xs bg-white text-slate-700 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer font-semibold shadow-sm"
-                  >
-                    <option value="ALL">All Statuses</option>
-                    <option value="PENDING">Pending Approval</option>
-                    <option value="APPROVED">Approved</option>
-                    <option value="REJECTED">Rejected</option>
-                  </select>
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      className="pl-8 pr-3 py-1.5 border border-slate-300 rounded-md text-xs bg-white text-slate-700 outline-none focus:ring-2 focus:ring-teal-500 w-48 sm:w-60"
+                      placeholder="Search Name or Email..."
+                      value={principalsSearch}
+                      onChange={(e) => setPrincipalsSearch(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Status Filter Dropdown */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-500">Filter Status:</span>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="px-3 py-1.5 border border-slate-300 rounded-md text-xs bg-white text-slate-700 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer font-semibold shadow-sm"
+                    >
+                      <option value="ALL">All Statuses</option>
+                      <option value="PENDING">Pending Approval</option>
+                      <option value="APPROVED">Approved</option>
+                      <option value="REJECTED">Rejected</option>
+                    </select>
+                  </div>
                 </div>
               </div>
               <div className="w-full overflow-x-auto">
@@ -449,13 +484,14 @@ const BOSDashboard = () => {
                       <th className="px-4 py-3 text-left whitespace-nowrap">College Code</th>
                       <th className="px-4 py-3 text-left whitespace-nowrap">College Name</th>
                       <th className="px-4 py-3 text-center whitespace-nowrap">Registered Photo</th>
+                      <th className="px-4 py-3 text-center whitespace-nowrap">Registration Date & Time</th>
                       <th className="px-4 py-3 text-right whitespace-nowrap">Status / Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPrincipals.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="px-4 py-8 text-center text-slate-400 italic">
+                        <td colSpan="7" className="px-4 py-8 text-center text-slate-400 italic">
                           No principal registrations found matching the selected filter.
                         </td>
                       </tr>
@@ -500,6 +536,9 @@ const BOSDashboard = () => {
                                 <span className="text-slate-400 text-xs italic">No Photo</span>
                               )}
                             </div>
+                          </td>
+                          <td className="px-4 py-2.5 text-center text-slate-700 whitespace-nowrap font-medium">
+                            {formatDateTime(principal.updatedAt || principal.createdAt)}
                           </td>
                           <td className="px-4 py-2.5 text-right whitespace-nowrap">
                             {principal.approvalStatus === 'PENDING' ? (

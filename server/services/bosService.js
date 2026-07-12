@@ -15,7 +15,7 @@ exports.getPendingPrincipals = async () => {
     ]
   })
   .populate('collegeId', 'collegeCode collegeName')
-  .select('regdNo fullName email profileImage collegeId approvalStatus isApproved')
+  .select('regdNo fullName email profileImage collegeId approvalStatus isApproved createdAt updatedAt')
   .lean();
 
   return principals;

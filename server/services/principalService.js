@@ -271,7 +271,7 @@ exports.getPendingApprovals = async (collegeId) => {
     ]
   })
   .populate('courseId', 'courseCode courseName')
-  .select('regdNo fullName email profileImage currentSemester academicYear courseId approvalStatus isApproved')
+  .select('regdNo fullName email profileImage currentSemester academicYear courseId approvalStatus isApproved createdAt updatedAt')
   .lean();
 
   return students;
