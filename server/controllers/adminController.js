@@ -507,3 +507,35 @@ exports.getPaperApprovals = async (req, res) => {
     res.status(error.statusCode || 500).json({ message: error.message });
   }
 };
+
+exports.bulkUpdateAssignmentDeadlines = async (req, res) => {
+  try {
+    const { assignmentIds, deadline, suggestedMarksDeadline } = req.body;
+    if (!assignmentIds || !Array.isArray(assignmentIds) || assignmentIds.length === 0) {
+      return res.status(400).json({ message: 'Assignment IDs must be a non-empty array.' });
+    }
+    if (deadline === undefined && suggestedMarksDeadline === undefined) {
+      return res.status(400).json({ message: 'At least one deadline field must be provided for update.' });
+    }
+
+    const result = await masterDataService.bulkUpdateAssignmentDeadlines({
+      assignmentIds,
+      deadline,
+      suggestedMarksDeadline
+    });
+
+    activityLogService.logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      actionType: 'EXTEND_DEADLINE',
+      details: {
+        type: 'assignments',
+        description: `Bulk updated deadlines for ${assignmentIds.length} assignments`
+      }
+    }).catch(err => console.error("Activity logging failed:", err));
+
+    res.json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};

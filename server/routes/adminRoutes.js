@@ -36,6 +36,7 @@ router.get('/assignment-data', adminController.getAssignmentData);
 
 // Actions
 router.get('/assignments', adminController.getAssignments);
+router.put('/assignments/bulk-deadline', adminController.bulkUpdateAssignmentDeadlines);
 router.post('/evaluators', adminController.createEvaluator);
 router.post('/evaluators/:id/subjects', adminController.assignSubjectsToEvaluator);
 router.post('/assign-subjects', adminController.assignSubjects);

@@ -123,17 +123,18 @@ const CollegeRecords = () => {
                 <th className="px-4 py-3">Regd No.</th>
                 <th className="px-4 py-3">Subject</th>
                 <th className="px-4 py-3 text-center">Status</th>
+                <th className="px-4 py-3 text-center">Suggested Marks Deadline</th>
                 <th className="px-4 py-3 text-center w-48">Suggested Marks</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="px-4 py-8 text-center text-slate-500">Loading records...</td>
+                  <td colSpan="6" className="px-4 py-8 text-center text-slate-500">Loading records...</td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-4 py-8 text-center text-slate-500">No submitted records found.</td>
+                  <td colSpan="6" className="px-4 py-8 text-center text-slate-500">No submitted records found.</td>
                 </tr>
               ) : (
                 filteredRecords.map((record) => (
@@ -150,6 +151,26 @@ const CollegeRecords = () => {
                       }`}>
                         {record.status}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {(() => {
+                        if (record.suggestedMarksDeadline) {
+                          const deadlineDate = new Date(record.suggestedMarksDeadline);
+                          deadlineDate.setHours(23, 59, 59, 999);
+                          const isDeadlinePassed = new Date() > deadlineDate;
+                          const deadlineFormatted = new Date(record.suggestedMarksDeadline).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          });
+                          return (
+                            <span className={`font-semibold ${isDeadlinePassed ? 'text-red-500' : 'text-teal-600'}`}>
+                              {deadlineFormatted} {isDeadlinePassed ? '(Passed)' : ''}
+                            </span>
+                          );
+                        }
+                        return <span className="text-slate-400 italic">No Deadline</span>;
+                      })()}
                     </td>
                     <td className="px-4 py-3">
                       {(() => {
@@ -202,13 +223,6 @@ const CollegeRecords = () => {
                             {hasError && (
                               <span className="text-[10px] text-red-500 font-medium whitespace-nowrap">
                                 Max marks: {maxMarks}
-                              </span>
-                            )}
-                            {record.suggestedMarksDeadline && (
-                              <span className={`text-[10px] font-semibold mt-1 whitespace-nowrap ${
-                                isDeadlinePassed ? 'text-red-500' : 'text-teal-600'
-                              }`}>
-                                {isDeadlinePassed ? `Deadline passed (${deadlineFormatted})` : `Deadline: ${deadlineFormatted}`}
                               </span>
                             )}
                           </div>

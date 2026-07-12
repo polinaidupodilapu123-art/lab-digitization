@@ -79,8 +79,30 @@ const Pagination = ({ total, page, onPage, pageSize = 10 }) => {
   );
 };
 
-const AssignmentTable = ({ title, data, currentPage, setCurrentPage, pageSize = 10, handleExportAssignments, onEditDeadline }) => {
+const AssignmentTable = ({
+  title,
+  data,
+  currentPage,
+  setCurrentPage,
+  pageSize = 10,
+  handleExportAssignments,
+  onEditDeadline,
+  onEditSuggestedDeadline,
+  selectedAssignmentIds,
+  onToggleSelect,
+  onToggleSelectAll
+}) => {
   const pagedData = data.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pagedIds = pagedData.map(a => a._id);
+  const allPagedSelected = pagedIds.length > 0 && pagedIds.every(id => selectedAssignmentIds.includes(id));
+
+  const handleHeaderCheckboxChange = () => {
+    if (allPagedSelected) {
+      onToggleSelectAll(pagedIds, false);
+    } else {
+      onToggleSelectAll(pagedIds, true);
+    }
+  };
 
   return (
     <div className="bg-white border border-slate-200 rounded-md shadow-sm overflow-hidden animate-fadeIn mb-8">
@@ -103,12 +125,21 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, pageSize = 
         <table className="w-full text-sm animate-fadeIn">
           <thead>
             <tr className="bg-teal-700 text-white text-sm font-semibold">
+              <th className="px-4 py-3 text-left w-10">
+                <input
+                  type="checkbox"
+                  checked={allPagedSelected}
+                  onChange={handleHeaderCheckboxChange}
+                  className="h-4 w-4 text-white focus:ring-teal-500 border-slate-300 rounded cursor-pointer"
+                />
+              </th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Subject</th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Mode</th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Student</th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Roll No.</th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Pages</th>
               <th className="px-4 py-3 text-left whitespace-nowrap">Record Submission Deadline</th>
+              <th className="px-4 py-3 text-left whitespace-nowrap">Suggested Marks Deadline</th>
               {/* <th className="px-4 py-3 text-left whitespace-nowrap">Assigned Evaluator</th> */}
               <th className="px-4 py-3 text-left whitespace-nowrap">Status</th>
             </tr>
@@ -116,6 +147,14 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, pageSize = 
           <tbody>
             {pagedData.map((assignment) => (
               <tr key={assignment._id} className="border-b border-slate-100 hover:bg-teal-50 transition-colors">
+                <td className="px-4 py-2.5 text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedAssignmentIds.includes(assignment._id)}
+                    onChange={() => onToggleSelect(assignment._id)}
+                    className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-slate-300 rounded cursor-pointer"
+                  />
+                </td>
                 <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
                   <p className="font-medium text-slate-900">{assignment.groupSubjectName || assignment.subjectId?.subName}</p>
                   <p className="text-xs text-slate-500">{assignment.subjectId?.subCode}</p>
@@ -146,6 +185,24 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, pageSize = 
                     )}
                   </div>
                 </td>
+                <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
+                  <div className="flex items-center gap-2">
+                    {assignment.suggestedMarksDeadline ? (
+                      new Date(assignment.suggestedMarksDeadline).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                    ) : (
+                      <span className="text-slate-400 italic text-xs">Not Set</span>
+                    )}
+                    {onEditSuggestedDeadline && assignment.status === 'Pending' && (
+                      <button
+                        onClick={() => onEditSuggestedDeadline(assignment)}
+                        className="text-slate-400 hover:text-teal-600 transition-colors cursor-pointer p-1"
+                        title="Edit Suggested Marks Deadline"
+                      >
+                        <Edit className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </td>
                 {/* <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">{assignment.evaluatorId?.fullName || <span className="text-slate-400 italic text-xs">Unassigned</span>}</td> */}
                 {/* <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">{assignment.status === 'Evaluated' ? assignment.evaluatorId?.fullName : '—'}</td> */}
                 <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap text-sm">
@@ -167,7 +224,7 @@ const AssignmentTable = ({ title, data, currentPage, setCurrentPage, pageSize = 
             ))}
             {data.length === 0 && (
               <tr>
-                <td colSpan="10" className="px-6 py-8 text-center text-slate-400">
+                <td colSpan="11" className="px-6 py-8 text-center text-slate-400">
                   No assignments have been generated yet.
                 </td>
               </tr>
@@ -212,6 +269,10 @@ const Assignments = () => {
   const [pagesRequired, setPagesRequired] = useState(30);
   const [deadline, setDeadline] = useState('');
   const [suggestedMarksDeadline, setSuggestedMarksDeadline] = useState('');
+  
+  const [selectedAssignmentIds, setSelectedAssignmentIds] = useState([]);
+  const [bulkSubmissionDeadline, setBulkSubmissionDeadline] = useState('');
+  const [bulkSuggestedDeadline, setBulkSuggestedDeadline] = useState('');
 
   const [mode, setMode] = useState('Regular');
   const [showActivity, setShowActivity] = useState(false);
@@ -261,6 +322,7 @@ const Assignments = () => {
       // Sort so newly generated assignments are on top
       const sorted = res.data.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
       setAssignments(sorted);
+      setSelectedAssignmentIds([]);
     } catch (err) {
       console.error('Failed to load assignments');
     }
@@ -487,6 +549,22 @@ const Assignments = () => {
   const [regularPage, setRegularPage] = useState(1);
   const [supplyPage, setSupplyPage] = useState(1);
 
+  const toggleSelectAssignment = (id) => {
+    setSelectedAssignmentIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = (ids, select) => {
+    setSelectedAssignmentIds(prev => {
+      if (select) {
+        return [...new Set([...prev, ...ids])];
+      } else {
+        return prev.filter(id => !ids.includes(id));
+      }
+    });
+  };
+
   const handleEditDeadline = async (assignment) => {
     const currentDeadline = new Date(assignment.deadline).toISOString().split('T')[0];
     const newDeadline = window.prompt("Enter new deadline (YYYY-MM-DD):", currentDeadline);
@@ -509,6 +587,89 @@ const Assignments = () => {
       setRefreshTrigger(prev => prev + 1);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update deadline');
+    }
+    setTimeout(() => { setMessage(''); setError(''); }, 3000);
+  };
+
+  const handleEditSuggestedDeadline = async (assignment) => {
+    const currentDeadline = assignment.suggestedMarksDeadline
+      ? new Date(assignment.suggestedMarksDeadline).toISOString().split('T')[0]
+      : '';
+    const newDeadline = window.prompt("Enter new Suggested Marks Deadline (YYYY-MM-DD):", currentDeadline);
+    if (newDeadline === null || newDeadline === currentDeadline) return;
+
+    if (newDeadline.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(newDeadline.trim())) {
+      alert("Invalid date format. Please use YYYY-MM-DD.");
+      return;
+    }
+
+    try {
+      setMessage('Updating suggested marks deadline...');
+      const res = await axios.put(`${API_BASE_URL}/api/admin/record/assignments/${assignment._id}`,
+        { suggestedMarksDeadline: newDeadline.trim() || null },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      setMessage(res.data.message || 'Suggested marks deadline updated successfully!');
+      fetchAssignments();
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update suggested marks deadline');
+    }
+    setTimeout(() => { setMessage(''); setError(''); }, 3000);
+  };
+
+  const handleBulkUpdateSubmissionDeadline = async () => {
+    if (!bulkSubmissionDeadline) {
+      alert("Please select a valid date for Submission Deadline.");
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(bulkSubmissionDeadline)) {
+      alert("Invalid date format. Please use YYYY-MM-DD.");
+      return;
+    }
+    try {
+      setMessage('Updating submission deadlines...');
+      const res = await axios.put(`${API_BASE_URL}/api/admin/assignments/bulk-deadline`, {
+        assignmentIds: selectedAssignmentIds,
+        deadline: bulkSubmissionDeadline
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setMessage(res.data.message || 'Submission deadlines updated successfully!');
+      setSelectedAssignmentIds([]);
+      setBulkSubmissionDeadline('');
+      fetchAssignments();
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update submission deadlines');
+    }
+    setTimeout(() => { setMessage(''); setError(''); }, 3000);
+  };
+
+  const handleBulkUpdateSuggestedDeadline = async () => {
+    if (!bulkSuggestedDeadline) {
+      alert("Please select a valid date for Suggested Marks Deadline.");
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(bulkSuggestedDeadline)) {
+      alert("Invalid date format. Please use YYYY-MM-DD.");
+      return;
+    }
+    try {
+      setMessage('Updating suggested marks deadlines...');
+      const res = await axios.put(`${API_BASE_URL}/api/admin/assignments/bulk-deadline`, {
+        assignmentIds: selectedAssignmentIds,
+        suggestedMarksDeadline: bulkSuggestedDeadline
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setMessage(res.data.message || 'Suggested marks deadlines updated successfully!');
+      setSelectedAssignmentIds([]);
+      setBulkSuggestedDeadline('');
+      fetchAssignments();
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update suggested marks deadlines');
     }
     setTimeout(() => { setMessage(''); setError(''); }, 3000);
   };
@@ -925,6 +1086,55 @@ const Assignments = () => {
             </div>
           </div>
 
+          {/* Bulk Update Action Bar */}
+          {selectedAssignmentIds.length > 0 && (
+            <div className="bg-teal-50 border border-teal-200 rounded-md p-4 mb-6 flex flex-col lg:flex-row items-center justify-between gap-4 animate-fadeIn shadow-sm">
+              <div className="text-sm text-teal-800 font-semibold flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-teal-600" />
+                <span>{selectedAssignmentIds.length} assignments selected</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-700">Sub. Deadline:</label>
+                  <input
+                    type="date"
+                    className="border border-slate-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-slate-800 bg-white"
+                    value={bulkSubmissionDeadline}
+                    onChange={(e) => setBulkSubmissionDeadline(e.target.value)}
+                  />
+                  <button
+                    onClick={handleBulkUpdateSubmissionDeadline}
+                    className="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded shadow-sm transition-colors cursor-pointer"
+                  >
+                    Update Submission
+                  </button>
+                </div>
+                <div className="h-6 w-px bg-slate-200 hidden lg:block" />
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-700">Suggested Deadline:</label>
+                  <input
+                    type="date"
+                    className="border border-slate-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-slate-800 bg-white"
+                    value={bulkSuggestedDeadline}
+                    onChange={(e) => setBulkSuggestedDeadline(e.target.value)}
+                  />
+                  <button
+                    onClick={handleBulkUpdateSuggestedDeadline}
+                    className="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded shadow-sm transition-colors cursor-pointer"
+                  >
+                    Update Suggested
+                  </button>
+                </div>
+                <button
+                  onClick={() => setSelectedAssignmentIds([])}
+                  className="text-xs text-slate-500 hover:text-slate-700 font-semibold cursor-pointer ml-2 border border-slate-300 bg-white px-2.5 py-1 rounded hover:bg-slate-50 transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+
           <AssignmentTable
             title="Regular Assignments"
             data={regularAssignments}
@@ -932,6 +1142,10 @@ const Assignments = () => {
             setCurrentPage={setRegularPage}
             handleExportAssignments={handleExportAssignments}
             onEditDeadline={handleEditDeadline}
+            onEditSuggestedDeadline={handleEditSuggestedDeadline}
+            selectedAssignmentIds={selectedAssignmentIds}
+            onToggleSelect={toggleSelectAssignment}
+            onToggleSelectAll={handleToggleSelectAll}
           />
 
           <AssignmentTable
@@ -941,6 +1155,10 @@ const Assignments = () => {
             setCurrentPage={setSupplyPage}
             handleExportAssignments={handleExportAssignments}
             onEditDeadline={handleEditDeadline}
+            onEditSuggestedDeadline={handleEditSuggestedDeadline}
+            selectedAssignmentIds={selectedAssignmentIds}
+            onToggleSelect={toggleSelectAssignment}
+            onToggleSelectAll={handleToggleSelectAll}
           />
         </div>
       )}

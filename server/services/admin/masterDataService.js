@@ -856,3 +856,28 @@ exports.promoteStudents = async ({ studentIds, toSemester }) => {
 
   return { message: `${result.modifiedCount} student(s) promoted to ${toSemester} successfully.` };
 };
+
+exports.bulkUpdateAssignmentDeadlines = async ({ assignmentIds, deadline, suggestedMarksDeadline }) => {
+  const updateFields = {};
+  if (deadline !== undefined) {
+    if (deadline === null || deadline === '') {
+      updateFields.deadline = null;
+    } else {
+      updateFields.deadline = new Date(deadline);
+    }
+  }
+  if (suggestedMarksDeadline !== undefined) {
+    if (suggestedMarksDeadline === null || suggestedMarksDeadline === '') {
+      updateFields.suggestedMarksDeadline = null;
+    } else {
+      updateFields.suggestedMarksDeadline = new Date(suggestedMarksDeadline);
+    }
+  }
+
+  const result = await Assignment.updateMany(
+    { _id: { $in: assignmentIds } },
+    { $set: updateFields }
+  );
+
+  return { message: `Successfully updated deadlines for ${result.modifiedCount} assignments.`, modifiedCount: result.modifiedCount };
+};
