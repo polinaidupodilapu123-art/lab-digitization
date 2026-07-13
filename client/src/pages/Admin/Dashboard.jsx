@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Users, BookOpen, School, Database, LogOut, CheckSquare, ClipboardList, Bell, ChevronLeft, ChevronRight, Menu, X } from 'lucide-react';
+import { Users, BookOpen, School, Database, LogOut, CheckSquare, ClipboardList, Bell, ChevronLeft, ChevronRight, Menu, X, LayoutDashboard } from 'lucide-react';
+import Overview from './Overview';
 import MasterData from './MasterData';
 import Assignments from './Assignments';
 import Evaluators from './Evaluators';
@@ -36,7 +37,8 @@ const Dashboard = () => {
   };
 
   const navItems = [
-    { name: 'Master Data', path: '/admin', icon: Database },
+    { name: 'Overview', path: '/admin', icon: LayoutDashboard },
+    { name: 'Master Data', path: '/admin/master-data', icon: Database },
     { name: 'Assign Records', path: '/admin/assignments', icon: CheckSquare },
     { name: 'Evaluators', path: '/admin/evaluators', icon: ClipboardList },
     { name: 'Evaluated Records', path: '/admin/evaluated-records', icon: BookOpen },
@@ -93,8 +95,8 @@ const Dashboard = () => {
                 to={item.path}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`flex items-center px-3 py-3 rounded-md transition-all group relative ${isActive
-                    ? 'bg-teal-50 text-teal-700 font-medium'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-teal-50 text-teal-700 font-medium'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   } ${isSidebarExpanded || isMobileMenuOpen ? 'space-x-3' : 'justify-center'}`}
               >
                 <Icon className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-teal-600' : 'text-slate-400 group-hover:text-teal-500 transition-colors'}`} />
@@ -136,7 +138,8 @@ const Dashboard = () => {
           <SessionTimer />
         </div>
         <Routes>
-          <Route path="/" element={<MasterData />} />
+          <Route path="/" element={<Overview />} />
+          <Route path="/master-data" element={<MasterData />} />
           <Route path="/assignments" element={<Assignments />} />
           <Route path="/evaluators" element={<Evaluators />} />
           <Route path="/evaluated-records" element={<EvaluatedRecords />} />

@@ -539,3 +539,13 @@ exports.bulkUpdateAssignmentDeadlines = async (req, res) => {
     res.status(error.statusCode || 500).json({ message: error.message });
   }
 };
+
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const { collegeId } = req.query;
+    const result = await masterDataService.getDashboardStats(collegeId);
+    res.json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};

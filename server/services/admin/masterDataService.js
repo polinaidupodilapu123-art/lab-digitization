@@ -881,3 +881,46 @@ exports.bulkUpdateAssignmentDeadlines = async ({ assignmentIds, deadline, sugges
 
   return { message: `Successfully updated deadlines for ${result.modifiedCount} assignments.`, modifiedCount: result.modifiedCount };
 };
+
+exports.getDashboardStats = async (collegeId) => {
+  const userFilter = {};
+  if (collegeId && collegeId !== 'all' && collegeId !== 'undefined' && collegeId !== 'null') {
+    userFilter.collegeId = collegeId;
+  }
+
+  // Count Principals
+  const totalPrincipals = await User.countDocuments({ ...userFilter, role: 'PRINCIPAL' });
+  const totalPrincipalsRegistered = await User.countDocuments({ ...userFilter, role: 'PRINCIPAL', isSetupComplete: true });
+
+  // Count Students
+  const totalStudents = await User.countDocuments({ ...userFilter, role: 'STUDENT' });
+  const totalStudentsRegistered = await User.countDocuments({ ...userFilter, role: 'STUDENT', isSetupComplete: true });
+
+  // Count Records (Assignments)
+  let recordFilter = {};
+  if (collegeId && collegeId !== 'all' && collegeId !== 'undefined' && collegeId !== 'null') {
+    // Find all student IDs belonging to this college
+    const studentIds = await User.find({ collegeId, role: 'STUDENT' }).distinct('_id');
+    recordFilter.studentId = { $in: studentIds };
+  }
+
+  const totalRecords = await Assignment.countDocuments(recordFilter);
+  const totalRecordsSubmitted = await Assignment.countDocuments({
+    ...recordFilter,
+    status: { $in: ['Submitted', 'Evaluated'] }
+  });
+  const totalRecordsPending = await Assignment.countDocuments({
+    ...recordFilter,
+    status: 'Pending'
+  });
+
+  return {
+    totalPrincipals,
+    totalPrincipalsRegistered,
+    totalStudents,
+    totalStudentsRegistered,
+    totalRecords,
+    totalRecordsSubmitted,
+    totalRecordsPending
+  };
+};

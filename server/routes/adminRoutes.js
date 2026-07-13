@@ -18,6 +18,7 @@ router.delete('/record/:type/:id', adminController.deleteRecord);
 router.post('/reallocate-evaluator', adminController.reallocateEvaluator);
 
 // Data fetching
+router.get('/dashboard-stats', adminController.getDashboardStats);
 router.get('/students', adminController.getStudents);
 router.get('/subjects', adminController.getSubjects);
 router.get('/evaluators', adminController.getEvaluators);
